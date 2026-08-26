@@ -8,8 +8,9 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -17,27 +18,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MenuProvider } from './context/MenuContext';
 import { InvoiceProvider } from './context/InvoiceContext';
-import CreateInvoiceScreen from './screens/CreateInvoice';
-import ManageMenuScreen from './screens/ManageMenu';
-import HistoryScreen from './screens/HistoryScreen';
 import InvoicePreviewScreen from './screens/InvoicePreview';
+import PremiumProfileScreen from './screens/PremiumProfileScreen';
+import PremiumCreateInvoiceScreen from './screens/PremiumCreateInvoice';
+import PremiumManageMenuScreen from './screens/PremiumManageMenu';
+import PremiumHistoryScreen from './screens/PremiumHistoryScreen';
 
 const APP_PIN = '7977';
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-const PARTICLES = [
-  { id: 'p1', size: 16, left: '8%', top: '14%', color: 'rgba(52, 152, 219, 0.24)', x: 28, y: 42, duration: 6200 },
-  { id: 'p2', size: 12, left: '18%', top: '70%', color: 'rgba(39, 174, 96, 0.2)', x: -20, y: -36, duration: 5400 },
-  { id: 'p3', size: 22, left: '82%', top: '22%', color: 'rgba(241, 196, 15, 0.17)', x: -26, y: 44, duration: 6800 },
-  { id: 'p4', size: 10, left: '74%', top: '62%', color: 'rgba(52, 152, 219, 0.16)', x: 18, y: -30, duration: 5000 },
-  { id: 'p5', size: 18, left: '26%', top: '36%', color: 'rgba(46, 204, 113, 0.16)', x: 24, y: -24, duration: 7200 },
-  { id: 'p6', size: 14, left: '90%', top: '78%', color: 'rgba(243, 156, 18, 0.18)', x: -22, y: -40, duration: 6400 },
-  { id: 'p7', size: 24, left: '6%', top: '46%', color: 'rgba(155, 89, 182, 0.12)', x: 26, y: 24, duration: 7600 },
-  { id: 'p8', size: 12, left: '56%', top: '18%', color: 'rgba(39, 174, 96, 0.17)', x: -16, y: 34, duration: 5800 },
-  { id: 'p9', size: 20, left: '60%', top: '82%', color: 'rgba(52, 152, 219, 0.18)', x: 20, y: -34, duration: 7000 },
-  { id: 'p10', size: 8, left: '42%', top: '60%', color: 'rgba(241, 196, 15, 0.2)', x: -12, y: 20, duration: 4600 },
-];
+
 
 const KEYPAD_ROWS = [
   [
@@ -62,353 +53,89 @@ const KEYPAD_ROWS = [
   ],
 ];
 
-function InvoiceStack() {
+
+
+function PremiumInvoiceStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="CreateInvoiceMain" component={CreateInvoiceScreen} />
+      <Stack.Screen name="PremiumCreateInvoiceMain" component={PremiumCreateInvoiceScreen} />
       <Stack.Screen name="InvoicePreview" component={InvoicePreviewScreen} />
     </Stack.Navigator>
   );
 }
 
-function MainApp() {
-  return (
-    <NavigationContainer>
-      <Tab.Navigator
-        screenOptions={({ route }) => ({
-          tabBarIcon: ({ focused, color, size }) => {
-            let iconName = 'ellipse';
 
-            if (route.name === 'New Bill') {
-              iconName = focused ? 'receipt' : 'receipt-outline';
-            } else if (route.name === 'My Menu') {
-              iconName = focused ? 'restaurant' : 'restaurant-outline';
-            } else if (route.name === 'History') {
-              iconName = focused ? 'time' : 'time-outline';
+
+// --- NEW PREMIUM MAIN APP (LIGHT THEME) ---
+function CustomTabBar({ state, descriptors, navigation }) {
+  return (
+    <View style={styles.floatingTabBarWrapper}>
+      <View style={styles.floatingTabBar}>
+        {state.routes.map((route, index) => {
+          const { options } = descriptors[route.key];
+          const isFocused = state.index === index;
+
+          const onPress = () => {
+            const event = navigation.emit({
+              type: 'tabPress',
+              target: route.key,
+              canPreventDefault: true,
+            });
+
+            if (!isFocused && !event.defaultPrevented) {
+              navigation.navigate({ name: route.name, merge: true });
             }
+          };
 
-            return <Ionicons name={iconName} size={size} color={color} />;
-          },
-          tabBarActiveTintColor: '#3498db',
-          tabBarInactiveTintColor: 'gray',
-          headerStyle: { backgroundColor: '#fff' },
-          headerTitleStyle: { fontWeight: 'bold', color: '#2c3e50' },
-          tabBarStyle: { height: 60, paddingBottom: 10 },
+          let iconName = 'ellipse';
+          if (route.name === 'Home') iconName = 'home';
+          else if (route.name === 'Orders') iconName = 'pricetag';
+          else if (route.name === 'Cart') iconName = 'cart';
+          else if (route.name === 'Profile') iconName = 'person';
+
+          return (
+            <TouchableOpacity
+              key={index}
+              accessibilityRole="button"
+              accessibilityState={isFocused ? { selected: true } : {}}
+              onPress={onPress}
+              style={styles.tabItem}
+            >
+              <View style={[styles.iconContainer, isFocused && styles.activeIconContainer]}>
+                <Ionicons 
+                  name={iconName + (isFocused ? '' : '-outline')} 
+                  size={20} 
+                  color={isFocused ? '#fff' : '#666'} 
+                />
+              </View>
+            </TouchableOpacity>
+          );
         })}
-      >
-        <Tab.Screen
-          name="New Bill"
-          component={InvoiceStack}
-          options={{ title: 'Create Invoice', headerShown: false }}
-        />
-        <Tab.Screen
-          name="My Menu"
-          component={ManageMenuScreen}
-          options={{ title: 'Manage Menu' }}
-        />
-        <Tab.Screen
-          name="History"
-          component={HistoryScreen}
-          options={{ title: 'Past Bills' }}
-        />
-      </Tab.Navigator>
-    </NavigationContainer>
-  );
-}
-
-function AnimatedBackground() {
-  const particleAnimations = useRef(
-    PARTICLES.map(() => ({
-      drift: new Animated.Value(0),
-      pulse: new Animated.Value(0),
-    }))
-  ).current;
-
-  const orbOne = useRef(new Animated.Value(0)).current;
-  const orbTwo = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const particleLoops = particleAnimations.map((animation, index) => {
-      const driftLoop = Animated.loop(
-        Animated.sequence([
-          Animated.timing(animation.drift, {
-            toValue: 1,
-            duration: PARTICLES[index].duration,
-            easing: Easing.inOut(Easing.sin),
-            useNativeDriver: true,
-          }),
-          Animated.timing(animation.drift, {
-            toValue: 0,
-            duration: PARTICLES[index].duration,
-            easing: Easing.inOut(Easing.sin),
-            useNativeDriver: true,
-          }),
-        ])
-      );
-
-      const pulseLoop = Animated.loop(
-        Animated.sequence([
-          Animated.timing(animation.pulse, {
-            toValue: 1,
-            duration: 1700 + index * 110,
-            easing: Easing.inOut(Easing.quad),
-            useNativeDriver: true,
-          }),
-          Animated.timing(animation.pulse, {
-            toValue: 0,
-            duration: 1700 + index * 110,
-            easing: Easing.inOut(Easing.quad),
-            useNativeDriver: true,
-          }),
-        ])
-      );
-
-      driftLoop.start();
-      pulseLoop.start();
-
-      return { driftLoop, pulseLoop };
-    });
-
-    const orbOneLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(orbOne, {
-          toValue: 1,
-          duration: 6800,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(orbOne, {
-          toValue: 0,
-          duration: 6800,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ])
-    );
-
-    const orbTwoLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(orbTwo, {
-          toValue: 1,
-          duration: 7600,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(orbTwo, {
-          toValue: 0,
-          duration: 7600,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ])
-    );
-
-    orbOneLoop.start();
-    orbTwoLoop.start();
-
-    return () => {
-      particleLoops.forEach(({ driftLoop, pulseLoop }) => {
-        driftLoop.stop();
-        pulseLoop.stop();
-      });
-      orbOneLoop.stop();
-      orbTwoLoop.stop();
-    };
-  }, [orbOne, orbTwo, particleAnimations]);
-
-  return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <Animated.View
-        style={[
-          styles.glowOrb,
-          styles.glowOrbLeft,
-          {
-            transform: [
-              {
-                translateY: orbOne.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, 28],
-                }),
-              },
-              {
-                translateX: orbOne.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, -18],
-                }),
-              },
-              {
-                scale: orbOne.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [1, 1.15],
-                }),
-              },
-            ],
-          },
-        ]}
-      />
-      <Animated.View
-        style={[
-          styles.glowOrb,
-          styles.glowOrbRight,
-          {
-            transform: [
-              {
-                translateY: orbTwo.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, -24],
-                }),
-              },
-              {
-                translateX: orbTwo.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, 16],
-                }),
-              },
-              {
-                scale: orbTwo.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [1, 1.12],
-                }),
-              },
-            ],
-          },
-        ]}
-      />
-
-      {PARTICLES.map((particle, index) => {
-        const drift = particleAnimations[index].drift;
-        const pulse = particleAnimations[index].pulse;
-
-        return (
-          <Animated.View
-            key={particle.id}
-            style={[
-              styles.particle,
-              {
-                width: particle.size,
-                height: particle.size,
-                borderRadius: particle.size / 2,
-                left: particle.left,
-                top: particle.top,
-                backgroundColor: particle.color,
-                opacity: pulse.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.35, 0.95],
-                }),
-                transform: [
-                  {
-                    translateX: drift.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0, particle.x],
-                    }),
-                  },
-                  {
-                    translateY: drift.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0, particle.y],
-                    }),
-                  },
-                  {
-                    scale: pulse.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0.85, 1.2],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          />
-        );
-      })}
+      </View>
     </View>
   );
 }
 
-function PinKey({ label, accent, hidden, onPress }) {
-  const press = useRef(new Animated.Value(0)).current;
-
-  if (hidden) {
-    return <View style={styles.keyTouch} />;
-  }
-
-  const handlePressIn = () => {
-    Animated.timing(press, {
-      toValue: 1,
-      duration: 140,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.timing(press, {
-      toValue: 0,
-      duration: 220,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
-  };
-
+function PremiumMainApp({ onLogout }) {
   return (
-    <TouchableOpacity
-      activeOpacity={1}
-      onPress={onPress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      style={styles.keyTouch}
-    >
-      <Animated.View
-        style={[
-          styles.keyShell,
-          accent && styles.keyShellAccent,
-          {
-            transform: [
-              {
-                scale: press.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [1, 0.94],
-                }),
-              },
-            ],
-          },
-        ]}
+    <NavigationContainer>
+      <Tab.Navigator
+        tabBar={(props) => <CustomTabBar {...props} />}
+        screenOptions={{ headerShown: false }}
       >
-        <Animated.View
-          style={[
-            styles.keyGlow,
-            accent && styles.keyGlowAccent,
-            {
-              opacity: press.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0.18, 0.52],
-              }),
-              transform: [
-                {
-                  scale: press.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0.92, 1.08],
-                  }),
-                },
-              ],
-            },
-          ]}
-        />
-        <LinearGradient
-          colors={
-            accent
-              ? ['rgba(255,255,255,0.15)', 'rgba(255,255,255,0.04)']
-              : ['rgba(255,255,255,0.12)', 'rgba(255,255,255,0.03)']
-          }
-          style={styles.keyFace}
-        >
-          <Text style={[styles.keyLabel, accent && styles.keyLabelAccent]}>{label}</Text>
-        </LinearGradient>
-      </Animated.View>
-    </TouchableOpacity>
+        <Tab.Screen name="Home" component={PremiumManageMenuScreen} />
+        <Tab.Screen name="Orders" component={PremiumHistoryScreen} />
+        <Tab.Screen name="Cart" component={PremiumInvoiceStack} />
+        <Tab.Screen name="Profile">
+          {(props) => <PremiumProfileScreen {...props} onLogout={onLogout} />}
+        </Tab.Screen>
+      </Tab.Navigator>
+    </NavigationContainer>
   );
 }
+// ----------------------------------------
 
-function LandingGate({ onUnlock }) {
+function PremiumLandingGate({ onUnlock }) {
   const [isPinModalVisible, setPinModalVisible] = useState(false);
   const [pin, setPin] = useState('');
 
@@ -418,17 +145,13 @@ function LandingGate({ onUnlock }) {
   };
 
   const validatePin = (nextPin) => {
-    if (nextPin.length < 4) {
-      return;
-    }
-
+    if (nextPin.length < 4) return;
     if (nextPin === APP_PIN) {
       setPin('');
       setPinModalVisible(false);
       onUnlock();
       return;
     }
-
     setTimeout(() => {
       Alert.alert('Incorrect PIN', 'Please enter the correct 4-digit PIN.');
       setPin('');
@@ -440,12 +163,8 @@ function LandingGate({ onUnlock }) {
       setPin((current) => current.slice(0, -1));
       return;
     }
-
     setPin((current) => {
-      if (current.length >= 4) {
-        return current;
-      }
-
+      if (current.length >= 4) return current;
       const nextPin = `${current}${value}`;
       validatePin(nextPin);
       return nextPin;
@@ -453,39 +172,74 @@ function LandingGate({ onUnlock }) {
   };
 
   return (
-    <SafeAreaView style={styles.landingContainer}>
-      <LinearGradient colors={['#0c1622', '#142536', '#0f1b2b']} style={styles.landingGradient}>
-        <AnimatedBackground />
+    <SafeAreaView style={styles.premiumContainer}>
+      <LinearGradient colors={['#1a1005', '#000000', '#0a0a0a']} style={styles.premiumGradient}>
+        
+        <View style={[styles.premiumGlowOrb, styles.premiumGlowOrbTop]} />
+        <View style={[styles.premiumGlowOrb, styles.premiumGlowOrbBottom]} />
 
         {!isPinModalVisible ? (
-          <View style={styles.heroContent}>
-            <View style={styles.logoCircle}>
-              <Ionicons name="restaurant" size={42} color="#ffffff" />
+          <View style={styles.premiumHero}>
+            <View style={styles.premiumHeader}>
+              <View style={styles.premiumIconWrap}>
+                <Ionicons name="receipt" size={28} color="#FF7F50" />
+              </View>
+              <View style={styles.premiumProfile}>
+                <Ionicons name="person-circle" size={42} color="#555" />
+                <View style={styles.premiumNotificationDot} />
+              </View>
             </View>
-            <Text style={styles.heroTitle}>SM Catering</Text>
-            <Text style={styles.heroSubtitle}>
-              Billing made simple for everyday catering work.
-            </Text>
+
+            <View style={styles.premiumTextWrap}>
+              <Text style={styles.premiumGreeting}>Hi, Admin 👋</Text>
+              <Text style={styles.premiumTitle}>Smart <Text style={{color: '#FF7F50'}}>Billing!</Text></Text>
+              <Text style={styles.premiumTitle}>Smooth Business.</Text>
+            </View>
+
+            <View style={styles.premiumGlassCard}>
+              <View style={styles.premiumCardHeader}>
+                <Text style={styles.premiumCardTitle}>Daily Overview</Text>
+                <Ionicons name="trending-up" size={20} color="#FF7F50" />
+              </View>
+              <View style={styles.premiumStatsRow}>
+                <View style={styles.premiumStat}>
+                  <Text style={styles.premiumStatValue}>$0.00</Text>
+                  <Text style={styles.premiumStatLabel}>Today's Sales</Text>
+                </View>
+                <View style={styles.premiumStatDivider} />
+                <View style={styles.premiumStat}>
+                  <Text style={styles.premiumStatValue}>0</Text>
+                  <Text style={styles.premiumStatLabel}>Invoices</Text>
+                </View>
+              </View>
+            </View>
+            
+            <View style={{flex: 1}} />
 
             <TouchableOpacity
-              style={styles.launchButton}
-              activeOpacity={0.9}
+              style={styles.premiumUnlockButton}
+              activeOpacity={0.8}
               onPress={() => setPinModalVisible(true)}
             >
-              <LinearGradient colors={['rgba(46, 204, 113, 0.95)', 'rgba(39, 174, 96, 0.95)']} style={styles.launchGradient}>
-                <Ionicons name="lock-closed" size={18} color="#fff" />
-                <Text style={styles.launchButtonText}> Open App</Text>
+              <LinearGradient 
+                colors={['#FF8C00', '#FF4500']} 
+                start={{x: 0, y: 0}} end={{x: 1, y: 1}}
+                style={styles.premiumUnlockGradient}
+              >
+                <Text style={styles.premiumUnlockText}>Access Workspace</Text>
+                <Ionicons name="arrow-forward" size={20} color="#fff" />
               </LinearGradient>
             </TouchableOpacity>
+
           </View>
         ) : null}
       </LinearGradient>
 
       <Modal visible={isPinModalVisible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
+        <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.85)' }]}>
           <View style={styles.pinPadContent}>
             <Text style={styles.modalTitle}>Enter PIN</Text>
-            <Text style={styles.modalSubtitle}>Tap the glowing keys to unlock SM Catering.</Text>
+            <Text style={styles.modalSubtitle}>Unlock your billing workspace.</Text>
 
             <View style={styles.pinDotsRow}>
               {[0, 1, 2, 3].map((index) => (
@@ -493,7 +247,7 @@ function LandingGate({ onUnlock }) {
                   key={`dot-${index}`}
                   style={[
                     styles.pinDot,
-                    index < pin.length && styles.pinDotFilled,
+                    index < pin.length && { backgroundColor: '#FF7F50', borderColor: '#FF7F50', shadowColor: '#FF7F50' },
                   ]}
                 />
               ))}
@@ -516,7 +270,7 @@ function LandingGate({ onUnlock }) {
             </View>
 
             <TouchableOpacity style={styles.closePadButton} onPress={closePinPad}>
-              <Text style={styles.closePadButtonText}>Close</Text>
+              <Text style={[styles.closePadButtonText, { color: '#FF7F50' }]}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -529,11 +283,13 @@ export default function App() {
   const [isUnlocked, setIsUnlocked] = useState(false);
 
   return (
-    <MenuProvider>
-      <InvoiceProvider>
-        {isUnlocked ? <MainApp /> : <LandingGate onUnlock={() => setIsUnlocked(true)} />}
-      </InvoiceProvider>
-    </MenuProvider>
+    <SafeAreaProvider>
+      <MenuProvider>
+        <InvoiceProvider>
+          {isUnlocked ? <PremiumMainApp onLogout={() => setIsUnlocked(false)} /> : <PremiumLandingGate onUnlock={() => setIsUnlocked(true)} />}
+        </InvoiceProvider>
+      </MenuProvider>
+    </SafeAreaProvider>
   );
 }
 
@@ -734,5 +490,198 @@ const styles = StyleSheet.create({
     color: 'rgba(229, 238, 247, 0.84)',
     fontSize: 15,
     fontWeight: '600',
+  },
+  floatingTabBarWrapper: {
+    position: 'absolute',
+    bottom: 30,
+    left: 20,
+    right: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  floatingTabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#111',
+    borderRadius: 40,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    width: '100%',
+    maxWidth: 400,
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  activeIconContainer: {
+    backgroundColor: '#FF7F50', // Orange active circle
+    shadowColor: '#FF7F50',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  premiumContainer: { 
+    flex: 1, 
+    backgroundColor: '#000',
+    height: Platform.OS === 'web' ? '100vh' : '100%',
+    overflow: 'hidden',
+  },
+  premiumGradient: { flex: 1 },
+  premiumGlowOrb: {
+    position: 'absolute',
+    borderRadius: 999,
+    opacity: 0.15,
+  },
+  premiumGlowOrbTop: {
+    width: 300,
+    height: 300,
+    top: -50,
+    right: -100,
+    backgroundColor: '#FF7F50',
+    shadowColor: '#FF7F50',
+    shadowRadius: 50,
+  },
+  premiumGlowOrbBottom: {
+    width: 250,
+    height: 250,
+    bottom: -50,
+    left: -50,
+    backgroundColor: '#FF4500',
+    shadowColor: '#FF4500',
+    shadowRadius: 50,
+  },
+  premiumHero: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 40,
+  },
+  premiumHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  premiumIconWrap: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  premiumProfile: {
+    position: 'relative',
+  },
+  premiumNotificationDot: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#FF0000',
+    borderWidth: 2,
+    borderColor: '#000',
+  },
+  premiumTextWrap: {
+    marginBottom: 40,
+  },
+  premiumGreeting: {
+    color: '#aaa',
+    fontSize: 16,
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  premiumTitle: {
+    color: '#fff',
+    fontSize: 36,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  premiumGlassCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 5,
+  },
+  premiumCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  premiumCardTitle: {
+    color: '#ccc',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  premiumStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  premiumStat: {
+    flex: 1,
+  },
+  premiumStatValue: {
+    color: '#fff',
+    fontSize: 28,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  premiumStatLabel: {
+    color: '#888',
+    fontSize: 12,
+  },
+  premiumStatDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    marginHorizontal: 20,
+  },
+  premiumUnlockButton: {
+    width: '100%',
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#FF4500',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 15,
+    elevation: 8,
+  },
+  premiumUnlockGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+  },
+  premiumUnlockText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+    marginRight: 10,
   },
 });
