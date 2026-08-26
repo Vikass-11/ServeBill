@@ -11,9 +11,23 @@ export const InvoiceProvider = ({ children }) => {
   useEffect(() => {
     const loadInvoices = async () => {
       try {
-        const savedInvoices = await AsyncStorage.getItem('@saved_invoices');
-        if (savedInvoices) {
-          setInvoices(JSON.parse(savedInvoices));
+        // Try to fetch from backend if available
+        let backendData = null;
+        try {
+          const { api } = require('../services/api');
+          backendData = await api.getInvoices();
+        } catch (e) {
+          console.log('Backend not available, using local storage.');
+        }
+
+        if (backendData && backendData.length > 0) {
+          setInvoices(backendData);
+        } else {
+          // Fallback to local storage
+          const savedInvoices = await AsyncStorage.getItem('@saved_invoices');
+          if (savedInvoices) {
+            setInvoices(JSON.parse(savedInvoices));
+          }
         }
         setIsDataLoaded(true); // Tell the app we finished loading
       } catch (error) {
@@ -31,15 +45,23 @@ export const InvoiceProvider = ({ children }) => {
   }, [invoices, isDataLoaded]);
 
   // --- ACTIONS ---
-  const addInvoice = (invoice) => {
-    // FIX APPLIED: Using (prevInvoices) ensures we never overwrite or lose old history
-    // when saving multiple invoices back-to-back.
+  const addInvoice = async (invoice) => {
+    // Optimistic update locally
     setInvoices((prevInvoices) => [invoice, ...prevInvoices]); 
+    
+    // Attempt to sync with backend
+    try {
+      const { api } = require('../services/api');
+      await api.createInvoice(invoice);
+    } catch (e) {
+      console.log('Failed to sync new invoice to backend');
+    }
   };
 
   const deleteInvoice = (id) => {
     // FIX APPLIED: Safely grabbing the previous list before filtering out the deleted bill
     setInvoices((prevInvoices) => prevInvoices.filter(inv => inv.id !== id));
+    // Note: Delete route not implemented in basic backend yet, but would go here
   };
 
   return (

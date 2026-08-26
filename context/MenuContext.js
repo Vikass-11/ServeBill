@@ -14,11 +14,26 @@ export const MenuProvider = ({ children }) => {
   useEffect(() => {
     const loadMenuData = async () => {
       try {
-        const savedTiffin = await AsyncStorage.getItem('@tiffin_items');
-        const savedMeals = await AsyncStorage.getItem('@meal_dishes');
-        
-        if (savedTiffin) setTiffinItems(JSON.parse(savedTiffin));
-        if (savedMeals) setMealDishes(JSON.parse(savedMeals));
+        let backendMenu = null;
+        try {
+          const { api } = require('../services/api');
+          backendMenu = await api.getMenu();
+        } catch (e) {
+          console.log('Backend not available for menu, using local storage.');
+        }
+
+        if (backendMenu && backendMenu.length > 0) {
+          const tiffin = backendMenu.filter(m => m.category === 'tiffin');
+          const meals = backendMenu.filter(m => m.category === 'meal');
+          setTiffinItems(tiffin);
+          setMealDishes(meals);
+        } else {
+          const savedTiffin = await AsyncStorage.getItem('@tiffin_items');
+          const savedMeals = await AsyncStorage.getItem('@meal_dishes');
+          
+          if (savedTiffin) setTiffinItems(JSON.parse(savedTiffin));
+          if (savedMeals) setMealDishes(JSON.parse(savedMeals));
+        }
         
         setIsDataLoaded(true); // Tell the app we finished loading
       } catch (error) {
@@ -43,16 +58,24 @@ export const MenuProvider = ({ children }) => {
   }, [mealDishes, isDataLoaded]);
 
   // --- ACTIONS ---
-  const addTiffinItem = (item) => {
+  const addTiffinItem = async (item) => {
     setTiffinItems([...tiffinItems, item]);
+    try {
+      const { api } = require('../services/api');
+      await api.createMenuItem({ ...item, category: 'tiffin' });
+    } catch(e) {}
   };
 
   const deleteTiffinItem = (id) => {
     setTiffinItems(tiffinItems.filter(item => item.id !== id));
   };
 
-  const addMealDish = (dish) => {
+  const addMealDish = async (dish) => {
     setMealDishes([...mealDishes, dish]);
+    try {
+      const { api } = require('../services/api');
+      await api.createMenuItem({ ...dish, category: 'meal' });
+    } catch(e) {}
   };
 
   const deleteMealDish = (id) => {
