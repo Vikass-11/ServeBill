@@ -53,7 +53,21 @@ const KEYPAD_ROWS = [
   ],
 ];
 
-
+const PinKey = ({ label, onPress, hidden, accent }) => {
+  if (hidden) {
+    return <View style={styles.keyTouch} />;
+  }
+  return (
+    <TouchableOpacity style={styles.keyTouch} onPress={onPress} activeOpacity={0.7}>
+      <View style={[styles.keyShell, accent && styles.keyShellAccent]}>
+        <View style={[styles.keyGlow, accent && styles.keyGlowAccent]} />
+        <View style={styles.keyFace}>
+          <Text style={[styles.keyLabel, accent && styles.keyLabelAccent]}>{label}</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+};
 
 function PremiumInvoiceStack() {
   return (
