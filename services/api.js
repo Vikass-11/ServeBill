@@ -87,5 +87,42 @@ export const api = {
       console.warn('API Error (deleteMenuItem):', error);
       return null;
     }
+  },
+
+  getCustomers: async () => {
+    try {
+      const response = await fetch(`${BASE_URL}/customers`);
+      if (!response.ok) throw new Error('Network error');
+      return await response.json();
+    } catch (error) {
+      console.warn('API Error (getCustomers):', error);
+      return null;
+    }
+  },
+
+  createCustomer: async (customerData) => {
+    try {
+      const response = await fetch(`${BASE_URL}/customers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(customerData)
+      });
+      if (!response.ok) throw new Error('Network error');
+      return await response.json();
+    } catch (error) {
+      console.warn('API Error (createCustomer):', error);
+      return null;
+    }
+  },
+
+  deleteCustomer: async (id) => {
+    try {
+      const response = await fetch(`${BASE_URL}/customers/${id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Network error');
+      return await response.json();
+    } catch (error) {
+      console.warn('API Error (deleteCustomer):', error);
+      return null;
+    }
   }
 };

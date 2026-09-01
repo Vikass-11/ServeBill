@@ -14,6 +14,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { MenuContext } from '../context/MenuContext';
+import { CustomerContext } from '../context/CustomerContext';
 
 export default function PremiumCreateInvoiceScreen({ navigation }) {
   const { tiffinItems, mealDishes } = useContext(MenuContext);
@@ -35,6 +36,10 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
   const [tempMealPrice, setTempMealPrice] = useState('');
   const [tempMealQty, setTempMealQty] = useState('');
   const [tempSelectedDishes, setTempSelectedDishes] = useState([]);
+
+  // CRM
+  const { customers } = useContext(CustomerContext);
+  const [isCustomerModalVisible, setCustomerModalVisible] = useState(false);
 
   const addNewDateEvent = () => {
     setEvents([
@@ -171,6 +176,10 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
           <View style={styles.iconHeading}>
             <Ionicons name="business" size={20} color="#111" />
             <Text style={styles.sectionTitle}>Customer Details</Text>
+            <View style={{flex: 1}} />
+            <TouchableOpacity onPress={() => setCustomerModalVisible(true)} style={styles.pickClientBtn}>
+              <Text style={styles.pickClientText}>Select Saved</Text>
+            </TouchableOpacity>
           </View>
           <View style={styles.inputWrapper}>
             <TextInput
@@ -387,6 +396,39 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
           </View>
         </View>
       </Modal>
+
+      {/* CUSTOMER PICKER MODAL */}
+      <Modal visible={isCustomerModalVisible} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20}}>
+              <Text style={styles.modalTitle}>Select Client</Text>
+              <TouchableOpacity onPress={() => setCustomerModalVisible(false)}>
+                <Ionicons name="close-circle" size={28} color="#ccc" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalScroll}>
+              {(!customers || customers.length === 0) ? (
+                <Text style={{textAlign: 'center', color: '#888', marginTop: 20}}>No clients saved yet.</Text>
+              ) : (
+                customers.map(c => (
+                  <TouchableOpacity
+                    key={c.id}
+                    style={{paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#eee'}}
+                    onPress={() => {
+                      setClientName(c.name);
+                      setCustomerModalVisible(false);
+                    }}
+                  >
+                    <Text style={{fontSize: 16, fontWeight: '600', color: '#111'}}>{c.name}</Text>
+                    <Text style={{fontSize: 13, color: '#888', marginTop: 4}}>{c.phone}</Text>
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -408,6 +450,8 @@ const styles = StyleSheet.create({
   },
   iconHeading: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: '#111', marginLeft: 8 },
+  pickClientBtn: { backgroundColor: '#FFF0EA', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  pickClientText: { color: '#FF7F50', fontSize: 12, fontWeight: '700' },
   inputWrapper: {
       backgroundColor: '#f9f9f9',
       borderRadius: 16,

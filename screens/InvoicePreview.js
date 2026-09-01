@@ -34,6 +34,11 @@ export default function InvoicePreviewScreen({ route, navigation }) {
   const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   const invoiceDate = new Date().toLocaleDateString('en-IN');
+  
+  const subTotal = parseFloat(grandTotal);
+  const taxRate = 0.05; // 5% GST
+  const taxAmount = subTotal * taxRate;
+  const finalTotal = subTotal + taxAmount;
 
   const orderedEvents = useMemo(
     () =>
@@ -68,7 +73,7 @@ export default function InvoicePreviewScreen({ route, navigation }) {
       clientName,
       date: invoiceDate,
       events,
-      grandTotal,
+      grandTotal: finalTotal.toFixed(2),
     };
 
     addInvoice(newInvoice);
@@ -79,7 +84,7 @@ export default function InvoicePreviewScreen({ route, navigation }) {
   const onShare = async () => {
     try {
       await Share.share({
-        message: `Invoice for ${clientName}\nTotal Amount: Rs. ${grandTotal}\nGenerated via ${BUSINESS_DETAILS.name}`,
+        message: `Invoice for ${clientName}\nSubtotal: Rs. ${subTotal.toFixed(2)}\nGST (5%): Rs. ${taxAmount.toFixed(2)}\nTotal Amount: Rs. ${finalTotal.toFixed(2)}\nGenerated via ${BUSINESS_DETAILS.name}`,
       });
     } catch (error) {
       console.log(error.message);
@@ -301,7 +306,16 @@ export default function InvoicePreviewScreen({ route, navigation }) {
             .grand-total {
               margin-top: 22px;
               display: flex;
-              justify-content: flex-end;
+              flex-direction: column;
+              align-items: flex-end;
+              gap: 8px;
+            }
+            .total-row {
+              display: flex;
+              justify-content: space-between;
+              width: 250px;
+              font-size: 1.05em;
+              color: #4f6272;
             }
             .grand-total-box {
               background: #f4fbf6;
@@ -311,6 +325,9 @@ export default function InvoicePreviewScreen({ route, navigation }) {
               font-size: 1.15em;
               font-weight: 700;
               color: #1e8449;
+              display: flex;
+              justify-content: space-between;
+              width: 250px;
             }
           </style>
         </head>
@@ -341,7 +358,18 @@ export default function InvoicePreviewScreen({ route, navigation }) {
           ${eventBlocks}
 
           <div class="grand-total">
-            <div class="grand-total-box">Grand Total: Rs. ${escapeHtml(grandTotal)}</div>
+            <div class="total-row">
+              <span>Subtotal:</span>
+              <span>Rs. ${subTotal.toFixed(2)}</span>
+            </div>
+            <div class="total-row">
+              <span>Tax (GST 5%):</span>
+              <span>Rs. ${taxAmount.toFixed(2)}</span>
+            </div>
+            <div class="grand-total-box">
+              <span>Grand Total:</span>
+              <span>Rs. ${finalTotal.toFixed(2)}</span>
+            </div>
           </div>
         </body>
       </html>
@@ -502,9 +530,17 @@ export default function InvoicePreviewScreen({ route, navigation }) {
         ))}
 
         <View style={styles.totalBlock}>
-          <View style={styles.totalRow}>
+          <View style={styles.totalRowSub}>
+            <Text style={styles.totalLabelSub}>Subtotal</Text>
+            <Text style={styles.totalAmountSub}>Rs. {subTotal.toFixed(2)}</Text>
+          </View>
+          <View style={styles.totalRowSub}>
+            <Text style={styles.totalLabelSub}>Tax (GST 5%)</Text>
+            <Text style={styles.totalAmountSub}>Rs. {taxAmount.toFixed(2)}</Text>
+          </View>
+          <View style={[styles.totalRow, { marginTop: 10 }]}>
             <Text style={styles.totalLabel}>Grand Total</Text>
-            <Text style={[styles.totalAmount, dynamicStyles.totalAmount]}>Rs. {grandTotal}</Text>
+            <Text style={[styles.totalAmount, dynamicStyles.totalAmount]}>Rs. {finalTotal.toFixed(2)}</Text>
           </View>
           <View style={styles.bottomStatus}>
             <Ionicons name="checkmark-circle" size={16} color="#27ae60" />
@@ -622,6 +658,9 @@ const styles = StyleSheet.create({
     borderTopStyle: 'dashed',
     borderTopColor: '#f0f3f5',
   },
+  totalRowSub: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  totalLabelSub: { fontSize: 15, color: '#7f8c8d' },
+  totalAmountSub: { fontSize: 15, fontWeight: '600', color: '#2c3e50' },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   totalLabel: { fontSize: 18, fontWeight: 'bold', color: '#7f8c8d' },
   totalAmount: { fontSize: 28, fontWeight: '900', color: '#27ae60' },
