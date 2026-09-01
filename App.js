@@ -19,7 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MenuProvider } from './context/MenuContext';
 import { InvoiceProvider } from './context/InvoiceContext';
 import InvoicePreviewScreen from './screens/InvoicePreview';
-import PremiumProfileScreen from './screens/PremiumProfileScreen';
+import PremiumAnalyticsScreen from './screens/PremiumAnalyticsScreen';
 import PremiumCreateInvoiceScreen from './screens/PremiumCreateInvoice';
 import PremiumManageMenuScreen from './screens/PremiumManageMenu';
 import PremiumHistoryScreen from './screens/PremiumHistoryScreen';
@@ -108,7 +108,7 @@ function CustomTabBar({ state, descriptors, navigation }) {
           else if (route.name === 'Orders') iconName = 'pricetag';
           else if (route.name === 'Cart') iconName = 'cart';
           else if (route.name === 'Clients') iconName = 'people';
-          else if (route.name === 'Profile') iconName = 'person';
+          else if (route.name === 'Analytics') iconName = 'bar-chart';
 
           return (
             <TouchableOpacity
@@ -144,8 +144,8 @@ function PremiumMainApp({ onLogout }) {
         <Tab.Screen name="Orders" component={PremiumHistoryScreen} />
         <Tab.Screen name="Cart" component={PremiumInvoiceStack} />
         <Tab.Screen name="Clients" component={PremiumCustomersScreen} />
-        <Tab.Screen name="Profile">
-          {(props) => <PremiumProfileScreen {...props} onLogout={onLogout} />}
+        <Tab.Screen name="Analytics">
+          {(props) => <PremiumAnalyticsScreen {...props} onLogout={onLogout} />}
         </Tab.Screen>
       </Tab.Navigator>
     </NavigationContainer>
