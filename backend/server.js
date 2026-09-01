@@ -15,6 +15,7 @@ app.use(express.json());
 let dbConnected = false;
 let memInvoices = [];
 let memMenu = [];
+let memCustomers = [];
 
 const formatDoc = (doc) => {
   const obj = doc.toObject ? doc.toObject() : doc;
@@ -49,6 +50,14 @@ const MenuSchema = new mongoose.Schema({
   category: String
 });
 const MenuItem = mongoose.model('MenuItem', MenuSchema);
+
+const CustomerSchema = new mongoose.Schema({
+  name: String,
+  phone: String,
+  address: String,
+  createdAt: { type: Date, default: Date.now }
+});
+const Customer = mongoose.model('Customer', CustomerSchema);
 
 // API Routes
 app.get('/api/health', (req, res) => {
@@ -127,6 +136,45 @@ app.delete('/api/menu/:id', async (req, res) => {
   }
   try {
     await MenuItem.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Customers
+app.get('/api/customers', async (req, res) => {
+  if (!dbConnected) return res.json(memCustomers);
+  try {
+    const customers = await Customer.find().sort({ createdAt: -1 });
+    res.json(customers.map(formatDoc));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/customers', async (req, res) => {
+  if (!dbConnected) {
+    const newCustomer = { ...req.body, id: Date.now().toString(), createdAt: new Date() };
+    memCustomers.unshift(newCustomer);
+    return res.status(201).json(newCustomer);
+  }
+  try {
+    const newCustomer = new Customer(req.body);
+    const saved = await newCustomer.save();
+    res.status(201).json(formatDoc(saved));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/customers/:id', async (req, res) => {
+  if (!dbConnected) {
+    memCustomers = memCustomers.filter(c => c.id !== req.params.id);
+    return res.json({ success: true });
+  }
+  try {
+    await Customer.findByIdAndDelete(req.params.id);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

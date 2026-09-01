@@ -23,6 +23,8 @@ import PremiumProfileScreen from './screens/PremiumProfileScreen';
 import PremiumCreateInvoiceScreen from './screens/PremiumCreateInvoice';
 import PremiumManageMenuScreen from './screens/PremiumManageMenu';
 import PremiumHistoryScreen from './screens/PremiumHistoryScreen';
+import PremiumCustomersScreen from './screens/PremiumCustomersScreen';
+import { CustomerProvider } from './context/CustomerContext';
 
 const APP_PIN = '7977';
 const Tab = createBottomTabNavigator();
@@ -105,6 +107,7 @@ function CustomTabBar({ state, descriptors, navigation }) {
           if (route.name === 'Home') iconName = 'home';
           else if (route.name === 'Orders') iconName = 'pricetag';
           else if (route.name === 'Cart') iconName = 'cart';
+          else if (route.name === 'Clients') iconName = 'people';
           else if (route.name === 'Profile') iconName = 'person';
 
           return (
@@ -140,6 +143,7 @@ function PremiumMainApp({ onLogout }) {
         <Tab.Screen name="Home" component={PremiumManageMenuScreen} />
         <Tab.Screen name="Orders" component={PremiumHistoryScreen} />
         <Tab.Screen name="Cart" component={PremiumInvoiceStack} />
+        <Tab.Screen name="Clients" component={PremiumCustomersScreen} />
         <Tab.Screen name="Profile">
           {(props) => <PremiumProfileScreen {...props} onLogout={onLogout} />}
         </Tab.Screen>
@@ -150,8 +154,18 @@ function PremiumMainApp({ onLogout }) {
 // ----------------------------------------
 
 function PremiumLandingGate({ onUnlock }) {
+  const { invoices } = useContext(InvoiceContext);
   const [isPinModalVisible, setPinModalVisible] = useState(false);
   const [pin, setPin] = useState('');
+
+  const todayStr = new Date().toLocaleDateString('en-IN');
+  const todayInvoices = invoices.filter(i => {
+    // If it's stored exactly as DD/MM/YYYY or similar, fallback to Date parsing
+    if (i.date === todayStr) return true;
+    try { return new Date(i.date).toLocaleDateString('en-IN') === todayStr; } catch { return false; }
+  });
+  const todaysSales = todayInvoices.reduce((sum, inv) => sum + parseFloat(inv.grandTotal || 0), 0);
+  const todaysCount = todayInvoices.length;
 
   const closePinPad = () => {
     setPin('');
@@ -187,7 +201,7 @@ function PremiumLandingGate({ onUnlock }) {
 
   return (
     <SafeAreaView style={styles.premiumContainer}>
-      <LinearGradient colors={['#1a1005', '#000000', '#0a0a0a']} style={styles.premiumGradient}>
+      <LinearGradient colors={['#FAF9F6', '#FAF9F6', '#FAF9F6']} style={styles.premiumGradient}>
         
         <View style={[styles.premiumGlowOrb, styles.premiumGlowOrbTop]} />
         <View style={[styles.premiumGlowOrb, styles.premiumGlowOrbBottom]} />
@@ -199,7 +213,7 @@ function PremiumLandingGate({ onUnlock }) {
                 <Ionicons name="receipt" size={28} color="#FF7F50" />
               </View>
               <View style={styles.premiumProfile}>
-                <Ionicons name="person-circle" size={42} color="#555" />
+                <Ionicons name="person-circle" size={42} color="#111" />
                 <View style={styles.premiumNotificationDot} />
               </View>
             </View>
@@ -217,13 +231,13 @@ function PremiumLandingGate({ onUnlock }) {
               </View>
               <View style={styles.premiumStatsRow}>
                 <View style={styles.premiumStat}>
-                  <Text style={styles.premiumStatValue}>$0.00</Text>
+                  <Text style={styles.premiumStatValue}>${todaysSales.toFixed(2)}</Text>
                   <Text style={styles.premiumStatLabel}>Today's Sales</Text>
                 </View>
                 <View style={styles.premiumStatDivider} />
                 <View style={styles.premiumStat}>
-                  <Text style={styles.premiumStatValue}>0</Text>
-                  <Text style={styles.premiumStatLabel}>Invoices</Text>
+                  <Text style={styles.premiumStatValue}>{todaysCount}</Text>
+                  <Text style={styles.premiumStatLabel}>Today's Invoices</Text>
                 </View>
               </View>
             </View>
@@ -236,7 +250,7 @@ function PremiumLandingGate({ onUnlock }) {
               onPress={() => setPinModalVisible(true)}
             >
               <LinearGradient 
-                colors={['#FF8C00', '#FF4500']} 
+                colors={['#111', '#111']} 
                 start={{x: 0, y: 0}} end={{x: 1, y: 1}}
                 style={styles.premiumUnlockGradient}
               >
@@ -250,7 +264,7 @@ function PremiumLandingGate({ onUnlock }) {
       </LinearGradient>
 
       <Modal visible={isPinModalVisible} transparent animationType="fade">
-        <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.85)' }]}>
+        <View style={[styles.modalOverlay, { backgroundColor: 'rgba(250, 249, 246, 0.95)' }]}>
           <View style={styles.pinPadContent}>
             <Text style={styles.modalTitle}>Enter PIN</Text>
             <Text style={styles.modalSubtitle}>Unlock your billing workspace.</Text>
@@ -300,7 +314,9 @@ export default function App() {
     <SafeAreaProvider>
       <MenuProvider>
         <InvoiceProvider>
-          {isUnlocked ? <PremiumMainApp onLogout={() => setIsUnlocked(false)} /> : <PremiumLandingGate onUnlock={() => setIsUnlocked(true)} />}
+          <CustomerProvider>
+            {isUnlocked ? <PremiumMainApp onLogout={() => setIsUnlocked(false)} /> : <PremiumLandingGate onUnlock={() => setIsUnlocked(true)} />}
+          </CustomerProvider>
         </InvoiceProvider>
       </MenuProvider>
     </SafeAreaProvider>
@@ -391,7 +407,7 @@ const styles = StyleSheet.create({
   launchButtonText: { color: '#fff', fontSize: 17, fontWeight: 'bold' },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(4, 10, 18, 0.62)',
+    backgroundColor: 'rgba(250, 249, 246, 0.95)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -404,15 +420,12 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#f9fbff',
+    color: '#111',
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.35)',
-    textShadowOffset: { width: 0, height: 4 },
-    textShadowRadius: 10,
   },
   modalSubtitle: {
     fontSize: 13,
-    color: 'rgba(228, 237, 247, 0.72)',
+    color: '#888',
     textAlign: 'center',
     marginTop: 8,
     marginBottom: 16,
@@ -427,16 +440,13 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
     marginHorizontal: 7,
-    backgroundColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: '#eee',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
+    borderColor: '#ddd',
   },
   pinDotFilled: {
-    backgroundColor: '#5bc0ff',
-    borderColor: 'rgba(160, 225, 255, 0.72)',
-    shadowColor: '#5bc0ff',
-    shadowOpacity: 0.6,
-    shadowRadius: 8,
+    backgroundColor: '#FF7F50',
+    borderColor: '#FF7F50',
   },
   keypadWrap: {
     marginTop: 2,
@@ -456,27 +466,27 @@ const styles = StyleSheet.create({
     borderRadius: 36,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    shadowColor: '#ffffff',
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
+    borderColor: '#eee',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
     shadowOffset: { width: 0, height: 3 },
-    overflow: 'hidden',
+    elevation: 2,
   },
   keyShellAccent: {
-    borderColor: 'rgba(124, 208, 255, 0.25)',
+    borderColor: '#FF7F50',
   },
   keyGlow: {
     position: 'absolute',
     width: 68,
     height: 68,
     borderRadius: 34,
-    backgroundColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: 'transparent',
   },
   keyGlowAccent: {
-    backgroundColor: 'rgba(91, 192, 255, 0.32)',
+    backgroundColor: 'transparent',
   },
   keyFace: {
     width: '100%',
@@ -486,13 +496,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   keyLabel: {
-    color: '#ffffff',
+    color: '#111',
     fontSize: 24,
     fontWeight: '600',
   },
   keyLabelAccent: {
     fontSize: 21,
-    color: '#eaf7ff',
+    color: '#FF7F50',
   },
   closePadButton: {
     marginTop: 4,
@@ -501,7 +511,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
   },
   closePadButtonText: {
-    color: 'rgba(229, 238, 247, 0.84)',
+    color: '#888',
     fontSize: 15,
     fontWeight: '600',
   },
@@ -550,7 +560,7 @@ const styles = StyleSheet.create({
   },
   premiumContainer: { 
     flex: 1, 
-    backgroundColor: '#000',
+    backgroundColor: '#FAF9F6',
     height: Platform.OS === 'web' ? '100vh' : '100%',
     overflow: 'hidden',
   },
@@ -558,15 +568,15 @@ const styles = StyleSheet.create({
   premiumGlowOrb: {
     position: 'absolute',
     borderRadius: 999,
-    opacity: 0.15,
+    opacity: 0.4,
   },
   premiumGlowOrbTop: {
     width: 300,
     height: 300,
     top: -50,
     right: -100,
-    backgroundColor: '#FF7F50',
-    shadowColor: '#FF7F50',
+    backgroundColor: '#FFF0EA',
+    shadowColor: '#FFF0EA',
     shadowRadius: 50,
   },
   premiumGlowOrbBottom: {
@@ -574,8 +584,8 @@ const styles = StyleSheet.create({
     height: 250,
     bottom: -50,
     left: -50,
-    backgroundColor: '#FF4500',
-    shadowColor: '#FF4500',
+    backgroundColor: '#FFF0EA',
+    shadowColor: '#FFF0EA',
     shadowRadius: 50,
   },
   premiumHero: {
@@ -594,9 +604,9 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#FFF0EA',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: '#eee',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -612,32 +622,32 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: '#FF0000',
     borderWidth: 2,
-    borderColor: '#000',
+    borderColor: '#fff',
   },
   premiumTextWrap: {
     marginBottom: 40,
   },
   premiumGreeting: {
-    color: '#aaa',
+    color: '#888',
     fontSize: 16,
     marginBottom: 8,
     fontWeight: '500',
   },
   premiumTitle: {
-    color: '#fff',
+    color: '#111',
     fontSize: 36,
     fontWeight: '700',
     letterSpacing: 0.5,
   },
   premiumGlassCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#fff',
     borderRadius: 24,
     padding: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: '#eee',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.05,
     shadowRadius: 20,
     elevation: 5,
   },
@@ -648,7 +658,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   premiumCardTitle: {
-    color: '#ccc',
+    color: '#888',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -661,7 +671,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   premiumStatValue: {
-    color: '#fff',
+    color: '#111',
     fontSize: 28,
     fontWeight: '700',
     marginBottom: 4,
@@ -673,18 +683,18 @@ const styles = StyleSheet.create({
   premiumStatDivider: {
     width: 1,
     height: 40,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#eee',
     marginHorizontal: 20,
   },
   premiumUnlockButton: {
     width: '100%',
-    borderRadius: 20,
+    borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#FF4500',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.1,
     shadowRadius: 15,
-    elevation: 8,
+    elevation: 4,
   },
   premiumUnlockGradient: {
     flexDirection: 'row',
