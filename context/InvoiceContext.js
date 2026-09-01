@@ -52,16 +52,25 @@ export const InvoiceProvider = ({ children }) => {
     // Attempt to sync with backend
     try {
       const { api } = require('../services/api');
-      await api.createInvoice(invoice);
+      const savedInvoice = await api.createInvoice(invoice);
+      if (savedInvoice) {
+        setInvoices(prevInvoices => prevInvoices.map(inv => inv.id === invoice.id ? savedInvoice : inv));
+      }
     } catch (e) {
       console.log('Failed to sync new invoice to backend');
     }
   };
 
-  const deleteInvoice = (id) => {
+  const deleteInvoice = async (id) => {
     // FIX APPLIED: Safely grabbing the previous list before filtering out the deleted bill
     setInvoices((prevInvoices) => prevInvoices.filter(inv => inv.id !== id));
-    // Note: Delete route not implemented in basic backend yet, but would go here
+    
+    try {
+      const { api } = require('../services/api');
+      await api.deleteInvoice(id);
+    } catch (e) {
+      console.log('Failed to delete invoice from backend');
+    }
   };
 
   return (

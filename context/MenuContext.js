@@ -59,27 +59,45 @@ export const MenuProvider = ({ children }) => {
 
   // --- ACTIONS ---
   const addTiffinItem = async (item) => {
-    setTiffinItems([...tiffinItems, item]);
+    setTiffinItems(prev => [...prev, item]);
     try {
       const { api } = require('../services/api');
-      await api.createMenuItem({ ...item, category: 'tiffin' });
-    } catch(e) {}
+      const savedItem = await api.createMenuItem({ ...item, category: 'tiffin' });
+      if (savedItem) {
+        setTiffinItems(prev => prev.map(i => i.id === item.id ? savedItem : i));
+      }
+    } catch(e) {
+      console.warn("Failed to sync new tiffin to backend");
+    }
   };
 
-  const deleteTiffinItem = (id) => {
-    setTiffinItems(tiffinItems.filter(item => item.id !== id));
+  const deleteTiffinItem = async (id) => {
+    setTiffinItems(prev => prev.filter(item => item.id !== id));
+    try {
+      const { api } = require('../services/api');
+      await api.deleteMenuItem(id);
+    } catch(e) {}
   };
 
   const addMealDish = async (dish) => {
-    setMealDishes([...mealDishes, dish]);
+    setMealDishes(prev => [...prev, dish]);
     try {
       const { api } = require('../services/api');
-      await api.createMenuItem({ ...dish, category: 'meal' });
-    } catch(e) {}
+      const savedDish = await api.createMenuItem({ ...dish, category: 'meal' });
+      if (savedDish) {
+        setMealDishes(prev => prev.map(d => d.id === dish.id ? savedDish : d));
+      }
+    } catch(e) {
+      console.warn("Failed to sync new meal dish to backend");
+    }
   };
 
-  const deleteMealDish = (id) => {
-    setMealDishes(mealDishes.filter(dish => dish.id !== id));
+  const deleteMealDish = async (id) => {
+    setMealDishes(prev => prev.filter(dish => dish.id !== id));
+    try {
+      const { api } = require('../services/api');
+      await api.deleteMenuItem(id);
+    } catch(e) {}
   };
 
   return (

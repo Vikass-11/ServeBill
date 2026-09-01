@@ -65,5 +65,27 @@ export const api = {
       console.warn('API Error (createMenuItem):', error);
       return null;
     }
+  },
+
+  deleteInvoice: async (id) => {
+    try {
+      const response = await fetch(`${BASE_URL}/invoices/${id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Network error');
+      return await response.json();
+    } catch (error) {
+      console.warn('API Error (deleteInvoice):', error);
+      return null;
+    }
+  },
+
+  deleteMenuItem: async (id) => {
+    try {
+      const response = await fetch(`${BASE_URL}/menu/${id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Network error');
+      return await response.json();
+    } catch (error) {
+      console.warn('API Error (deleteMenuItem):', error);
+      return null;
+    }
   }
 };
