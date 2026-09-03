@@ -29,7 +29,13 @@
     "plugins": [
       "@react-native-community/datetimepicker",
       "expo-asset",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow Short Invoice to use Face ID to unlock."
+        }
+      ]
     ],
     "extra": {
       "eas": {
