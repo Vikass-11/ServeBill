@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useContext } from 'react';
 import {
   Alert,
   Animated,
@@ -17,7 +17,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MenuProvider } from './context/MenuContext';
-import { InvoiceProvider } from './context/InvoiceContext';
+import { InvoiceProvider, InvoiceContext } from './context/InvoiceContext';
 import InvoicePreviewScreen from './screens/InvoicePreview';
 import PremiumAnalyticsScreen from './screens/PremiumAnalyticsScreen';
 import PremiumCreateInvoiceScreen from './screens/PremiumCreateInvoice';
@@ -552,6 +552,7 @@ const styles = StyleSheet.create({
   },
   activeIconContainer: {
     backgroundColor: '#FF7F50', // Orange active circle
+    borderRadius: 22,
     shadowColor: '#FF7F50',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
