@@ -25,51 +25,10 @@ import PremiumManageMenuScreen from './screens/PremiumManageMenu';
 import PremiumHistoryScreen from './screens/PremiumHistoryScreen';
 import PremiumCustomersScreen from './screens/PremiumCustomersScreen';
 import { CustomerProvider } from './context/CustomerContext';
+import * as LocalAuthentication from 'expo-local-authentication';
 
-const APP_PIN = '7977';
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
-
-
-
-const KEYPAD_ROWS = [
-  [
-    { label: '1', value: '1' },
-    { label: '2', value: '2' },
-    { label: '3', value: '3' },
-  ],
-  [
-    { label: '4', value: '4' },
-    { label: '5', value: '5' },
-    { label: '6', value: '6' },
-  ],
-  [
-    { label: '7', value: '7' },
-    { label: '8', value: '8' },
-    { label: '9', value: '9' },
-  ],
-  [
-    { label: '', value: 'empty', hidden: true },
-    { label: '0', value: '0' },
-    { label: '⌫', value: 'backspace', accent: true },
-  ],
-];
-
-const PinKey = ({ label, onPress, hidden, accent }) => {
-  if (hidden) {
-    return <View style={styles.keyTouch} />;
-  }
-  return (
-    <TouchableOpacity style={styles.keyTouch} onPress={onPress} activeOpacity={0.7}>
-      <View style={[styles.keyShell, accent && styles.keyShellAccent]}>
-        <View style={[styles.keyGlow, accent && styles.keyGlowAccent]} />
-        <View style={styles.keyFace}>
-          <Text style={[styles.keyLabel, accent && styles.keyLabelAccent]}>{label}</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-};
 
 function PremiumInvoiceStack() {
   return (
@@ -155,8 +114,6 @@ function PremiumMainApp({ onLogout }) {
 
 function PremiumLandingGate({ onUnlock }) {
   const { invoices } = useContext(InvoiceContext);
-  const [isPinModalVisible, setPinModalVisible] = useState(false);
-  const [pin, setPin] = useState('');
 
   const todayStr = new Date().toLocaleDateString('en-IN');
   const todayInvoices = invoices.filter(i => {
@@ -167,36 +124,32 @@ function PremiumLandingGate({ onUnlock }) {
   const todaysSales = todayInvoices.reduce((sum, inv) => sum + parseFloat(inv.grandTotal || 0), 0);
   const todaysCount = todayInvoices.length;
 
-  const closePinPad = () => {
-    setPin('');
-    setPinModalVisible(false);
-  };
-
-  const validatePin = (nextPin) => {
-    if (nextPin.length < 4) return;
-    if (nextPin === APP_PIN) {
-      setPin('');
-      setPinModalVisible(false);
+  const handleBiometricAuth = async () => {
+    if (Platform.OS === 'web') {
       onUnlock();
       return;
     }
-    setTimeout(() => {
-      Alert.alert('Incorrect PIN', 'Please enter the correct 4-digit PIN.');
-      setPin('');
-    }, 120);
-  };
 
-  const handleKeyPress = (value) => {
-    if (value === 'backspace') {
-      setPin((current) => current.slice(0, -1));
+    const hasHardware = await LocalAuthentication.hasHardwareAsync();
+    const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+    if (!hasHardware || !isEnrolled) {
+      Alert.alert('No Security Setup', 'Please set up a screen lock or fingerprint on your device to use this app securely.');
       return;
     }
-    setPin((current) => {
-      if (current.length >= 4) return current;
-      const nextPin = `${current}${value}`;
-      validatePin(nextPin);
-      return nextPin;
+
+    const result = await LocalAuthentication.authenticateAsync({
+      promptMessage: 'Unlock Workspace',
+      fallbackLabel: 'Use PIN',
+      cancelLabel: 'Cancel',
+      disableDeviceFallback: false,
     });
+
+    if (result.success) {
+      onUnlock();
+    } else if (result.error !== 'user_cancel') {
+      Alert.alert('Authentication Failed', 'Please try again.');
+    }
   };
 
   return (
@@ -206,8 +159,7 @@ function PremiumLandingGate({ onUnlock }) {
         <View style={[styles.premiumGlowOrb, styles.premiumGlowOrbTop]} />
         <View style={[styles.premiumGlowOrb, styles.premiumGlowOrbBottom]} />
 
-        {!isPinModalVisible ? (
-          <View style={styles.premiumHero}>
+        <View style={styles.premiumHero}>
             <View style={styles.premiumHeader}>
               <View style={styles.premiumIconWrap}>
                 <Ionicons name="receipt" size={28} color="#FF7F50" />
@@ -247,7 +199,7 @@ function PremiumLandingGate({ onUnlock }) {
             <TouchableOpacity
               style={styles.premiumUnlockButton}
               activeOpacity={0.8}
-              onPress={() => setPinModalVisible(true)}
+              onPress={handleBiometricAuth}
             >
               <LinearGradient 
                 colors={['#111', '#111']} 
@@ -260,49 +212,7 @@ function PremiumLandingGate({ onUnlock }) {
             </TouchableOpacity>
 
           </View>
-        ) : null}
       </LinearGradient>
-
-      <Modal visible={isPinModalVisible} transparent animationType="fade">
-        <View style={[styles.modalOverlay, { backgroundColor: 'rgba(250, 249, 246, 0.95)' }]}>
-          <View style={styles.pinPadContent}>
-            <Text style={styles.modalTitle}>Enter PIN</Text>
-            <Text style={styles.modalSubtitle}>Unlock your billing workspace.</Text>
-
-            <View style={styles.pinDotsRow}>
-              {[0, 1, 2, 3].map((index) => (
-                <View
-                  key={`dot-${index}`}
-                  style={[
-                    styles.pinDot,
-                    index < pin.length && { backgroundColor: '#FF7F50', borderColor: '#FF7F50', shadowColor: '#FF7F50' },
-                  ]}
-                />
-              ))}
-            </View>
-
-            <View style={styles.keypadWrap}>
-              {KEYPAD_ROWS.map((row, rowIndex) => (
-                <View key={`row-${rowIndex}`} style={styles.keypadRow}>
-                  {row.map((keyItem) => (
-                    <PinKey
-                      key={`${rowIndex}-${keyItem.value}`}
-                      label={keyItem.label}
-                      accent={keyItem.accent}
-                      hidden={keyItem.hidden}
-                      onPress={() => handleKeyPress(keyItem.value)}
-                    />
-                  ))}
-                </View>
-              ))}
-            </View>
-
-            <TouchableOpacity style={styles.closePadButton} onPress={closePinPad}>
-              <Text style={[styles.closePadButtonText, { color: '#FF7F50' }]}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -405,116 +315,6 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   launchButtonText: { color: '#fff', fontSize: 17, fontWeight: 'bold' },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(250, 249, 246, 0.95)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  pinPadContent: {
-    width: '100%',
-    maxWidth: 300,
-    alignItems: 'center',
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#111',
-    textAlign: 'center',
-  },
-  modalSubtitle: {
-    fontSize: 13,
-    color: '#888',
-    textAlign: 'center',
-    marginTop: 8,
-    marginBottom: 16,
-  },
-  pinDotsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  pinDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginHorizontal: 7,
-    backgroundColor: '#eee',
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  pinDotFilled: {
-    backgroundColor: '#FF7F50',
-    borderColor: '#FF7F50',
-  },
-  keypadWrap: {
-    marginTop: 2,
-  },
-  keypadRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  keyTouch: {
-    width: '30%',
-    alignItems: 'center',
-  },
-  keyShell: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#eee',
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
-  },
-  keyShellAccent: {
-    borderColor: '#FF7F50',
-  },
-  keyGlow: {
-    position: 'absolute',
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: 'transparent',
-  },
-  keyGlowAccent: {
-    backgroundColor: 'transparent',
-  },
-  keyFace: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 36,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  keyLabel: {
-    color: '#111',
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  keyLabelAccent: {
-    fontSize: 21,
-    color: '#FF7F50',
-  },
-  closePadButton: {
-    marginTop: 4,
-    alignSelf: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-  },
-  closePadButtonText: {
-    color: '#888',
-    fontSize: 15,
-    fontWeight: '600',
-  },
   floatingTabBarWrapper: {
     position: 'absolute',
     bottom: 30,
