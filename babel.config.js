@@ -4,8 +4,6 @@ module.exports = function(api) {
     presets: [
       ['babel-preset-expo', { unstable_transformProfile: 'hermes-v0' }]
     ],
-    plugins: [
-      'react-native-reanimated/plugin',
-    ],
+    plugins: [],
   };
 };
