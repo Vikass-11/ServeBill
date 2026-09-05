@@ -25,21 +25,39 @@ import PremiumManageMenuScreen from './screens/PremiumManageMenu';
 import PremiumHistoryScreen from './screens/PremiumHistoryScreen';
 import PremiumCustomersScreen from './screens/PremiumCustomersScreen';
 import { CustomerProvider } from './context/CustomerContext';
+import { BusinessProvider } from './context/BusinessContext';
+import OverallDashboardScreen from './screens/OverallDashboardScreen';
+import ShopDashboardScreen from './screens/shop/ShopDashboardScreen';
+import AddShopSaleScreen from './screens/shop/AddShopSaleScreen';
+import AddShopExpenseScreen from './screens/shop/AddShopExpenseScreen';
+import CateringDashboardScreen from './screens/catering/CateringDashboardScreen';
+import CateringOrderDetailsScreen from './screens/catering/CateringOrderDetailsScreen';
 import * as LocalAuthentication from 'expo-local-authentication';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-function PremiumInvoiceStack() {
+function CateringStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="PremiumCreateInvoiceMain" component={PremiumCreateInvoiceScreen} />
+      <Stack.Screen name="CateringDashboard" component={CateringDashboardScreen} />
+      <Stack.Screen name="CateringOrders" component={PremiumHistoryScreen} />
+      <Stack.Screen name="CateringOrderDetails" component={CateringOrderDetailsScreen} />
+      <Stack.Screen name="CreateCateringOrder" component={PremiumCreateInvoiceScreen} />
       <Stack.Screen name="InvoicePreview" component={InvoicePreviewScreen} />
     </Stack.Navigator>
   );
 }
 
-
+function ShopStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="ShopDashboard" component={ShopDashboardScreen} />
+      <Stack.Screen name="AddShopSale" component={AddShopSaleScreen} />
+      <Stack.Screen name="AddShopExpense" component={AddShopExpenseScreen} />
+    </Stack.Navigator>
+  );
+}
 
 // --- NEW PREMIUM MAIN APP (LIGHT THEME) ---
 function CustomTabBar({ state, descriptors, navigation }) {
@@ -63,11 +81,11 @@ function CustomTabBar({ state, descriptors, navigation }) {
           };
 
           let iconName = 'ellipse';
-          if (route.name === 'Home') iconName = 'home';
-          else if (route.name === 'Orders') iconName = 'pricetag';
-          else if (route.name === 'Cart') iconName = 'cart';
+          if (route.name === 'Overview') iconName = 'briefcase';
+          else if (route.name === 'Shop') iconName = 'storefront';
+          else if (route.name === 'Catering') iconName = 'restaurant';
+          else if (route.name === 'Menu') iconName = 'fast-food';
           else if (route.name === 'Clients') iconName = 'people';
-          else if (route.name === 'Analytics') iconName = 'bar-chart';
 
           return (
             <TouchableOpacity
@@ -99,13 +117,11 @@ function PremiumMainApp({ onLogout }) {
         tabBar={(props) => <CustomTabBar {...props} />}
         screenOptions={{ headerShown: false }}
       >
-        <Tab.Screen name="Home" component={PremiumManageMenuScreen} />
-        <Tab.Screen name="Orders" component={PremiumHistoryScreen} />
-        <Tab.Screen name="Cart" component={PremiumInvoiceStack} />
+        <Tab.Screen name="Overview" component={OverallDashboardScreen} />
+        <Tab.Screen name="Shop" component={ShopStack} />
+        <Tab.Screen name="Catering" component={CateringStack} />
+        <Tab.Screen name="Menu" component={PremiumManageMenuScreen} />
         <Tab.Screen name="Clients" component={PremiumCustomersScreen} />
-        <Tab.Screen name="Analytics">
-          {(props) => <PremiumAnalyticsScreen {...props} onLogout={onLogout} />}
-        </Tab.Screen>
       </Tab.Navigator>
     </NavigationContainer>
   );
@@ -222,13 +238,15 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <MenuProvider>
-        <InvoiceProvider>
-          <CustomerProvider>
-            {isUnlocked ? <PremiumMainApp onLogout={() => setIsUnlocked(false)} /> : <PremiumLandingGate onUnlock={() => setIsUnlocked(true)} />}
-          </CustomerProvider>
-        </InvoiceProvider>
-      </MenuProvider>
+      <BusinessProvider>
+        <MenuProvider>
+          <InvoiceProvider>
+            <CustomerProvider>
+              {isUnlocked ? <PremiumMainApp onLogout={() => setIsUnlocked(false)} /> : <PremiumLandingGate onUnlock={() => setIsUnlocked(true)} />}
+            </CustomerProvider>
+          </InvoiceProvider>
+        </MenuProvider>
+      </BusinessProvider>
     </SafeAreaProvider>
   );
 }
