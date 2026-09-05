@@ -90,7 +90,7 @@ export default function PremiumAnalyticsScreen({ onLogout }) {
             }}
             width={width - 88} // Padding adjustments
             height={220}
-            yAxisLabel="$"
+            yAxisLabel="₹"
             yAxisInterval={1}
             chartConfig={{
               backgroundColor: '#fff',
@@ -119,7 +119,7 @@ export default function PremiumAnalyticsScreen({ onLogout }) {
               <Ionicons name="wallet-outline" size={22} color="#4ade80" />
             </View>
             <Text style={styles.kpiLabel}>Revenue</Text>
-            <Text style={styles.kpiValue}>${stats.totalRevenue.toFixed(2)}</Text>
+            <Text style={styles.kpiValue}>₹{stats.totalRevenue.toFixed(2)}</Text>
           </View>
 
           <View style={styles.kpiCard}>
@@ -137,7 +137,7 @@ export default function PremiumAnalyticsScreen({ onLogout }) {
           </View>
           <View style={{ marginLeft: 15 }}>
             <Text style={styles.kpiLabel}>Average Order Value</Text>
-            <Text style={styles.kpiValue}>${stats.avgOrderValue.toFixed(2)}</Text>
+            <Text style={styles.kpiValue}>₹{stats.avgOrderValue.toFixed(2)}</Text>
           </View>
         </View>
 

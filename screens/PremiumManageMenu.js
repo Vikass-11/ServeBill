@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Alert, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -39,6 +39,7 @@ export default function PremiumManageMenuScreen() {
     addTiffinItem(newItem);
     setTiffinName('');
     setTiffinPrice('');
+    Keyboard.dismiss();
   };
 
   const handleAddMealDish = () => {
@@ -52,13 +53,14 @@ export default function PremiumManageMenuScreen() {
     };
     addMealDish(newDish);
     setMealDishName('');
+    Keyboard.dismiss();
   };
 
   // --- UI ---
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
         style={{ flex: 1 }}
       >
         {/* HEADER */}
@@ -144,6 +146,7 @@ export default function PremiumManageMenuScreen() {
               data={tiffinItems}
               keyExtractor={item => item.id}
               showsVerticalScrollIndicator={false}
+              style={{ flex: 1 }}
               contentContainerStyle={{ paddingBottom: 120 }}
               renderItem={({ item }) => (
                 <View style={styles.listItem}>
@@ -154,7 +157,7 @@ export default function PremiumManageMenuScreen() {
                     <View>
                       <Text style={styles.itemName}>{item.name}</Text>
                       <Text style={styles.itemPrice}>
-                        <Text style={{color: '#FF7F50'}}>$</Text>{item.price} / {item.unit}
+                        <Text style={{color: '#FF7F50'}}>₹</Text>{item.price} / {item.unit}
                       </Text>
                     </View>
                   </View>
@@ -192,6 +195,7 @@ export default function PremiumManageMenuScreen() {
               data={mealDishes}
               keyExtractor={item => item.id}
               showsVerticalScrollIndicator={false}
+              style={{ flex: 1 }}
               contentContainerStyle={{ paddingBottom: 120 }}
               renderItem={({ item }) => (
                 <View style={styles.listItem}>

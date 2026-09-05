@@ -183,7 +183,7 @@ function PremiumLandingGate({ onUnlock }) {
               </View>
               <View style={styles.premiumStatsRow}>
                 <View style={styles.premiumStat}>
-                  <Text style={styles.premiumStatValue}>${todaysSales.toFixed(2)}</Text>
+                  <Text style={styles.premiumStatValue}>₹{todaysSales.toFixed(2)}</Text>
                   <Text style={styles.premiumStatLabel}>Today's Sales</Text>
                 </View>
                 <View style={styles.premiumStatDivider} />

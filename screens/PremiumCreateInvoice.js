@@ -19,6 +19,7 @@ import { CustomerContext } from '../context/CustomerContext';
 export default function PremiumCreateInvoiceScreen({ navigation }) {
   const { tiffinItems, mealDishes } = useContext(MenuContext);
   const [clientName, setClientName] = useState('');
+  const [transportCharge, setTransportCharge] = useState('');
   const [events, setEvents] = useState([
     {
       id: Date.now().toString(),
@@ -228,7 +229,7 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
                 <View key={item.id} style={styles.menuRow}>
                   <View style={styles.itemInfo}>
                     <Text style={styles.itemName}>{item.name}</Text>
-                    <Text style={styles.itemSubText}>${item.price} per {item.unit}</Text>
+                    <Text style={styles.itemSubText}>₹{item.price} per {item.unit}</Text>
                   </View>
                   <View style={styles.counter}>
                     <TouchableOpacity
@@ -265,7 +266,7 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
                   <View style={styles.mealInfo}>
                     <Text style={styles.mealNameText}>{meal.name}</Text>
                     <Text style={styles.mealDetailText}>
-                      {meal.quantity} plates x ${meal.price}
+                      {meal.quantity} plates x ₹{meal.price}
                     </Text>
                     <Text style={styles.dishListText}>Items: {meal.dishes.join(', ')}</Text>
                   </View>
@@ -306,10 +307,24 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
 
       {/* FLOATING CHECKOUT BAR */}
       <View style={styles.footerContainer}>
+          <View style={styles.chargeWrapper}>
+            <Text style={styles.chargeLabel}>Transport Charge (+):</Text>
+            <View style={styles.chargeInputContainer}>
+              <Text style={styles.chargeCurrency}>₹</Text>
+              <TextInput
+                style={styles.chargeInput}
+                keyboardType="numeric"
+                placeholder="0"
+                placeholderTextColor="#888"
+                value={transportCharge}
+                onChangeText={setTransportCharge}
+              />
+            </View>
+          </View>
           <View style={styles.footerWrapper}>
             <View style={styles.totalContainer}>
               <Text style={styles.totalLabel}>Grand Total</Text>
-              <Text style={styles.totalValue}>${calculateGrandTotal()}</Text>
+              <Text style={styles.totalValue}>₹{calculateGrandTotal()}</Text>
             </View>
             <TouchableOpacity
               style={styles.previewBtn}
@@ -323,6 +338,7 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
                   clientName,
                   events,
                   grandTotal: calculateGrandTotal(),
+                  transportCharge: transportCharge ? parseFloat(transportCharge) : 0,
                 });
               }}
             >
@@ -529,6 +545,46 @@ const styles = StyleSheet.create({
   footerContainer: {
       position: 'absolute', bottom: 100, // Above the tab bar
       left: 0, right: 0, paddingHorizontal: 24,
+  },
+  chargeWrapper: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 20,
+    marginBottom: 10,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05, shadowRadius: 10, elevation: 3,
+  },
+  chargeLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111',
+    flex: 1,
+    marginRight: 10,
+  },
+  chargeInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f9f9f9',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    width: 90,
+  },
+  chargeCurrency: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111',
+    marginRight: 4,
+  },
+  chargeInput: {
+    flex: 1,
+    paddingVertical: 10,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111',
   },
   footerWrapper: {
     backgroundColor: '#111',
