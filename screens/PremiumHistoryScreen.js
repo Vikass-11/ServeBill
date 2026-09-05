@@ -65,9 +65,14 @@ export default function PremiumHistoryScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
-          <Text style={styles.mainTitle}>
-            Past <Text style={{color: '#888'}}>Orders.</Text>
-          </Text>
+        {navigation.canGoBack && navigation.canGoBack() && (
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={24} color="#111" />
+          </TouchableOpacity>
+        )}
+        <Text style={styles.mainTitle}>
+          Past <Text style={{color: '#888'}}>Orders.</Text>
+        </Text>
       </View>
 
       {/* TOTAL SUMMARY WIDGET */}
@@ -125,7 +130,8 @@ export default function PremiumHistoryScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FAF9F6' },
-  header: { paddingHorizontal: 24, paddingTop: 20, marginBottom: 20 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingTop: 20, marginBottom: 20 },
+  backBtn: { marginRight: 15 },
   mainTitle: { fontSize: 32, fontWeight: '800', color: '#111', letterSpacing: -0.5 },
   
   summaryCard: {
