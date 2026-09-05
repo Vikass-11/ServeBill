@@ -168,9 +168,14 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         
         <View style={styles.header}>
-            <Text style={styles.mainTitle}>
-              Create <Text style={{color: '#888'}}>Bill.</Text>
-            </Text>
+          {navigation.canGoBack && navigation.canGoBack() && (
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+              <Ionicons name="arrow-back" size={24} color="#111" />
+            </TouchableOpacity>
+          )}
+          <Text style={styles.mainTitle}>
+            Create <Text style={{color: '#888'}}>Bill.</Text>
+          </Text>
         </View>
 
         <View style={styles.clientCard}>
@@ -451,7 +456,8 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FAF9F6' },
-  header: { paddingHorizontal: 24, paddingTop: 20, marginBottom: 15 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingTop: 20, marginBottom: 15 },
+  backBtn: { marginRight: 15 },
   mainTitle: { fontSize: 32, fontWeight: '800', color: '#111', letterSpacing: -0.5 },
   
   scrollContent: { paddingBottom: 160, paddingHorizontal: 24 }, // Extra padding for fixed footer + tab bar
