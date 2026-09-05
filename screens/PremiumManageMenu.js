@@ -57,47 +57,44 @@ export default function PremiumManageMenuScreen() {
   };
 
   // --- UI ---
-  return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
-        style={{ flex: 1 }}
-      >
-        {/* HEADER */}
-        <View style={styles.header}>
-          <Text style={styles.mainTitle}>
-            Manage <Text style={{color: '#888'}}>Menu.</Text>
-          </Text>
-        </View>
+  const renderHeaderContent = () => (
+    <View>
+      {/* HEADER */}
+      <View style={styles.header}>
+        <Text style={styles.mainTitle}>
+          Manage <Text style={{color: '#888'}}>Menu.</Text>
+        </Text>
+      </View>
 
-        {/* PILL TAB SELECTOR */}
-        <View style={styles.categoriesWrapper}>
-          <TouchableOpacity 
-            style={styles.categoryItem} 
-            onPress={() => setActiveTab('tiffin')}
-          >
-            <View style={[styles.catIconPlaceholder, activeTab === 'tiffin' && styles.catActive]}>
-                <Ionicons name="cafe" size={24} color={activeTab === 'tiffin' ? '#fff' : '#FF7F50'} />
-            </View>
-            <Text style={[styles.catText, activeTab === 'tiffin' && {fontWeight: 'bold', color: '#222'}]}>Tiffins</Text>
-            {activeTab === 'tiffin' && <View style={styles.activeDot} />}
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.categoryItem} 
-            onPress={() => setActiveTab('meals')}
-          >
-            <View style={[styles.catIconPlaceholder, activeTab === 'meals' && styles.catActive]}>
-                <Ionicons name="fast-food" size={24} color={activeTab === 'meals' ? '#fff' : '#FF7F50'} />
-            </View>
-            <Text style={[styles.catText, activeTab === 'meals' && {fontWeight: 'bold', color: '#222'}]}>Meals</Text>
-            {activeTab === 'meals' && <View style={styles.activeDot} />}
-          </TouchableOpacity>
-        </View>
+      {/* PILL TAB SELECTOR */}
+      <View style={styles.categoriesWrapper}>
+        <TouchableOpacity 
+          style={styles.categoryItem} 
+          onPress={() => setActiveTab('tiffin')}
+        >
+          <View style={[styles.catIconPlaceholder, activeTab === 'tiffin' && styles.catActive]}>
+              <Ionicons name="cafe" size={24} color={activeTab === 'tiffin' ? '#fff' : '#FF7F50'} />
+          </View>
+          <Text style={[styles.catText, activeTab === 'tiffin' && {fontWeight: 'bold', color: '#222'}]}>Tiffins</Text>
+          {activeTab === 'tiffin' && <View style={styles.activeDot} />}
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.categoryItem} 
+          onPress={() => setActiveTab('meals')}
+        >
+          <View style={[styles.catIconPlaceholder, activeTab === 'meals' && styles.catActive]}>
+              <Ionicons name="fast-food" size={24} color={activeTab === 'meals' ? '#fff' : '#FF7F50'} />
+          </View>
+          <Text style={[styles.catText, activeTab === 'meals' && {fontWeight: 'bold', color: '#222'}]}>Meals</Text>
+          {activeTab === 'meals' && <View style={styles.activeDot} />}
+        </TouchableOpacity>
+      </View>
 
-        {/* CONDITIONAL RENDERING BASED ON TAB */}
+      {/* CONDITIONAL RENDERING BASED ON TAB */}
+      <View style={styles.content}>
         {activeTab === 'tiffin' ? (
-          <View style={styles.content}>
+          <>
             <View style={styles.inputCard}>
               <Text style={styles.cardHeader}>Add New Tiffin</Text>
               <View style={styles.inputWrapper}>
@@ -140,36 +137,10 @@ export default function PremiumManageMenuScreen() {
                 <Text style={styles.primaryButtonText}>Add Tiffin Item</Text>
               </TouchableOpacity>
             </View>
-
             <Text style={styles.sectionTitle}>Current Menu</Text>
-            <FlatList 
-              data={tiffinItems}
-              keyExtractor={item => item.id}
-              showsVerticalScrollIndicator={false}
-              style={{ flex: 1 }}
-              contentContainerStyle={{ paddingBottom: 120 }}
-              renderItem={({ item }) => (
-                <View style={styles.listItem}>
-                  <View style={styles.listLeftInfo}>
-                    <View style={styles.iconBoxTiffin}>
-                      <Ionicons name="cafe-outline" size={20} color="#FF7F50" />
-                    </View>
-                    <View>
-                      <Text style={styles.itemName}>{item.name}</Text>
-                      <Text style={styles.itemPrice}>
-                        <Text style={{color: '#FF7F50'}}>₹</Text>{item.price} / {item.unit}
-                      </Text>
-                    </View>
-                  </View>
-                  <TouchableOpacity onPress={() => deleteTiffinItem(item.id)} style={styles.deleteBtn}>
-                    <Ionicons name="remove-circle-outline" size={24} color="#111" />
-                  </TouchableOpacity>
-                </View>
-              )}
-            />
-          </View>
+          </>
         ) : (
-          <View style={styles.content}>
+          <>
             <View style={styles.inputCard}>
               <Text style={styles.cardHeader}>Master Dish Entry</Text>
               <Text style={styles.helperText}>Add baseline dishes here (no prices needed). You will set the final Thali price on the invoice page.</Text>
@@ -189,30 +160,65 @@ export default function PremiumManageMenuScreen() {
                 <Text style={styles.primaryButtonText}>Add to Master List</Text>
               </TouchableOpacity>
             </View>
-
             <Text style={styles.sectionTitle}>Master Meal Dishes</Text>
-            <FlatList 
-              data={mealDishes}
-              keyExtractor={item => item.id}
-              showsVerticalScrollIndicator={false}
-              style={{ flex: 1 }}
-              contentContainerStyle={{ paddingBottom: 120 }}
-              renderItem={({ item }) => (
-                <View style={styles.listItem}>
-                  <View style={styles.listLeftInfo}>
-                    <View style={styles.iconBoxMeal}>
-                      <Ionicons name="restaurant-outline" size={20} color="#111" />
-                    </View>
-                    <Text style={styles.itemName}>{item.name}</Text>
-                  </View>
-                  <TouchableOpacity onPress={() => deleteMealDish(item.id)} style={styles.deleteBtn}>
-                    <Ionicons name="remove-circle-outline" size={24} color="#111" />
-                  </TouchableOpacity>
-                </View>
-              )}
-            />
-          </View>
+          </>
         )}
+      </View>
+    </View>
+  );
+
+  const renderItem = ({ item }) => {
+    if (activeTab === 'tiffin') {
+      return (
+        <View style={styles.listItem}>
+          <View style={styles.listLeftInfo}>
+            <View style={styles.iconBoxTiffin}>
+              <Ionicons name="cafe-outline" size={20} color="#FF7F50" />
+            </View>
+            <View>
+              <Text style={styles.itemName}>{item.name}</Text>
+              <Text style={styles.itemPrice}>
+                <Text style={{color: '#FF7F50'}}>₹</Text>{item.price} / {item.unit}
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity onPress={() => deleteTiffinItem(item.id)} style={styles.deleteBtn}>
+            <Ionicons name="remove-circle-outline" size={24} color="#111" />
+          </TouchableOpacity>
+        </View>
+      );
+    } else {
+      return (
+        <View style={styles.listItem}>
+          <View style={styles.listLeftInfo}>
+            <View style={styles.iconBoxMeal}>
+              <Ionicons name="restaurant-outline" size={20} color="#111" />
+            </View>
+            <Text style={styles.itemName}>{item.name}</Text>
+          </View>
+          <TouchableOpacity onPress={() => deleteMealDish(item.id)} style={styles.deleteBtn}>
+            <Ionicons name="remove-circle-outline" size={24} color="#111" />
+          </TouchableOpacity>
+        </View>
+      );
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+        style={{ flex: 1 }}
+      >
+        <FlatList 
+          data={activeTab === 'tiffin' ? tiffinItems : mealDishes}
+          keyExtractor={item => item.id}
+          showsVerticalScrollIndicator={false}
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingBottom: 120 }}
+          ListHeaderComponent={renderHeaderContent}
+          renderItem={renderItem}
+        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -284,6 +290,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff', padding: 16, borderRadius: 20, marginBottom: 12, 
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.03, shadowRadius: 10, elevation: 2,
+    marginHorizontal: 24,
   },
   listLeftInfo: { flexDirection: 'row', alignItems: 'center' },
   iconBoxTiffin: { 
