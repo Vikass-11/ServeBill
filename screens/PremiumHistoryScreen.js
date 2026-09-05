@@ -49,7 +49,7 @@ export default function PremiumHistoryScreen() {
 
       <View style={styles.cardRight}>
         <Text style={styles.amountText}>
-           <Text style={{color: '#FF7F50', fontSize: 14}}>$</Text>{item.grandTotal}
+           <Text style={{color: '#FF7F50', fontSize: 14}}>₹</Text>{item.grandTotal}
         </Text>
         <TouchableOpacity onPress={() => confirmDelete(item.id)} style={styles.deleteBtn}>
           <Ionicons name="trash-outline" size={18} color="#aaa" />
@@ -70,7 +70,7 @@ export default function PremiumHistoryScreen() {
       <View style={styles.summaryCard}>
         <View style={styles.summaryLeft}>
             <Text style={styles.statsLabel}>Total Revenue</Text>
-            <Text style={styles.statsValue}>${totalBusiness.toLocaleString('en-IN')}</Text>
+            <Text style={styles.statsValue}>₹{totalBusiness.toLocaleString('en-IN')}</Text>
         </View>
         <View style={styles.summaryRight}>
             <View style={styles.iconCircle}>

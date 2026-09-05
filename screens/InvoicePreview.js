@@ -28,7 +28,7 @@ function escapeHtml(value) {
 }
 
 export default function InvoicePreviewScreen({ route, navigation }) {
-  const { clientName, events, grandTotal } = route.params;
+  const { clientName, events, grandTotal, transportCharge = 0 } = route.params;
   const { addInvoice } = useContext(InvoiceContext);
   const { tiffinItems } = useContext(MenuContext);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
@@ -36,9 +36,8 @@ export default function InvoicePreviewScreen({ route, navigation }) {
   const invoiceDate = new Date().toLocaleDateString('en-IN');
   
   const subTotal = parseFloat(grandTotal);
-  const taxRate = 0.05; // 5% GST
-  const taxAmount = subTotal * taxRate;
-  const finalTotal = subTotal + taxAmount;
+  const transportAmount = parseFloat(transportCharge);
+  const finalTotal = subTotal + transportAmount;
 
   const orderedEvents = useMemo(
     () =>
@@ -84,7 +83,7 @@ export default function InvoicePreviewScreen({ route, navigation }) {
   const onShare = async () => {
     try {
       await Share.share({
-        message: `Invoice for ${clientName}\nSubtotal: Rs. ${subTotal.toFixed(2)}\nGST (5%): Rs. ${taxAmount.toFixed(2)}\nTotal Amount: Rs. ${finalTotal.toFixed(2)}\nGenerated via ${BUSINESS_DETAILS.name}`,
+        message: `Invoice for ${clientName}\nSubtotal: ₹${subTotal.toFixed(2)}\nTransport Charge: ₹${transportAmount.toFixed(2)}\nTotal Amount: ₹${finalTotal.toFixed(2)}\nGenerated via ${BUSINESS_DETAILS.name}`,
       });
     } catch (error) {
       console.log(error.message);
@@ -127,8 +126,8 @@ export default function InvoicePreviewScreen({ route, navigation }) {
                 <td>${escapeHtml(item.name)}</td>
                 <td>${escapeHtml(item.unit)}</td>
                 <td>${qty}</td>
-                <td>Rs. ${escapeHtml(item.price)}</td>
-                <td>Rs. ${rowTotal.toFixed(2)}</td>
+                <td>₹${escapeHtml(item.price)}</td>
+                <td>₹${rowTotal.toFixed(2)}</td>
               </tr>
             `;
           })
@@ -143,8 +142,8 @@ export default function InvoicePreviewScreen({ route, navigation }) {
                 <td>${escapeHtml(meal.name)}</td>
                 <td>${escapeHtml(meal.dishes.join(', '))}</td>
                 <td>${meal.quantity}</td>
-                <td>Rs. ${meal.price}</td>
-                <td>Rs. ${rowTotal.toFixed(2)}</td>
+                <td>₹${meal.price}</td>
+                <td>₹${rowTotal.toFixed(2)}</td>
               </tr>
             `;
           })
@@ -360,15 +359,15 @@ export default function InvoicePreviewScreen({ route, navigation }) {
           <div class="grand-total">
             <div class="total-row">
               <span>Subtotal:</span>
-              <span>Rs. ${subTotal.toFixed(2)}</span>
+              <span>₹${subTotal.toFixed(2)}</span>
             </div>
             <div class="total-row">
-              <span>Tax (GST 5%):</span>
-              <span>Rs. ${taxAmount.toFixed(2)}</span>
+              <span>Transport Charge:</span>
+              <span>₹${transportAmount.toFixed(2)}</span>
             </div>
             <div class="grand-total-box">
               <span>Grand Total:</span>
-              <span>Rs. ${finalTotal.toFixed(2)}</span>
+              <span>₹${finalTotal.toFixed(2)}</span>
             </div>
           </div>
         </body>
@@ -500,10 +499,10 @@ export default function InvoicePreviewScreen({ route, navigation }) {
                   <View style={styles.itemMain}>
                     <Text style={[styles.itemNameText, dynamicStyles.itemName]}>{item.name}</Text>
                     <Text style={[styles.itemSubDetail, dynamicStyles.itemDetail]}>
-                      {qty} {item.unit} x Rs. {item.price}
+                      {qty} {item.unit} x ₹{item.price}
                     </Text>
                   </View>
-                  <Text style={[styles.priceText, dynamicStyles.price]}>Rs. {rowTotal.toFixed(2)}</Text>
+                  <Text style={[styles.priceText, dynamicStyles.price]}>₹{rowTotal.toFixed(2)}</Text>
                 </View>
               );
             })}
@@ -519,10 +518,10 @@ export default function InvoicePreviewScreen({ route, navigation }) {
                       {meal.dishes.join(' | ')}
                     </Text>
                     <Text style={[styles.itemSubDetail, dynamicStyles.itemDetail]}>
-                      {meal.quantity} plates x Rs. {meal.price}
+                      {meal.quantity} plates x ₹{meal.price}
                     </Text>
                   </View>
-                  <Text style={[styles.priceText, dynamicStyles.price]}>Rs. {rowTotal.toFixed(2)}</Text>
+                  <Text style={[styles.priceText, dynamicStyles.price]}>₹{rowTotal.toFixed(2)}</Text>
                 </View>
               );
             })}
@@ -532,15 +531,15 @@ export default function InvoicePreviewScreen({ route, navigation }) {
         <View style={styles.totalBlock}>
           <View style={styles.totalRowSub}>
             <Text style={styles.totalLabelSub}>Subtotal</Text>
-            <Text style={styles.totalAmountSub}>Rs. {subTotal.toFixed(2)}</Text>
+            <Text style={styles.totalAmountSub}>₹{subTotal.toFixed(2)}</Text>
           </View>
           <View style={styles.totalRowSub}>
-            <Text style={styles.totalLabelSub}>Tax (GST 5%)</Text>
-            <Text style={styles.totalAmountSub}>Rs. {taxAmount.toFixed(2)}</Text>
+            <Text style={styles.totalLabelSub}>Transport Charge</Text>
+            <Text style={styles.totalAmountSub}>₹{transportAmount.toFixed(2)}</Text>
           </View>
           <View style={[styles.totalRow, { marginTop: 10 }]}>
             <Text style={styles.totalLabel}>Grand Total</Text>
-            <Text style={[styles.totalAmount, dynamicStyles.totalAmount]}>Rs. {finalTotal.toFixed(2)}</Text>
+            <Text style={[styles.totalAmount, dynamicStyles.totalAmount]}>₹{finalTotal.toFixed(2)}</Text>
           </View>
           <View style={styles.bottomStatus}>
             <Ionicons name="checkmark-circle" size={16} color="#27ae60" />
