@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { InvoiceContext } from '../context/InvoiceContext';
 
-export default function PremiumHistoryScreen() {
+export default function PremiumHistoryScreen({ navigation }) {
   const { invoices, deleteInvoice } = useContext(InvoiceContext);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -36,7 +36,11 @@ export default function PremiumHistoryScreen() {
   };
 
   const renderInvoiceItem = ({ item }) => (
-    <View style={styles.invoiceCard}>
+    <TouchableOpacity 
+      style={styles.invoiceCard}
+      onPress={() => navigation.navigate('CateringOrderDetails', { invoiceId: item.id })}
+      activeOpacity={0.7}
+    >
       <View style={styles.cardInfo}>
         <View style={styles.clientRow}>
           <Ionicons name="person-circle-outline" size={20} color="#111" />
@@ -55,7 +59,7 @@ export default function PremiumHistoryScreen() {
           <Ionicons name="trash-outline" size={18} color="#aaa" />
         </TouchableOpacity>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   return (
