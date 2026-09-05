@@ -61,6 +61,19 @@ export const InvoiceProvider = ({ children }) => {
     }
   };
 
+  const updateInvoice = async (id, updatedData) => {
+    setInvoices((prev) => prev.map(inv => inv.id === id ? { ...inv, ...updatedData } : inv));
+    try {
+      const { api } = require('../services/api');
+      const savedInvoice = await api.updateInvoice(id, updatedData);
+      if (savedInvoice) {
+        setInvoices(prev => prev.map(inv => inv.id === id ? savedInvoice : inv));
+      }
+    } catch (e) {
+      console.log('Failed to update invoice on backend');
+    }
+  };
+
   const deleteInvoice = async (id) => {
     // FIX APPLIED: Safely grabbing the previous list before filtering out the deleted bill
     setInvoices((prevInvoices) => prevInvoices.filter(inv => inv.id !== id));
@@ -74,7 +87,7 @@ export const InvoiceProvider = ({ children }) => {
   };
 
   return (
-    <InvoiceContext.Provider value={{ invoices, addInvoice, deleteInvoice }}>
+    <InvoiceContext.Provider value={{ invoices, addInvoice, updateInvoice, deleteInvoice }}>
       {children}
     </InvoiceContext.Provider>
   );
