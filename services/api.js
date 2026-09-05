@@ -41,6 +41,21 @@ export const api = {
     }
   },
 
+  updateInvoice: async (id, invoiceData) => {
+    try {
+      const response = await fetch(`${BASE_URL}/invoices/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(invoiceData)
+      });
+      if (!response.ok) throw new Error('Network error');
+      return await response.json();
+    } catch (error) {
+      console.warn('API Error (updateInvoice):', error);
+      return null;
+    }
+  },
+
   getMenu: async () => {
     try {
       const response = await fetch(`${BASE_URL}/menu`);
@@ -122,6 +137,73 @@ export const api = {
       return await response.json();
     } catch (error) {
       console.warn('API Error (deleteCustomer):', error);
+      return null;
+    }
+  },
+
+  getShopSales: async () => {
+    try {
+      const response = await fetch(`${BASE_URL}/shopsales`);
+      if (!response.ok) throw new Error('Network error');
+      return await response.json();
+    } catch (error) {
+      console.warn('API Error (getShopSales):', error);
+      return null;
+    }
+  },
+
+  createShopSale: async (saleData) => {
+    try {
+      const response = await fetch(`${BASE_URL}/shopsales`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(saleData)
+      });
+      if (!response.ok) throw new Error('Network error');
+      return await response.json();
+    } catch (error) {
+      console.warn('API Error (createShopSale):', error);
+      return null;
+    }
+  },
+
+  updateShopSale: async (id, saleData) => {
+    try {
+      const response = await fetch(`${BASE_URL}/shopsales/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(saleData)
+      });
+      if (!response.ok) throw new Error('Network error');
+      return await response.json();
+    } catch (error) {
+      console.warn('API Error (updateShopSale):', error);
+      return null;
+    }
+  },
+
+  getShopExpenses: async () => {
+    try {
+      const response = await fetch(`${BASE_URL}/shopexpenses`);
+      if (!response.ok) throw new Error('Network error');
+      return await response.json();
+    } catch (error) {
+      console.warn('API Error (getShopExpenses):', error);
+      return null;
+    }
+  },
+
+  createShopExpense: async (expenseData) => {
+    try {
+      const response = await fetch(`${BASE_URL}/shopexpenses`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(expenseData)
+      });
+      if (!response.ok) throw new Error('Network error');
+      return await response.json();
+    } catch (error) {
+      console.warn('API Error (createShopExpense):', error);
       return null;
     }
   }
