@@ -276,7 +276,7 @@ function PremiumLandingGate({ onUnlock }) {
               <Animated.View style={animatedText1}>
                 <Text style={styles.premiumTitle}>
                   Smart <Text style={{color: '#FF7F50'}}>Billing.</Text>
-                </Text>>
+                </Text>
               </Animated.View>
               
               <Animated.View style={animatedText2}>
