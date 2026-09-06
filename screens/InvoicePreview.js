@@ -365,10 +365,7 @@ export default function InvoicePreviewScreen({ route, navigation }) {
               <span>Subtotal:</span>
               <span>₹${subTotal.toFixed(2)}</span>
             </div>
-            <div class="total-row">
-              <span>Tax:</span>
-              <span>+ ₹${taxAmount?.toFixed(2) || 0}</span>
-            </div>
+
             <div class="total-row">
               <span>Transport Charge:</span>
               <span>₹${transportAmount.toFixed(2)}</span>
@@ -542,10 +539,7 @@ export default function InvoicePreviewScreen({ route, navigation }) {
             <Text style={styles.totalLabelSub}>Subtotal</Text>
             <Text style={styles.totalAmountSub}>₹{subTotal.toFixed(2)}</Text>
           </View>
-          <View style={styles.totalRowSub}>
-            <Text style={styles.totalLabelSub}>Tax Amount</Text>
-            <Text style={styles.totalAmountSub}>+ ₹{taxAmount?.toFixed(2) || 0}</Text>
-          </View>
+
           <View style={styles.totalRowSub}>
             <Text style={styles.totalLabelSub}>Transport Charge</Text>
             <Text style={styles.totalAmountSub}>₹{transportAmount.toFixed(2)}</Text>

@@ -21,7 +21,6 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
   const [clientName, setClientName] = useState('');
   const [transportCharge, setTransportCharge] = useState('');
   const [clientPhone, setClientPhone] = useState('');
-  const [taxRate, setTaxRate] = useState('');
   const [events, setEvents] = useState([
     {
       id: Date.now().toString(),
@@ -314,17 +313,18 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
         
         <View style={styles.clientCard}>
           <View style={styles.iconHeading}>
-            <Ionicons name="calculator" size={20} color="#111" />
-            <Text style={styles.sectionTitle}>Taxes & Adjustments</Text>
+            <Ionicons name="car-outline" size={20} color="#111" />
+            <Text style={styles.sectionTitle}>Transport Charge (+)</Text>
           </View>
-          <View style={styles.inputWrapper}>
+          <View style={[styles.inputWrapper, { flexDirection: 'row', alignItems: 'center' }]}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: '#111', marginRight: 5 }}>₹</Text>
             <TextInput
-              style={styles.input}
-              placeholder="Tax Rate % (e.g. 5)"
+              style={[styles.input, { flex: 1 }]}
+              placeholder="0"
               placeholderTextColor="#aaa"
               keyboardType="numeric"
-              value={taxRate}
-              onChangeText={setTaxRate}
+              value={transportCharge}
+              onChangeText={setTransportCharge}
             />
           </View>
         </View>
@@ -341,25 +341,11 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
 
       {/* FLOATING CHECKOUT BAR */}
       <View style={styles.footerContainer}>
-          <View style={styles.chargeWrapper}>
-            <Text style={styles.chargeLabel}>Transport Charge (+):</Text>
-            <View style={styles.chargeInputContainer}>
-              <Text style={styles.chargeCurrency}>₹</Text>
-              <TextInput
-                style={styles.chargeInput}
-                keyboardType="numeric"
-                placeholder="0"
-                placeholderTextColor="#888"
-                value={transportCharge}
-                onChangeText={setTransportCharge}
-              />
-            </View>
-          </View>
           <View style={styles.footerWrapper}>
             <View style={styles.totalContainer}>
               <Text style={styles.totalLabel}>Grand Total</Text>
               <Text style={styles.totalValue}>
-                ₹{((calculateGrandTotal() * (1 + (parseFloat(taxRate) || 0) / 100)) + (parseFloat(transportCharge) || 0)).toFixed(2)}
+                ₹{(calculateGrandTotal() + (parseFloat(transportCharge) || 0)).toFixed(2)}
               </Text>
             </View>
             <TouchableOpacity
@@ -371,8 +357,8 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
                 }
 
                 const subTotal = calculateGrandTotal();
-                const taxAmount = subTotal * ((parseFloat(taxRate) || 0) / 100);
-                const grandTotal = subTotal + taxAmount;
+                const taxAmount = 0;
+                const grandTotal = subTotal + (parseFloat(transportCharge) || 0);
 
                 // Deduct stock levels
                 events.forEach((ev) => {
