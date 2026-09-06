@@ -37,7 +37,7 @@ export const api = {
       return await response.json();
     } catch (error) {
       console.warn('API Error (createInvoice):', error);
-      return null;
+      throw error;
     }
   },
 
@@ -78,7 +78,22 @@ export const api = {
       return await response.json();
     } catch (error) {
       console.warn('API Error (createMenuItem):', error);
-      return null;
+      throw error;
+    }
+  },
+
+  updateMenuItem: async (menuItem) => {
+    try {
+      const response = await fetch(`${BASE_URL}/menu/${menuItem.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(menuItem)
+      });
+      if (!response.ok) throw new Error('Network error');
+      return await response.json();
+    } catch (error) {
+      console.warn('API Error (updateMenuItem):', error);
+      throw error;
     }
   },
 
@@ -89,7 +104,7 @@ export const api = {
       return await response.json();
     } catch (error) {
       console.warn('API Error (deleteInvoice):', error);
-      return null;
+      throw error;
     }
   },
 
@@ -100,7 +115,7 @@ export const api = {
       return await response.json();
     } catch (error) {
       console.warn('API Error (deleteMenuItem):', error);
-      return null;
+      throw error;
     }
   },
 

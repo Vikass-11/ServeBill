@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { syncQueue } from '../services/syncQueue';
 
 export const InvoiceContext = createContext();
 
@@ -11,6 +12,9 @@ export const InvoiceProvider = ({ children }) => {
   useEffect(() => {
     const loadInvoices = async () => {
       try {
+        // Attempt to process queue first
+        await syncQueue.process();
+        
         // Try to fetch from backend if available
         let backendData = null;
         try {
@@ -57,7 +61,8 @@ export const InvoiceProvider = ({ children }) => {
         setInvoices(prevInvoices => prevInvoices.map(inv => inv.id === invoice.id ? savedInvoice : inv));
       }
     } catch (e) {
-      console.log('Failed to sync new invoice to backend');
+      console.log('Failed to sync new invoice to backend, queuing...');
+      await syncQueue.add('CREATE_INVOICE', invoice);
     }
   };
 
@@ -82,7 +87,8 @@ export const InvoiceProvider = ({ children }) => {
       const { api } = require('../services/api');
       await api.deleteInvoice(id);
     } catch (e) {
-      console.log('Failed to delete invoice from backend');
+      console.log('Failed to delete invoice from backend, queuing...');
+      await syncQueue.add('DELETE_INVOICE', id);
     }
   };
 

@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { syncQueue } from '../services/syncQueue';
 
 export const MenuContext = createContext();
 
@@ -14,6 +15,7 @@ export const MenuProvider = ({ children }) => {
   useEffect(() => {
     const loadMenuData = async () => {
       try {
+        await syncQueue.process();
         let backendMenu = null;
         try {
           const { api } = require('../services/api');
@@ -67,7 +69,19 @@ export const MenuProvider = ({ children }) => {
         setTiffinItems(prev => prev.map(i => i.id === item.id ? savedItem : i));
       }
     } catch(e) {
-      console.warn("Failed to sync new tiffin to backend");
+      console.warn("Failed to sync new tiffin to backend, queuing...");
+      await syncQueue.add('CREATE_MENU_ITEM', { ...item, category: 'tiffin' });
+    }
+  };
+
+  const updateTiffinItem = async (updatedItem) => {
+    setTiffinItems(prev => prev.map(i => i.id === updatedItem.id ? updatedItem : i));
+    try {
+      const { api } = require('../services/api');
+      await api.updateMenuItem(updatedItem);
+    } catch(e) {
+      console.warn("Failed to update tiffin to backend, queuing...");
+      await syncQueue.add('UPDATE_MENU_ITEM', updatedItem);
     }
   };
 
@@ -76,7 +90,10 @@ export const MenuProvider = ({ children }) => {
     try {
       const { api } = require('../services/api');
       await api.deleteMenuItem(id);
-    } catch(e) {}
+    } catch(e) {
+      console.warn("Failed to delete tiffin from backend, queuing...");
+      await syncQueue.add('DELETE_MENU_ITEM', id);
+    }
   };
 
   const addMealDish = async (dish) => {
@@ -88,7 +105,19 @@ export const MenuProvider = ({ children }) => {
         setMealDishes(prev => prev.map(d => d.id === dish.id ? savedDish : d));
       }
     } catch(e) {
-      console.warn("Failed to sync new meal dish to backend");
+      console.warn("Failed to sync new meal dish to backend, queuing...");
+      await syncQueue.add('CREATE_MENU_ITEM', { ...dish, category: 'meal' });
+    }
+  };
+
+  const updateMealDish = async (updatedDish) => {
+    setMealDishes(prev => prev.map(d => d.id === updatedDish.id ? updatedDish : d));
+    try {
+      const { api } = require('../services/api');
+      await api.updateMenuItem(updatedDish);
+    } catch(e) {
+      console.warn("Failed to update meal dish to backend, queuing...");
+      await syncQueue.add('UPDATE_MENU_ITEM', updatedDish);
     }
   };
 
@@ -97,14 +126,17 @@ export const MenuProvider = ({ children }) => {
     try {
       const { api } = require('../services/api');
       await api.deleteMenuItem(id);
-    } catch(e) {}
+    } catch(e) {
+      console.warn("Failed to delete meal dish from backend, queuing...");
+      await syncQueue.add('DELETE_MENU_ITEM', id);
+    }
   };
 
   return (
     <MenuContext.Provider 
       value={{ 
-        tiffinItems, addTiffinItem, deleteTiffinItem,
-        mealDishes, addMealDish, deleteMealDish
+        tiffinItems, addTiffinItem, updateTiffinItem, deleteTiffinItem,
+        mealDishes, addMealDish, updateMealDish, deleteMealDish
       }}
     >
       {children}
