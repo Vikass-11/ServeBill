@@ -135,53 +135,92 @@ function PremiumLandingGate({ onUnlock }) {
 
   const todayStr = new Date().toLocaleDateString('en-IN');
   const todayInvoices = invoices.filter(i => {
-    // If it's stored exactly as DD/MM/YYYY or similar, fallback to Date parsing
     if (i.date === todayStr) return true;
     try { return new Date(i.date).toLocaleDateString('en-IN') === todayStr; } catch { return false; }
   });
   const todaysSales = todayInvoices.reduce((sum, inv) => sum + parseFloat(inv.grandTotal || 0), 0);
   const todaysCount = todayInvoices.length;
 
-  // Reanimated values
-  const glowScale = useSharedValue(1);
   const heroOpacity = useSharedValue(0);
   const heroTranslateY = useSharedValue(40);
+  
+  const text1Opacity = useSharedValue(0);
+  const text1Y = useSharedValue(20);
+  const text2Opacity = useSharedValue(0);
+  const text2Y = useSharedValue(20);
+  const cardOpacity = useSharedValue(0);
+  const cardY = useSharedValue(30);
+
   const btnScale = useSharedValue(1);
 
-  useEffect(() => {
-    // Breathing animation for orbs
-    glowScale.value = withRepeat(
-      withTiming(1.2, { duration: 2500, easing: Easing.inOut(Easing.ease) }),
-      -1,
-      true
-    );
+  // Floating Orbs
+  const orb1X = useSharedValue(0);
+  const orb1Y = useSharedValue(0);
+  const orb2X = useSharedValue(0);
+  const orb2Y = useSharedValue(0);
 
-    // Slide up and fade in for hero content
-    heroOpacity.value = withDelay(300, withTiming(1, { duration: 800 }));
-    heroTranslateY.value = withDelay(300, withSpring(0, { damping: 12, stiffness: 100 }));
-    
-    // Subtle bounce on the button
+  useEffect(() => {
+    // Entrance Animations
+    heroOpacity.value = withDelay(100, withTiming(1, { duration: 800 }));
+    heroTranslateY.value = withDelay(100, withSpring(0, { damping: 14, stiffness: 90 }));
+
+    text1Opacity.value = withDelay(300, withTiming(1, { duration: 800 }));
+    text1Y.value = withDelay(300, withSpring(0, { damping: 14, stiffness: 90 }));
+
+    text2Opacity.value = withDelay(450, withTiming(1, { duration: 800 }));
+    text2Y.value = withDelay(450, withSpring(0, { damping: 14, stiffness: 90 }));
+
+    cardOpacity.value = withDelay(600, withTiming(1, { duration: 800 }));
+    cardY.value = withDelay(600, withSpring(0, { damping: 14, stiffness: 90 }));
+
+    // Button Pulse
     btnScale.value = withRepeat(
       withSequence(
-        withTiming(1.05, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1, { duration: 1500, easing: Easing.inOut(Easing.ease) })
+        withTiming(1.04, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.ease) })
       ),
       -1,
       true
     );
-  }, []);
 
-  const animatedGlow = useAnimatedStyle(() => ({
-    transform: [{ scale: glowScale.value }],
-  }));
+    // Floating Orbs
+    orb1X.value = withRepeat(withTiming(50, { duration: 6000, easing: Easing.inOut(Easing.ease) }), -1, true);
+    orb1Y.value = withRepeat(withTiming(-40, { duration: 5500, easing: Easing.inOut(Easing.ease) }), -1, true);
+    
+    orb2X.value = withRepeat(withTiming(-60, { duration: 7000, easing: Easing.inOut(Easing.ease) }), -1, true);
+    orb2Y.value = withRepeat(withTiming(50, { duration: 6500, easing: Easing.inOut(Easing.ease) }), -1, true);
+  }, []);
 
   const animatedHero = useAnimatedStyle(() => ({
     opacity: heroOpacity.value,
     transform: [{ translateY: heroTranslateY.value }],
   }));
 
+  const animatedText1 = useAnimatedStyle(() => ({
+    opacity: text1Opacity.value,
+    transform: [{ translateY: text1Y.value }],
+  }));
+
+  const animatedText2 = useAnimatedStyle(() => ({
+    opacity: text2Opacity.value,
+    transform: [{ translateY: text2Y.value }],
+  }));
+
+  const animatedCard = useAnimatedStyle(() => ({
+    opacity: cardOpacity.value,
+    transform: [{ translateY: cardY.value }],
+  }));
+
   const animatedBtn = useAnimatedStyle(() => ({
     transform: [{ scale: btnScale.value }],
+  }));
+
+  const animatedOrb1 = useAnimatedStyle(() => ({
+    transform: [{ translateX: orb1X.value }, { translateY: orb1Y.value }],
+  }));
+
+  const animatedOrb2 = useAnimatedStyle(() => ({
+    transform: [{ translateX: orb2X.value }, { translateY: orb2Y.value }],
   }));
 
   const handleBiometricAuth = async () => {
@@ -214,15 +253,16 @@ function PremiumLandingGate({ onUnlock }) {
 
   return (
     <SafeAreaView style={styles.premiumContainer}>
-      <LinearGradient colors={['#FAF9F6', '#FAF9F6', '#FAF9F6']} style={styles.premiumGradient}>
+      <LinearGradient colors={['#FAF9F6', '#FAF9F6']} style={styles.premiumGradient}>
         
-        <Animated.View style={[styles.premiumGlowOrb, styles.premiumGlowOrbTop, animatedGlow]} />
-        <Animated.View style={[styles.premiumGlowOrb, styles.premiumGlowOrbBottom, animatedGlow]} />
+        {/* Dynamic Orbs */}
+        <Animated.View style={[styles.premiumGlowOrb, styles.premiumGlowOrbTop, animatedOrb1]} />
+        <Animated.View style={[styles.premiumGlowOrb, styles.premiumGlowOrbBottom, animatedOrb2]} />
 
         <Animated.View style={[styles.premiumHero, animatedHero]}>
             <View style={styles.premiumHeader}>
               <View style={styles.premiumIconWrap}>
-                <Ionicons name="receipt" size={28} color="#FF7F50" />
+                <Ionicons name="flash" size={24} color="#FF7F50" />
               </View>
               <View style={styles.premiumProfile}>
                 <Ionicons name="person-circle" size={42} color="#111" />
@@ -232,34 +272,45 @@ function PremiumLandingGate({ onUnlock }) {
 
             <View style={styles.premiumTextWrap}>
               <Text style={styles.premiumGreeting}>Hi, Admin 👋</Text>
-              <Text style={styles.premiumTitle}>Smart <Text style={{color: '#FF7F50'}}>Billing!</Text></Text>
-              <Text style={styles.premiumTitle}>Smooth Business.</Text>
+              
+              <Animated.View style={animatedText1}>
+                <Text style={styles.premiumTitle}>
+                  Smart <Text style={{color: '#FF7F50'}}>Billing.</Text>
+                </Text>>
+              </Animated.View>
+              
+              <Animated.View style={animatedText2}>
+                <Text style={styles.premiumTitle2}>Smooth Business.</Text>
+              </Animated.View>
             </View>
 
-            <View style={styles.premiumGlassCard}>
+            <Animated.View style={[styles.premiumGlassCard, animatedCard]}>
               <View style={styles.premiumCardHeader}>
                 <Text style={styles.premiumCardTitle}>Daily Overview</Text>
-                <Ionicons name="trending-up" size={20} color="#FF7F50" />
+                <View style={styles.trendPill}>
+                  <Ionicons name="trending-up" size={14} color="#FF7F50" />
+                  <Text style={styles.trendText}>Active</Text>
+                </View>
               </View>
               <View style={styles.premiumStatsRow}>
                 <View style={styles.premiumStat}>
                   <Text style={styles.premiumStatValue}>₹{todaysSales.toFixed(2)}</Text>
-                  <Text style={styles.premiumStatLabel}>Today's Sales</Text>
+                  <Text style={styles.premiumStatLabel}>Today's Revenue</Text>
                 </View>
                 <View style={styles.premiumStatDivider} />
                 <View style={styles.premiumStat}>
                   <Text style={styles.premiumStatValue}>{todaysCount}</Text>
-                  <Text style={styles.premiumStatLabel}>Today's Invoices</Text>
+                  <Text style={styles.premiumStatLabel}>Invoices Generated</Text>
                 </View>
               </View>
-            </View>
+            </Animated.View>
             
             <View style={{flex: 1}} />
 
             <Animated.View style={[animatedBtn, { width: '100%' }]}>
               <TouchableOpacity
                 style={styles.premiumUnlockButton}
-                activeOpacity={0.8}
+                activeOpacity={0.9}
                 onPress={handleBiometricAuth}
               >
                 <LinearGradient 
@@ -267,8 +318,8 @@ function PremiumLandingGate({ onUnlock }) {
                   start={{x: 0, y: 0}} end={{x: 1, y: 1}}
                   style={styles.premiumUnlockGradient}
                 >
-                  <Text style={styles.premiumUnlockText}>Access Workspace</Text>
-                  <Ionicons name="arrow-forward" size={20} color="#fff" />
+                  <Text style={styles.premiumUnlockText}>Unlock Workspace</Text>
+                  <Ionicons name="lock-open-outline" size={22} color="#fff" />
                 </LinearGradient>
               </TouchableOpacity>
             </Animated.View>
@@ -425,7 +476,7 @@ const styles = StyleSheet.create({
   },
   premiumContainer: { 
     flex: 1, 
-    backgroundColor: '#FAF9F6',
+    backgroundColor: '#FAF9F6', // Light mode
     height: Platform.OS === 'web' ? '100vh' : '100%',
     overflow: 'hidden',
   },
@@ -433,47 +484,51 @@ const styles = StyleSheet.create({
   premiumGlowOrb: {
     position: 'absolute',
     borderRadius: 999,
-    opacity: 0.4,
+    opacity: 0.6,
   },
   premiumGlowOrbTop: {
-    width: 300,
-    height: 300,
-    top: -50,
+    width: 350,
+    height: 350,
+    top: -100,
     right: -100,
-    backgroundColor: '#FFF0EA',
-    shadowColor: '#FFF0EA',
-    shadowRadius: 50,
+    backgroundColor: 'rgba(255, 127, 80, 0.15)', // Light orange orb
+    shadowColor: '#FF7F50',
+    shadowRadius: 60,
   },
   premiumGlowOrbBottom: {
-    width: 250,
-    height: 250,
-    bottom: -50,
-    left: -50,
-    backgroundColor: '#FFF0EA',
+    width: 350,
+    height: 350,
+    bottom: -80,
+    left: -120,
+    backgroundColor: 'rgba(255, 240, 234, 0.8)', // Peach orb
     shadowColor: '#FFF0EA',
-    shadowRadius: 50,
+    shadowRadius: 60,
   },
   premiumHero: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 20,
+    paddingHorizontal: 28,
+    paddingTop: 30,
     paddingBottom: 40,
+    zIndex: 10,
   },
   premiumHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 50,
   },
   premiumIconWrap: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: '#FFF0EA',
     borderWidth: 1,
-    borderColor: '#eee',
+    borderColor: '#FEE0D2',
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#FF7F50',
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
   },
   premiumProfile: {
     position: 'relative',
@@ -482,50 +537,75 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 2,
     right: 2,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: '#FF0000',
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: '#FAF9F6',
   },
   premiumTextWrap: {
-    marginBottom: 40,
+    marginBottom: 45,
   },
   premiumGreeting: {
     color: '#888',
-    fontSize: 16,
-    marginBottom: 8,
-    fontWeight: '500',
+    fontSize: 18,
+    marginBottom: 12,
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
   premiumTitle: {
     color: '#111',
-    fontSize: 36,
+    fontSize: 44,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    lineHeight: 52,
+  },
+  premiumTitle2: {
+    color: '#111',
+    fontSize: 40,
     fontWeight: '700',
     letterSpacing: 0.5,
+    lineHeight: 48,
   },
   premiumGlassCard: {
     backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 24,
+    borderRadius: 28,
+    padding: 28,
     borderWidth: 1,
     borderColor: '#eee',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
+    shadowOffset: { width: 0, height: 15 },
     shadowOpacity: 0.05,
-    shadowRadius: 20,
-    elevation: 5,
+    shadowRadius: 25,
+    elevation: 8,
   },
   premiumCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   premiumCardTitle: {
     color: '#888',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  trendPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF0EA',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  trendText: {
+    color: '#FF7F50',
+    fontSize: 12,
+    fontWeight: '700',
+    marginLeft: 4,
   },
   premiumStatsRow: {
     flexDirection: 'row',
@@ -537,40 +617,42 @@ const styles = StyleSheet.create({
   },
   premiumStatValue: {
     color: '#111',
-    fontSize: 28,
-    fontWeight: '700',
-    marginBottom: 4,
+    fontSize: 32,
+    fontWeight: '800',
+    marginBottom: 6,
   },
   premiumStatLabel: {
     color: '#888',
-    fontSize: 12,
+    fontSize: 13,
+    fontWeight: '500',
   },
   premiumStatDivider: {
     width: 1,
-    height: 40,
+    height: 50,
     backgroundColor: '#eee',
-    marginHorizontal: 20,
+    marginHorizontal: 24,
   },
   premiumUnlockButton: {
     width: '100%',
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.1,
-    shadowRadius: 15,
-    elevation: 4,
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 8,
   },
   premiumUnlockGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 18,
+    paddingVertical: 20,
   },
   premiumUnlockText: {
     color: '#fff',
     fontSize: 18,
-    fontWeight: '700',
-    marginRight: 10,
+    fontWeight: '800',
+    marginRight: 12,
+    letterSpacing: 0.5,
   },
 });
