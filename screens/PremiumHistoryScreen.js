@@ -8,6 +8,8 @@ import {
   View,
   Alert,
 } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { InvoiceContext } from '../context/InvoiceContext';
@@ -33,6 +35,34 @@ export default function PremiumHistoryScreen({ navigation }) {
         { text: "Delete", style: "destructive", onPress: () => deleteInvoice(id) }
       ]
     );
+  };
+
+  const exportCSV = async () => {
+    try {
+      const header = 'ID,Client Name,Phone,Date,SubTotal,TaxAmount,GrandTotal\n';
+      const rows = invoices.map(inv => 
+        `${inv.id},"${inv.clientName}","${inv.clientPhone || ''}","${inv.date}",${inv.subTotal || inv.grandTotal},${inv.taxAmount || 0},${inv.grandTotal}`
+      ).join('\n');
+      
+      const csvContent = header + rows;
+      const fileUri = FileSystem.documentDirectory + 'invoices.csv';
+      
+      await FileSystem.writeAsStringAsync(fileUri, csvContent, { encoding: FileSystem.EncodingType.UTF8 });
+      
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'text/csv',
+          dialogTitle: 'Export Invoices',
+          UTI: 'public.comma-separated-values-text'
+        });
+      } else {
+        Alert.alert('CSV Ready', 'File saved to documents directory.');
+      }
+    } catch (e) {
+      Alert.alert('Export Failed', 'Unable to export CSV right now.');
+      console.log(e);
+    }
   };
 
   const renderInvoiceItem = ({ item }) => (
@@ -64,15 +94,21 @@ export default function PremiumHistoryScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <View style={styles.header}>
-        {navigation.canGoBack && navigation.canGoBack() && (
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color="#111" />
-          </TouchableOpacity>
-        )}
-        <Text style={styles.mainTitle}>
-          Past <Text style={{color: '#888'}}>Orders.</Text>
-        </Text>
+      <View style={[styles.header, { justifyContent: 'space-between' }]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {navigation.canGoBack && navigation.canGoBack() && (
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+              <Ionicons name="arrow-back" size={24} color="#111" />
+            </TouchableOpacity>
+          )}
+          <Text style={styles.mainTitle}>
+            Past <Text style={{color: '#888'}}>Orders.</Text>
+          </Text>
+        </View>
+        <TouchableOpacity onPress={exportCSV} style={styles.exportBtn}>
+          <Ionicons name="download-outline" size={22} color="#111" />
+          <Text style={{marginLeft: 5, fontWeight: '600'}}>Export</Text>
+        </TouchableOpacity>
       </View>
 
       {/* TOTAL SUMMARY WIDGET */}
@@ -133,6 +169,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingTop: 20, marginBottom: 20 },
   backBtn: { marginRight: 15 },
   mainTitle: { fontSize: 32, fontWeight: '800', color: '#111', letterSpacing: -0.5 },
+  exportBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#eaeaea', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12 },
   
   summaryCard: {
     flexDirection: 'row',
