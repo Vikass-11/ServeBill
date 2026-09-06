@@ -40,7 +40,10 @@ if (MONGO_URI) {
 // Basic schemas and models for the billing app
 const InvoiceSchema = new mongoose.Schema({
   customerName: String,
+  customerPhone: String,
   items: Array,
+  subTotal: Number,
+  taxAmount: Number,
   total: Number,
   date: { type: Date, default: Date.now },
   businessType: { type: String, default: 'CATERING' },
@@ -52,6 +55,8 @@ const Invoice = mongoose.model('Invoice', InvoiceSchema);
 const MenuSchema = new mongoose.Schema({
   name: String,
   price: Number,
+  costPrice: { type: Number, default: 0 },
+  stock: { type: Number, default: 0 },
   category: String
 });
 const MenuItem = mongoose.model('MenuItem', MenuSchema);
@@ -164,6 +169,23 @@ app.post('/api/menu', async (req, res) => {
     const newItem = new MenuItem(req.body);
     const saved = await newItem.save();
     res.status(201).json(formatDoc(saved));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/menu/:id', async (req, res) => {
+  if (!dbConnected) {
+    const idx = memMenu.findIndex(m => m.id === req.params.id);
+    if (idx !== -1) {
+      memMenu[idx] = { ...memMenu[idx], ...req.body };
+      return res.json(memMenu[idx]);
+    }
+    return res.status(404).json({ error: 'Not found' });
+  }
+  try {
+    const updated = await MenuItem.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(formatDoc(updated));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
