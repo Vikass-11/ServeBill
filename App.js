@@ -16,6 +16,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, withSequence, withDelay, Easing, withSpring } from 'react-native-reanimated';
 import { MenuProvider } from './context/MenuContext';
 import { InvoiceProvider, InvoiceContext } from './context/InvoiceContext';
 import InvoicePreviewScreen from './screens/InvoicePreview';
@@ -33,6 +34,7 @@ import AddShopExpenseScreen from './screens/shop/AddShopExpenseScreen';
 import CateringDashboardScreen from './screens/catering/CateringDashboardScreen';
 import CateringOrderDetailsScreen from './screens/catering/CateringOrderDetailsScreen';
 import * as LocalAuthentication from 'expo-local-authentication';
+import AnalyticsScreen from './screens/AnalyticsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -86,6 +88,7 @@ function CustomTabBar({ state, descriptors, navigation }) {
           else if (route.name === 'Catering') iconName = 'restaurant';
           else if (route.name === 'Menu') iconName = 'fast-food';
           else if (route.name === 'Clients') iconName = 'people';
+          else if (route.name === 'Analytics') iconName = 'bar-chart';
 
           return (
             <TouchableOpacity
@@ -122,6 +125,7 @@ function PremiumMainApp({ onLogout }) {
         <Tab.Screen name="Catering" component={CateringStack} />
         <Tab.Screen name="Menu" component={PremiumManageMenuScreen} />
         <Tab.Screen name="Clients" component={PremiumCustomersScreen} />
+        <Tab.Screen name="Analytics" component={AnalyticsScreen} />
       </Tab.Navigator>
     </NavigationContainer>
   );
@@ -139,6 +143,48 @@ function PremiumLandingGate({ onUnlock }) {
   });
   const todaysSales = todayInvoices.reduce((sum, inv) => sum + parseFloat(inv.grandTotal || 0), 0);
   const todaysCount = todayInvoices.length;
+
+  // Reanimated values
+  const glowScale = useSharedValue(1);
+  const heroOpacity = useSharedValue(0);
+  const heroTranslateY = useSharedValue(40);
+  const btnScale = useSharedValue(1);
+
+  useEffect(() => {
+    // Breathing animation for orbs
+    glowScale.value = withRepeat(
+      withTiming(1.2, { duration: 2500, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true
+    );
+
+    // Slide up and fade in for hero content
+    heroOpacity.value = withDelay(300, withTiming(1, { duration: 800 }));
+    heroTranslateY.value = withDelay(300, withSpring(0, { damping: 12, stiffness: 100 }));
+    
+    // Subtle bounce on the button
+    btnScale.value = withRepeat(
+      withSequence(
+        withTiming(1.05, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 1500, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true
+    );
+  }, []);
+
+  const animatedGlow = useAnimatedStyle(() => ({
+    transform: [{ scale: glowScale.value }],
+  }));
+
+  const animatedHero = useAnimatedStyle(() => ({
+    opacity: heroOpacity.value,
+    transform: [{ translateY: heroTranslateY.value }],
+  }));
+
+  const animatedBtn = useAnimatedStyle(() => ({
+    transform: [{ scale: btnScale.value }],
+  }));
 
   const handleBiometricAuth = async () => {
     if (Platform.OS === 'web') {
@@ -172,10 +218,10 @@ function PremiumLandingGate({ onUnlock }) {
     <SafeAreaView style={styles.premiumContainer}>
       <LinearGradient colors={['#FAF9F6', '#FAF9F6', '#FAF9F6']} style={styles.premiumGradient}>
         
-        <View style={[styles.premiumGlowOrb, styles.premiumGlowOrbTop]} />
-        <View style={[styles.premiumGlowOrb, styles.premiumGlowOrbBottom]} />
+        <Animated.View style={[styles.premiumGlowOrb, styles.premiumGlowOrbTop, animatedGlow]} />
+        <Animated.View style={[styles.premiumGlowOrb, styles.premiumGlowOrbBottom, animatedGlow]} />
 
-        <View style={styles.premiumHero}>
+        <Animated.View style={[styles.premiumHero, animatedHero]}>
             <View style={styles.premiumHeader}>
               <View style={styles.premiumIconWrap}>
                 <Ionicons name="receipt" size={28} color="#FF7F50" />
@@ -212,22 +258,24 @@ function PremiumLandingGate({ onUnlock }) {
             
             <View style={{flex: 1}} />
 
-            <TouchableOpacity
-              style={styles.premiumUnlockButton}
-              activeOpacity={0.8}
-              onPress={handleBiometricAuth}
-            >
-              <LinearGradient 
-                colors={['#111', '#111']} 
-                start={{x: 0, y: 0}} end={{x: 1, y: 1}}
-                style={styles.premiumUnlockGradient}
+            <Animated.View style={[animatedBtn, { width: '100%' }]}>
+              <TouchableOpacity
+                style={styles.premiumUnlockButton}
+                activeOpacity={0.8}
+                onPress={handleBiometricAuth}
               >
-                <Text style={styles.premiumUnlockText}>Access Workspace</Text>
-                <Ionicons name="arrow-forward" size={20} color="#fff" />
-              </LinearGradient>
-            </TouchableOpacity>
+                <LinearGradient 
+                  colors={['#111', '#111']} 
+                  start={{x: 0, y: 0}} end={{x: 1, y: 1}}
+                  style={styles.premiumUnlockGradient}
+                >
+                  <Text style={styles.premiumUnlockText}>Access Workspace</Text>
+                  <Ionicons name="arrow-forward" size={20} color="#fff" />
+                </LinearGradient>
+              </TouchableOpacity>
+            </Animated.View>
 
-          </View>
+          </Animated.View>
       </LinearGradient>
     </SafeAreaView>
   );
