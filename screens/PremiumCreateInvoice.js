@@ -17,9 +17,11 @@ import { MenuContext } from '../context/MenuContext';
 import { CustomerContext } from '../context/CustomerContext';
 
 export default function PremiumCreateInvoiceScreen({ navigation }) {
-  const { tiffinItems, mealDishes } = useContext(MenuContext);
+  const { tiffinItems, mealDishes, updateTiffinItem } = useContext(MenuContext);
   const [clientName, setClientName] = useState('');
   const [transportCharge, setTransportCharge] = useState('');
+  const [clientPhone, setClientPhone] = useState('');
+  const [taxRate, setTaxRate] = useState('');
   const [events, setEvents] = useState([
     {
       id: Date.now().toString(),
@@ -196,6 +198,16 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
               onChangeText={setClientName}
             />
           </View>
+          <View style={[styles.inputWrapper, {marginTop: 10}]}>
+            <TextInput
+              style={styles.input}
+              placeholder="Phone Number"
+              placeholderTextColor="#aaa"
+              keyboardType="phone-pad"
+              value={clientPhone}
+              onChangeText={setClientPhone}
+            />
+          </View>
         </View>
 
         {events.map((ev, index) => (
@@ -299,6 +311,23 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
           <Ionicons name="add" size={24} color="#111" />
           <Text style={styles.addDateBtnText}> Add Another Date</Text>
         </TouchableOpacity>
+        
+        <View style={styles.clientCard}>
+          <View style={styles.iconHeading}>
+            <Ionicons name="calculator" size={20} color="#111" />
+            <Text style={styles.sectionTitle}>Taxes & Adjustments</Text>
+          </View>
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={styles.input}
+              placeholder="Tax Rate % (e.g. 5)"
+              placeholderTextColor="#aaa"
+              keyboardType="numeric"
+              value={taxRate}
+              onChangeText={setTaxRate}
+            />
+          </View>
+        </View>
       </ScrollView>
 
       {showPicker && (
@@ -329,7 +358,9 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
           <View style={styles.footerWrapper}>
             <View style={styles.totalContainer}>
               <Text style={styles.totalLabel}>Grand Total</Text>
-              <Text style={styles.totalValue}>₹{calculateGrandTotal()}</Text>
+              <Text style={styles.totalValue}>
+                ₹{((calculateGrandTotal() * (1 + (parseFloat(taxRate) || 0) / 100)) + (parseFloat(transportCharge) || 0)).toFixed(2)}
+              </Text>
             </View>
             <TouchableOpacity
               style={styles.previewBtn}
@@ -339,10 +370,28 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
                   return;
                 }
 
+                const subTotal = calculateGrandTotal();
+                const taxAmount = subTotal * ((parseFloat(taxRate) || 0) / 100);
+                const grandTotal = subTotal + taxAmount;
+
+                // Deduct stock levels
+                events.forEach((ev) => {
+                  tiffinItems.forEach((item) => {
+                    const qty = ev.tiffinQuantities[item.id] || 0;
+                    if (qty > 0) {
+                      const newStock = Math.max(0, (item.stock || 0) - qty);
+                      updateTiffinItem({ ...item, stock: newStock });
+                    }
+                  });
+                });
+
                 navigation.navigate('InvoicePreview', {
                   clientName,
+                  clientPhone,
                   events,
-                  grandTotal: calculateGrandTotal(),
+                  subTotal,
+                  taxAmount,
+                  grandTotal,
                   transportCharge: transportCharge ? parseFloat(transportCharge) : 0,
                 });
               }}

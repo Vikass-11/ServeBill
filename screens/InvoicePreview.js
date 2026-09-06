@@ -28,7 +28,7 @@ function escapeHtml(value) {
 }
 
 export default function InvoicePreviewScreen({ route, navigation }) {
-  const { clientName, events, grandTotal, transportCharge = 0 } = route.params;
+  const { clientName, clientPhone, events, subTotal: previousSubTotal, taxAmount, grandTotal, transportCharge = 0 } = route.params;
   const { addInvoice } = useContext(InvoiceContext);
   const { tiffinItems } = useContext(MenuContext);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
@@ -70,8 +70,11 @@ export default function InvoicePreviewScreen({ route, navigation }) {
     const newInvoice = {
       id: Date.now().toString(),
       clientName,
+      clientPhone,
       date: invoiceDate,
       events,
+      subTotal: previousSubTotal,
+      taxAmount,
       grandTotal: finalTotal.toFixed(2),
     };
 
@@ -351,6 +354,7 @@ export default function InvoicePreviewScreen({ route, navigation }) {
 
           <div class="meta">
             <div><strong>Bill To:</strong> ${escapeHtml(clientName)}</div>
+            ${clientPhone ? `<div><strong>Phone:</strong> ${escapeHtml(clientPhone)}</div>` : ''}
             <div><strong>Date:</strong> ${escapeHtml(invoiceDate)}</div>
           </div>
 
@@ -360,6 +364,10 @@ export default function InvoicePreviewScreen({ route, navigation }) {
             <div class="total-row">
               <span>Subtotal:</span>
               <span>₹${subTotal.toFixed(2)}</span>
+            </div>
+            <div class="total-row">
+              <span>Tax:</span>
+              <span>+ ₹${taxAmount?.toFixed(2) || 0}</span>
             </div>
             <div class="total-row">
               <span>Transport Charge:</span>
@@ -477,6 +485,7 @@ export default function InvoicePreviewScreen({ route, navigation }) {
         <View style={styles.billToSection}>
           <Text style={styles.label}>BILL TO:</Text>
           <Text style={[styles.clientNameText, dynamicStyles.clientName]}>{clientName}</Text>
+          {clientPhone ? <Text style={styles.dateText}>{clientPhone}</Text> : null}
           <Text style={styles.dateText}>Date: {invoiceDate}</Text>
         </View>
 
@@ -532,6 +541,10 @@ export default function InvoicePreviewScreen({ route, navigation }) {
           <View style={styles.totalRowSub}>
             <Text style={styles.totalLabelSub}>Subtotal</Text>
             <Text style={styles.totalAmountSub}>₹{subTotal.toFixed(2)}</Text>
+          </View>
+          <View style={styles.totalRowSub}>
+            <Text style={styles.totalLabelSub}>Tax Amount</Text>
+            <Text style={styles.totalAmountSub}>+ ₹{taxAmount?.toFixed(2) || 0}</Text>
           </View>
           <View style={styles.totalRowSub}>
             <Text style={styles.totalLabelSub}>Transport Charge</Text>
