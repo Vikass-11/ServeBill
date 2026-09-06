@@ -19,6 +19,8 @@ export default function PremiumManageMenuScreen() {
   // Form State: Tiffin
   const [tiffinName, setTiffinName] = useState('');
   const [tiffinPrice, setTiffinPrice] = useState('');
+  const [tiffinCostPrice, setTiffinCostPrice] = useState('');
+  const [tiffinStock, setTiffinStock] = useState('');
   const [tiffinUnit, setTiffinUnit] = useState('nos');
 
   // Form State: Meals
@@ -33,13 +35,17 @@ export default function PremiumManageMenuScreen() {
     const newItem = {
       id: Date.now().toString(),
       name: tiffinName,
-      price: tiffinPrice,
+      price: parseFloat(tiffinPrice),
+      costPrice: tiffinCostPrice ? parseFloat(tiffinCostPrice) : 0,
+      stock: tiffinStock ? parseInt(tiffinStock, 10) : 0,
       unit: tiffinUnit,
     };
     addTiffinItem(newItem);
     setTiffinName('');
     setTiffinPrice('');
     Keyboard.dismiss();
+    setTiffinCostPrice('');
+    setTiffinStock('');
   };
 
   const handleAddMealDish = () => {
@@ -119,6 +125,30 @@ export default function PremiumManageMenuScreen() {
                 />
               </View>
               
+              <View style={styles.inputWrapper}>
+                <Ionicons name="pricetag-outline" size={20} color="#aaa" style={styles.inputIcon} />
+                <TextInput 
+                  style={styles.input} 
+                  placeholder="Cost Price (optional)" 
+                  placeholderTextColor="#aaa"
+                  value={tiffinCostPrice} 
+                  onChangeText={setTiffinCostPrice} 
+                  keyboardType="numeric" 
+                />
+              </View>
+              
+              <View style={styles.inputWrapper}>
+                <Ionicons name="cube-outline" size={20} color="#aaa" style={styles.inputIcon} />
+                <TextInput 
+                  style={styles.input} 
+                  placeholder="Initial Stock (optional)" 
+                  placeholderTextColor="#aaa"
+                  value={tiffinStock} 
+                  onChangeText={setTiffinStock} 
+                  keyboardType="numeric" 
+                />
+              </View>
+              
               <View style={styles.unitRow}>
                 {['nos', 'plate', 'kg'].map(unit => (
                   <TouchableOpacity 
@@ -178,7 +208,7 @@ export default function PremiumManageMenuScreen() {
             <View>
               <Text style={styles.itemName}>{item.name}</Text>
               <Text style={styles.itemPrice}>
-                <Text style={{color: '#FF7F50'}}>₹</Text>{item.price} / {item.unit}
+                <Text style={{color: '#FF7F50'}}>₹</Text>{item.price} / {item.unit} • Stock: {item.stock || 0}
               </Text>
             </View>
           </View>
