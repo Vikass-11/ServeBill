@@ -1,8 +1,6 @@
 import React, { useEffect, useRef, useState, useContext } from 'react';
 import {
   Alert,
-  Animated,
-  Easing,
   Modal,
   StyleSheet,
   Text,
