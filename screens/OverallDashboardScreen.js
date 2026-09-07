@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BusinessContext } from '../context/BusinessContext';
 import { InvoiceContext } from '../context/InvoiceContext';
 
-export default function OverallDashboardScreen() {
+export default function OverallDashboardScreen({ navigation }) {
   const { shopSales, shopExpenses } = useContext(BusinessContext);
   const { invoices } = useContext(InvoiceContext);
 
@@ -68,6 +68,12 @@ export default function OverallDashboardScreen() {
           <Text style={styles.mainTitle}>
             Business <Text style={{ color: '#888' }}>Overview.</Text>
           </Text>
+          <TouchableOpacity 
+            style={styles.profileButton} 
+            onPress={() => navigation.navigate('PremiumProfile')}
+          >
+            <Ionicons name="settings-outline" size={24} color="#111" />
+          </TouchableOpacity>
         </View>
 
         {/* SHOP SUMMARY */}
@@ -130,8 +136,21 @@ export default function OverallDashboardScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FAF9F6' },
   scrollContent: { paddingHorizontal: 24, paddingBottom: 100 },
-  header: { paddingTop: 20, marginBottom: 25 },
+  header: { paddingTop: 20, marginBottom: 25, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   mainTitle: { fontSize: 32, fontWeight: '800', color: '#111', letterSpacing: -0.5 },
+  profileButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
   
   card: {
     backgroundColor: '#fff',
