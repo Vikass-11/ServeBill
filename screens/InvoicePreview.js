@@ -1,5 +1,5 @@
 import React, { useContext, useMemo, useState } from 'react';
-import { Alert, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -9,14 +9,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { InvoiceContext } from '../context/InvoiceContext';
 import { MenuContext } from '../context/MenuContext';
-
-const BUSINESS_DETAILS = {
-  name: 'SM Catering',
-  tagline: 'Premium Food Services',
-  phone: '+91 97889 50915',
-  email: 'suresh2851973@gmail.com',
-  address: '2/115 Old Post Office Street, Kangayampalayam, Sulur, Coimbatore - 641401, Tamil Nadu, India',
-};
+import { BusinessContext } from '../context/BusinessContext';
 
 function escapeHtml(value) {
   return String(value)
@@ -31,6 +24,7 @@ export default function InvoicePreviewScreen({ route, navigation }) {
   const { clientName, clientPhone, events, subTotal: previousSubTotal, taxAmount, grandTotal, transportCharge = 0 } = route.params;
   const { addInvoice } = useContext(InvoiceContext);
   const { tiffinItems } = useContext(MenuContext);
+  const { businessProfile } = useContext(BusinessContext);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   const invoiceDate = new Date().toLocaleDateString('en-IN');
@@ -86,11 +80,27 @@ export default function InvoicePreviewScreen({ route, navigation }) {
   const onShare = async () => {
     try {
       await Share.share({
-        message: `Invoice for ${clientName}\nSubtotal: ₹${subTotal.toFixed(2)}\nTransport Charge: ₹${transportAmount.toFixed(2)}\nTotal Amount: ₹${finalTotal.toFixed(2)}\nGenerated via ${BUSINESS_DETAILS.name}`,
+        message: `Invoice for ${clientName}\nSubtotal: ₹${subTotal.toFixed(2)}\nTransport Charge: ₹${transportAmount.toFixed(2)}\nTotal Amount: ₹${finalTotal.toFixed(2)}\nGenerated via ${businessProfile?.name || 'our app'}`,
       });
     } catch (error) {
       console.log(error.message);
     }
+  };
+
+  const onWhatsAppShare = () => {
+    const text = `*Invoice for ${clientName}*\n\n*Subtotal:* ₹${subTotal.toFixed(2)}\n*Transport Charge:* ₹${transportAmount.toFixed(2)}\n*Total Amount:* ₹${finalTotal.toFixed(2)}\n\n_Generated via ${businessProfile?.name || 'our app'}_`;
+    
+    let phoneStr = clientPhone ? clientPhone.replace(/\D/g, '') : '';
+    if (phoneStr && phoneStr.length === 10) phoneStr = '91' + phoneStr;
+    
+    let url = `whatsapp://send?text=${encodeURIComponent(text)}`;
+    if (phoneStr) {
+        url += `&phone=${phoneStr}`;
+    }
+    
+    Linking.openURL(url).catch(() => {
+        Alert.alert('Error', 'Make sure WhatsApp is installed on your device');
+    });
   };
 
   const getLogoDataUri = async () => {
@@ -337,16 +347,16 @@ export default function InvoicePreviewScreen({ route, navigation }) {
           <div class="header">
             <div>
               <div class="brand-wrap">
-                ${logoDataUri ? `<img src="${logoDataUri}" alt="${escapeHtml(BUSINESS_DETAILS.name)} logo" class="logo" />` : ''}
+                ${logoDataUri ? `<img src="${logoDataUri}" alt="${escapeHtml(businessProfile?.name || '')} logo" class="logo" />` : ''}
                 <div>
-                  <div class="brand">${escapeHtml(BUSINESS_DETAILS.name)}</div>
-                  <div class="sub">${escapeHtml(BUSINESS_DETAILS.tagline)}</div>
+                  <div class="brand">${escapeHtml(businessProfile?.name || '')}</div>
+                  <div class="sub">${escapeHtml(businessProfile?.tagline || '')}</div>
                 </div>
               </div>
               <div class="contact">
-                <div><strong>Phone:</strong> ${escapeHtml(BUSINESS_DETAILS.phone)}</div>
-                <div><strong>Email:</strong> ${escapeHtml(BUSINESS_DETAILS.email)}</div>
-                <div><strong>Address:</strong> ${escapeHtml(BUSINESS_DETAILS.address)}</div>
+                <div><strong>Phone:</strong> ${escapeHtml(businessProfile?.phone || '')}</div>
+                <div><strong>Email:</strong> ${escapeHtml(businessProfile?.email || '')}</div>
+                <div><strong>Address:</strong> ${escapeHtml(businessProfile?.address || '')}</div>
               </div>
             </div>
             <div class="badge">INVOICE</div>
@@ -469,10 +479,10 @@ export default function InvoicePreviewScreen({ route, navigation }) {
       >
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text style={[styles.companyName, dynamicStyles.companyName]}>{BUSINESS_DETAILS.name}</Text>
-            <Text style={styles.invoiceSubtitle}>{BUSINESS_DETAILS.tagline}</Text>
-            <Text style={styles.contactText}>{BUSINESS_DETAILS.phone}</Text>
-            <Text style={styles.contactText}>{BUSINESS_DETAILS.email}</Text>
+            <Text style={[styles.companyName, dynamicStyles.companyName]}>{businessProfile?.name || 'Company Name'}</Text>
+            <Text style={styles.invoiceSubtitle}>{businessProfile?.tagline || ''}</Text>
+            <Text style={styles.contactText}>{businessProfile?.phone || ''}</Text>
+            <Text style={styles.contactText}>{businessProfile?.email || ''}</Text>
           </View>
           <View style={styles.invoiceBadge}>
             <Text style={styles.invoiceBadgeText}>INVOICE</Text>
@@ -567,6 +577,17 @@ export default function InvoicePreviewScreen({ route, navigation }) {
             <Text style={styles.secondaryActionText}>
               {isExportingPdf ? ' GENERATING...' : ' DOWNLOAD PDF'}
             </Text>
+          </LinearGradient>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.secondaryAction}
+          onPress={onWhatsAppShare}
+          activeOpacity={0.85}
+        >
+          <LinearGradient colors={['#25D366', '#128C7E']} style={styles.secondaryGradient}>
+            <Ionicons name="logo-whatsapp" size={20} color="#fff" />
+            <Text style={styles.secondaryActionText}> SHARE VIA WHATSAPP</Text>
           </LinearGradient>
         </TouchableOpacity>
 
