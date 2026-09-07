@@ -7,6 +7,13 @@ export const BusinessContext = createContext();
 export const BusinessProvider = ({ children }) => {
   const [shopSales, setShopSales] = useState([]);
   const [shopExpenses, setShopExpenses] = useState([]);
+  const [businessProfile, setBusinessProfile] = useState({
+    name: 'SM Catering',
+    tagline: 'Premium Food Services',
+    phone: '+91 97889 50915',
+    email: 'suresh2851973@gmail.com',
+    address: '2/115 Old Post Office Street, Kangayampalayam, Sulur, Coimbatore - 641401, Tamil Nadu, India',
+  });
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   useEffect(() => {
@@ -35,6 +42,11 @@ export const BusinessProvider = ({ children }) => {
           const savedExpenses = await AsyncStorage.getItem('@shop_expenses');
           if (savedExpenses) setShopExpenses(JSON.parse(savedExpenses));
         }
+
+        const savedProfile = await AsyncStorage.getItem('@business_profile');
+        if (savedProfile) {
+          setBusinessProfile(JSON.parse(savedProfile));
+        }
         
         setIsDataLoaded(true);
       } catch (error) {
@@ -48,8 +60,9 @@ export const BusinessProvider = ({ children }) => {
     if (isDataLoaded) {
       AsyncStorage.setItem('@shop_sales', JSON.stringify(shopSales));
       AsyncStorage.setItem('@shop_expenses', JSON.stringify(shopExpenses));
+      AsyncStorage.setItem('@business_profile', JSON.stringify(businessProfile));
     }
-  }, [shopSales, shopExpenses, isDataLoaded]);
+  }, [shopSales, shopExpenses, businessProfile, isDataLoaded]);
 
   const addShopSale = async (sale) => {
     setShopSales(prev => [sale, ...prev]);
@@ -87,8 +100,20 @@ export const BusinessProvider = ({ children }) => {
     }
   };
 
+  const updateBusinessProfile = (newProfile) => {
+    setBusinessProfile(newProfile);
+  };
+
   return (
-    <BusinessContext.Provider value={{ shopSales, shopExpenses, addShopSale, updateShopSale, addShopExpense }}>
+    <BusinessContext.Provider value={{ 
+      shopSales, 
+      shopExpenses, 
+      businessProfile,
+      addShopSale, 
+      updateShopSale, 
+      addShopExpense,
+      updateBusinessProfile 
+    }}>
       {children}
     </BusinessContext.Provider>
   );
