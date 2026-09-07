@@ -23,6 +23,7 @@ import PremiumCreateInvoiceScreen from './screens/PremiumCreateInvoice';
 import PremiumManageMenuScreen from './screens/PremiumManageMenu';
 import PremiumHistoryScreen from './screens/PremiumHistoryScreen';
 import PremiumCustomersScreen from './screens/PremiumCustomersScreen';
+import PremiumProfileScreen from './screens/PremiumProfileScreen';
 import { CustomerProvider } from './context/CustomerContext';
 import { BusinessProvider } from './context/BusinessContext';
 import OverallDashboardScreen from './screens/OverallDashboardScreen';
@@ -55,6 +56,17 @@ function ShopStack() {
       <Stack.Screen name="ShopDashboard" component={ShopDashboardScreen} />
       <Stack.Screen name="AddShopSale" component={AddShopSaleScreen} />
       <Stack.Screen name="AddShopExpense" component={AddShopExpenseScreen} />
+    </Stack.Navigator>
+  );
+}
+
+function OverviewStack({ onLogout }) {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="OverallDashboard" component={OverallDashboardScreen} />
+      <Stack.Screen name="PremiumProfile">
+        {props => <PremiumProfileScreen {...props} onLogout={onLogout} />}
+      </Stack.Screen>
     </Stack.Navigator>
   );
 }
@@ -118,7 +130,9 @@ function PremiumMainApp({ onLogout }) {
         tabBar={(props) => <CustomTabBar {...props} />}
         screenOptions={{ headerShown: false }}
       >
-        <Tab.Screen name="Overview" component={OverallDashboardScreen} />
+        <Tab.Screen name="Overview">
+          {props => <OverviewStack {...props} onLogout={onLogout} />}
+        </Tab.Screen>
         <Tab.Screen name="Shop" component={ShopStack} />
         <Tab.Screen name="Catering" component={CateringStack} />
         <Tab.Screen name="Menu" component={PremiumManageMenuScreen} />
