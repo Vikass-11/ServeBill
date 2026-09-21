@@ -73,8 +73,24 @@ export default function CateringOrderDetailsScreen({ route, navigation }) {
         
         {/* Customer & Order Basic Info */}
         <View style={styles.card}>
-          <Text style={styles.customerName}>{invoice.customerName}</Text>
+          <Text style={styles.customerName}>{invoice.clientName || invoice.customerName}</Text>
           <Text style={styles.orderDate}>{new Date(invoice.date).toLocaleDateString('en-GB')}</Text>
+          <TouchableOpacity 
+            style={[styles.saveBtn, { marginTop: 15, flexDirection: 'row', justifyContent: 'center' }]} 
+            onPress={() => navigation.navigate('InvoicePreview', {
+              clientName: invoice.clientName || invoice.customerName,
+              clientPhone: invoice.clientPhone,
+              events: invoice.events,
+              subTotal: invoice.subTotal,
+              taxAmount: invoice.taxAmount,
+              grandTotal: invoice.grandTotal,
+              transportCharge: 0,
+              isPreviewOnly: true
+            })}
+          >
+            <Ionicons name="document-text-outline" size={18} color="#fff" style={{marginRight: 8}} />
+            <Text style={styles.saveBtnText}>View / Download Bill</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Financial Summary */}
