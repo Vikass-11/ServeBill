@@ -246,7 +246,7 @@ export default function PremiumManageMenuScreen() {
           showsVerticalScrollIndicator={false}
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingBottom: 120 }}
-          ListHeaderComponent={renderHeaderContent}
+          ListHeaderComponent={renderHeaderContent()}
           renderItem={renderItem}
         />
       </KeyboardAvoidingView>
