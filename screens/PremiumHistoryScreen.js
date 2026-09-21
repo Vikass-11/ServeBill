@@ -24,7 +24,7 @@ export default function PremiumHistoryScreen({ navigation }) {
   );
 
   // Calculate Total Business Done
-  const totalBusiness = invoices.reduce((sum, inv) => sum + inv.grandTotal, 0);
+  const totalBusiness = invoices.reduce((sum, inv) => sum + parseFloat(inv.grandTotal || 0), 0);
 
   const confirmDelete = (id) => {
     Alert.alert(
@@ -83,7 +83,7 @@ export default function PremiumHistoryScreen({ navigation }) {
 
       <View style={styles.cardRight}>
         <Text style={styles.amountText}>
-           <Text style={{color: '#FF7F50', fontSize: 14}}>₹</Text>{item.grandTotal}
+           <Text style={{color: '#FF7F50', fontSize: 14}}>₹</Text>{parseFloat(item.grandTotal || 0).toFixed(2)}
         </Text>
         <TouchableOpacity onPress={() => confirmDelete(item.id)} style={styles.deleteBtn}>
           <Ionicons name="trash-outline" size={18} color="#aaa" />
