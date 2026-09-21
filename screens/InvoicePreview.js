@@ -1,5 +1,5 @@
 import React, { useContext, useMemo, useState } from 'react';
-import { Alert, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View, Linking } from 'react-native';
+import { Alert, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View, Linking, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -93,7 +93,10 @@ export default function InvoicePreviewScreen({ route, navigation }) {
     let phoneStr = clientPhone ? clientPhone.replace(/\D/g, '') : '';
     if (phoneStr && phoneStr.length === 10) phoneStr = '91' + phoneStr;
     
-    let url = `whatsapp://send?text=${encodeURIComponent(text)}`;
+    let url = Platform.OS === 'web' 
+      ? `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`
+      : `whatsapp://send?text=${encodeURIComponent(text)}`;
+      
     if (phoneStr) {
         url += `&phone=${phoneStr}`;
     }
@@ -138,9 +141,9 @@ export default function InvoicePreviewScreen({ route, navigation }) {
               <tr>
                 <td>${escapeHtml(item.name)}</td>
                 <td>${escapeHtml(item.unit)}</td>
-                <td>${qty}</td>
-                <td>₹${escapeHtml(item.price)}</td>
-                <td>₹${rowTotal.toFixed(2)}</td>
+                <td style="text-align: center;">${qty}</td>
+                <td style="text-align: right;">₹${escapeHtml(item.price)}</td>
+                <td style="text-align: right;">₹${rowTotal.toFixed(2)}</td>
               </tr>
             `;
           })
@@ -152,11 +155,13 @@ export default function InvoicePreviewScreen({ route, navigation }) {
 
             return `
               <tr>
-                <td>${escapeHtml(meal.name)}</td>
-                <td>${escapeHtml(meal.dishes.join(', '))}</td>
-                <td>${meal.quantity}</td>
-                <td>₹${meal.price}</td>
-                <td>₹${rowTotal.toFixed(2)}</td>
+                <td>
+                  <strong>${escapeHtml(meal.name)}</strong>
+                  <div style="font-size: 0.85em; color: #555; margin-top: 4px;">${escapeHtml(meal.dishes.join(', '))}</div>
+                </td>
+                <td style="text-align: center;">${meal.quantity}</td>
+                <td style="text-align: right;">₹${meal.price}</td>
+                <td style="text-align: right;">₹${rowTotal.toFixed(2)}</td>
               </tr>
             `;
           })
@@ -172,11 +177,11 @@ export default function InvoicePreviewScreen({ route, navigation }) {
                   <table>
                     <thead>
                       <tr>
-                        <th>Item</th>
-                        <th>Unit</th>
-                        <th>Qty</th>
-                        <th>Rate</th>
-                        <th>Total</th>
+                        <th style="width: 40%;">Item</th>
+                        <th style="width: 15%;">Unit</th>
+                        <th style="width: 10%; text-align: center;">Qty</th>
+                        <th style="width: 15%; text-align: right;">Rate</th>
+                        <th style="width: 20%; text-align: right;">Total</th>
                       </tr>
                     </thead>
                     <tbody>${tiffinRows}</tbody>
@@ -191,11 +196,10 @@ export default function InvoicePreviewScreen({ route, navigation }) {
                   <table>
                     <thead>
                       <tr>
-                        <th>Package</th>
-                        <th>Dishes</th>
-                        <th>Qty</th>
-                        <th>Rate</th>
-                        <th>Total</th>
+                        <th style="width: 55%;">Package & Dishes</th>
+                        <th style="width: 10%; text-align: center;">Qty</th>
+                        <th style="width: 15%; text-align: right;">Rate</th>
+                        <th style="width: 20%; text-align: right;">Total</th>
                       </tr>
                     </thead>
                     <tbody>${mealRows}</tbody>
@@ -395,20 +399,25 @@ export default function InvoicePreviewScreen({ route, navigation }) {
       setIsExportingPdf(true);
       const logoDataUri = await getLogoDataUri();
       const html = buildInvoiceHtml(logoDataUri);
-      const { uri } = await Print.printToFileAsync({
-        html,
-        base64: false,
-      });
-
-      const canShare = await Sharing.isAvailableAsync();
-      if (canShare) {
-        await Sharing.shareAsync(uri, {
-          mimeType: 'application/pdf',
-          dialogTitle: 'Export Invoice PDF',
-          UTI: '.pdf',
-        });
+      
+      if (Platform.OS === 'web') {
+        await Print.printAsync({ html });
       } else {
-        Alert.alert('PDF Ready', `Invoice PDF created at:\n${uri}`);
+        const { uri } = await Print.printToFileAsync({
+          html,
+          base64: false,
+        });
+
+        const canShare = await Sharing.isAvailableAsync();
+        if (canShare) {
+          await Sharing.shareAsync(uri, {
+            mimeType: 'application/pdf',
+            dialogTitle: 'Export Invoice PDF',
+            UTI: '.pdf',
+          });
+        } else {
+          Alert.alert('PDF Ready', `Invoice PDF created at:\n${uri}`);
+        }
       }
     } catch (error) {
       Alert.alert('PDF Error', 'Unable to generate the PDF right now.');
@@ -591,12 +600,14 @@ export default function InvoicePreviewScreen({ route, navigation }) {
           </LinearGradient>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.primaryAction} onPress={handleSaveInvoice} activeOpacity={0.85}>
-          <LinearGradient colors={['#27ae60', '#1e8449']} style={styles.primaryGradient}>
-            <Ionicons name="cloud-upload-outline" size={20} color="#fff" />
-            <Text style={styles.primaryActionText}> SAVE TO RECORDS</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+        {!route.params?.isPreviewOnly && (
+          <TouchableOpacity style={styles.primaryAction} onPress={handleSaveInvoice} activeOpacity={0.85}>
+            <LinearGradient colors={['#27ae60', '#1e8449']} style={styles.primaryGradient}>
+              <Ionicons name="cloud-upload-outline" size={20} color="#fff" />
+              <Text style={styles.primaryActionText}> SAVE TO RECORDS</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -698,7 +709,7 @@ const styles = StyleSheet.create({
   actionBar: {
     paddingHorizontal: 15,
     paddingTop: 12,
-    paddingBottom: 16,
+    paddingBottom: 90,
     backgroundColor: '#f0f3f5',
   },
   secondaryAction: { marginBottom: 10 },
