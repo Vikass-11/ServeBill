@@ -11,13 +11,16 @@ import {
   View,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import CustomDatePicker from '../components/CustomDatePicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { MenuContext } from '../context/MenuContext';
 import { CustomerContext } from '../context/CustomerContext';
+import { InvoiceContext } from '../context/InvoiceContext';
 
 export default function PremiumCreateInvoiceScreen({ navigation }) {
   const { tiffinItems, mealDishes, updateTiffinItem } = useContext(MenuContext);
+  const { addInvoice } = useContext(InvoiceContext);
   const [clientName, setClientName] = useState('');
   const [transportCharge, setTransportCharge] = useState('');
   const [clientPhone, setClientPhone] = useState('');
@@ -330,7 +333,25 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
         </View>
       </ScrollView>
 
-      {showPicker && (
+      {showPicker && Platform.OS === 'web' && (
+        <CustomDatePicker
+          visible={showPicker}
+          initialDate={events.find((ev) => ev.id === activeEventId)?.date || new Date().toISOString()}
+          onSelect={(selectedDate) => {
+             setShowPicker(false);
+             if (selectedDate && activeEventId) {
+               setEvents(
+                 events.map((ev) =>
+                   ev.id === activeEventId ? { ...ev, date: selectedDate.toISOString() } : ev
+                 )
+               );
+             }
+          }}
+          onClose={() => setShowPicker(false)}
+        />
+      )}
+
+      {showPicker && Platform.OS !== 'web' && (
         <DateTimePicker
           value={new Date(events.find((ev) => ev.id === activeEventId)?.date || new Date())}
           mode="date"
@@ -371,6 +392,19 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
                   });
                 });
 
+                // Automatically save to records
+                const newInvoice = {
+                  id: Date.now().toString(),
+                  clientName,
+                  clientPhone,
+                  date: new Date().toLocaleDateString('en-IN'),
+                  events,
+                  subTotal,
+                  taxAmount,
+                  grandTotal: grandTotal.toFixed(2),
+                };
+                addInvoice(newInvoice);
+
                 navigation.navigate('InvoicePreview', {
                   clientName,
                   clientPhone,
@@ -379,6 +413,7 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
                   taxAmount,
                   grandTotal,
                   transportCharge: transportCharge ? parseFloat(transportCharge) : 0,
+                  isPreviewOnly: true, // Hide save button in preview since it's auto-saved
                 });
               }}
             >
