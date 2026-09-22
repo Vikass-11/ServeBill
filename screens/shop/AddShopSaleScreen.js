@@ -4,9 +4,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { BusinessContext } from '../../context/BusinessContext';
+import { ThemeContext } from '../../context/ThemeContext';
 
 export default function AddShopSaleScreen({ navigation }) {
   const { shopSales, addShopSale, updateShopSale } = useContext(BusinessContext);
+  const { theme, isDarkMode } = useContext(ThemeContext);
+  const styles = getStyles(theme);
   
   const [date, setDate] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
@@ -71,15 +74,15 @@ export default function AddShopSaleScreen({ navigation }) {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#111" />
+          <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
-        <Text style={styles.mainTitle}>Add <Text style={{ color: '#FF7F50' }}>Sales</Text></Text>
+        <Text style={styles.mainTitle}>Add <Text style={{ color: theme.primary }}>Sales</Text></Text>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <TouchableOpacity style={styles.datePickerBtn} onPress={() => setShowPicker(true)}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Ionicons name="calendar-outline" size={20} color="#111" />
+            <Ionicons name="calendar-outline" size={20} color={theme.text} />
             <Text style={styles.datePickerText}>{date.toLocaleDateString('en-GB')}</Text>
           </View>
           <Text style={styles.changeText}>Edit</Text>
@@ -100,6 +103,7 @@ export default function AddShopSaleScreen({ navigation }) {
             style={styles.input}
             keyboardType="numeric"
             placeholder="0"
+            placeholderTextColor={theme.textMuted}
             value={morningSales}
             onChangeText={setMorningSales}
           />
@@ -111,6 +115,7 @@ export default function AddShopSaleScreen({ navigation }) {
             style={styles.input}
             keyboardType="numeric"
             placeholder="0"
+            placeholderTextColor={theme.textMuted}
             value={nightSales}
             onChangeText={setNightSales}
           />
@@ -129,40 +134,40 @@ export default function AddShopSaleScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FAF9F6' },
+const getStyles = (theme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.background },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingTop: 20, marginBottom: 25 },
   backBtn: { marginRight: 15 },
-  mainTitle: { fontSize: 28, fontWeight: '800', color: '#111', letterSpacing: -0.5 },
+  mainTitle: { fontSize: 28, fontWeight: '800', color: theme.text, letterSpacing: -0.5 },
   scrollContent: { paddingHorizontal: 24, paddingBottom: 100 },
   
   datePickerBtn: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    backgroundColor: '#fff', padding: 18, borderRadius: 16, marginBottom: 25,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 10, elevation: 2,
+    backgroundColor: theme.card, padding: 18, borderRadius: 16, marginBottom: 25,
+    shadowColor: theme.shadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 10, elevation: 2,
   },
-  datePickerText: { fontSize: 16, fontWeight: '600', color: '#111', marginLeft: 10 },
-  changeText: { color: '#FF7F50', fontSize: 13, fontWeight: '700' },
+  datePickerText: { fontSize: 16, fontWeight: '600', color: theme.text, marginLeft: 10 },
+  changeText: { color: theme.primary, fontSize: 13, fontWeight: '700' },
 
   inputGroup: { marginBottom: 20 },
-  inputLabel: { fontSize: 14, fontWeight: '700', color: '#666', marginBottom: 8, marginLeft: 4 },
+  inputLabel: { fontSize: 14, fontWeight: '700', color: theme.textSecondary, marginBottom: 8, marginLeft: 4 },
   input: {
-    backgroundColor: '#fff', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 18,
-    fontSize: 20, fontWeight: '700', color: '#111',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.02, shadowRadius: 8, elevation: 1,
+    backgroundColor: theme.card, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 18,
+    fontSize: 20, fontWeight: '700', color: theme.text,
+    shadowColor: theme.shadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.02, shadowRadius: 8, elevation: 1,
   },
 
   totalBox: { 
-    marginTop: 20, backgroundColor: '#111', borderRadius: 16, padding: 20,
+    marginTop: 20, backgroundColor: theme.tabBar, borderRadius: 16, padding: 20,
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'
   },
   totalLabel: { fontSize: 16, color: '#fff', fontWeight: '600' },
-  totalValue: { fontSize: 24, fontWeight: '800', color: '#4ade80' },
+  totalValue: { fontSize: 24, fontWeight: '800', color: theme.success },
 
   saveBtn: {
-    backgroundColor: '#FF7F50', marginTop: 25,
+    backgroundColor: theme.primary, marginTop: 25,
     paddingVertical: 18, borderRadius: 16, alignItems: 'center',
-    shadowColor: '#FF7F50', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 15, elevation: 5,
+    shadowColor: theme.primary, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 15, elevation: 5,
   },
   saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' }
 });
