@@ -3,10 +3,13 @@ import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Modal,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { InvoiceContext } from '../../context/InvoiceContext';
+import { ThemeContext } from '../../context/ThemeContext';
 
 export default function CateringOrderDetailsScreen({ route, navigation }) {
   const { invoiceId } = route.params;
   const { invoices, updateInvoice } = useContext(InvoiceContext);
+  const { theme, isDarkMode } = useContext(ThemeContext);
+  const styles = getStyles(theme, isDarkMode);
   
   const invoice = invoices.find(inv => inv.id === invoiceId);
   
@@ -64,9 +67,9 @@ export default function CateringOrderDetailsScreen({ route, navigation }) {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#111" />
+          <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
-        <Text style={styles.mainTitle}>Order <Text style={{ color: '#a855f7' }}>Details</Text></Text>
+        <Text style={styles.mainTitle}>Order <Text style={{ color: theme.primary }}>Details</Text></Text>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -88,7 +91,7 @@ export default function CateringOrderDetailsScreen({ route, navigation }) {
               isPreviewOnly: true
             })}
           >
-            <Ionicons name="document-text-outline" size={18} color="#fff" style={{marginRight: 8}} />
+            <Ionicons name="document-text-outline" size={18} color={theme.background} style={{marginRight: 8}} />
             <Text style={styles.saveBtnText}>View / Download Bill</Text>
           </TouchableOpacity>
         </View>
@@ -97,15 +100,15 @@ export default function CateringOrderDetailsScreen({ route, navigation }) {
         <View style={styles.card}>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Total Revenue</Text>
-            <Text style={[styles.summaryValue, { color: '#111' }]}>₹{revenue.toFixed(2)}</Text>
+            <Text style={[styles.summaryValue, { color: theme.text }]}>₹{revenue.toFixed(2)}</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Total Expenses</Text>
-            <Text style={[styles.summaryValue, { color: '#ef4444' }]}>₹{totalExpenses.toFixed(2)}</Text>
+            <Text style={[styles.summaryValue, { color: theme.error }]}>₹{totalExpenses.toFixed(2)}</Text>
           </View>
           <View style={[styles.summaryRow, styles.profitRow]}>
             <Text style={styles.summaryLabelBold}>Order Profit</Text>
-            <Text style={[styles.summaryValueBold, { color: '#4ade80' }]}>₹{profit.toFixed(2)}</Text>
+            <Text style={[styles.summaryValueBold, { color: theme.success }]}>₹{profit.toFixed(2)}</Text>
           </View>
         </View>
 
@@ -113,18 +116,18 @@ export default function CateringOrderDetailsScreen({ route, navigation }) {
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>Payments</Text>
           <TouchableOpacity onPress={() => setPaymentModalVisible(true)} style={styles.addBtn}>
-            <Ionicons name="add" size={16} color="#fff" />
+            <Ionicons name="add" size={16} color={theme.background} />
             <Text style={styles.addBtnText}>Receive</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.card}>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Amount Received</Text>
-            <Text style={[styles.summaryValue, { color: '#4ade80' }]}>₹{received.toFixed(2)}</Text>
+            <Text style={[styles.summaryValue, { color: theme.success }]}>₹{received.toFixed(2)}</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Pending Payment</Text>
-            <Text style={[styles.summaryValue, { color: pending > 0 ? '#c53030' : '#888' }]}>₹{pending.toFixed(2)}</Text>
+            <Text style={[styles.summaryValue, { color: pending > 0 ? theme.error : theme.textSecondary }]}>₹{pending.toFixed(2)}</Text>
           </View>
         </View>
 
@@ -132,7 +135,7 @@ export default function CateringOrderDetailsScreen({ route, navigation }) {
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>Order Expenses</Text>
           <TouchableOpacity onPress={() => setExpenseModalVisible(true)} style={styles.addBtn}>
-            <Ionicons name="add" size={16} color="#fff" />
+            <Ionicons name="add" size={16} color={theme.background} />
             <Text style={styles.addBtnText}>Expense</Text>
           </TouchableOpacity>
         </View>
@@ -158,6 +161,7 @@ export default function CateringOrderDetailsScreen({ route, navigation }) {
               style={styles.modalInput}
               keyboardType="numeric"
               placeholder="Amount (₹)"
+              placeholderTextColor={theme.textMuted}
               value={paymentAmount}
               onChangeText={setPaymentAmount}
             />
@@ -181,6 +185,7 @@ export default function CateringOrderDetailsScreen({ route, navigation }) {
             <TextInput
               style={styles.modalInput}
               placeholder="Category (e.g. Labour, Transport)"
+              placeholderTextColor={theme.textMuted}
               value={expenseCategory}
               onChangeText={setExpenseCategory}
             />
@@ -188,6 +193,7 @@ export default function CateringOrderDetailsScreen({ route, navigation }) {
               style={styles.modalInput}
               keyboardType="numeric"
               placeholder="Amount (₹)"
+              placeholderTextColor={theme.textMuted}
               value={expenseAmount}
               onChangeText={setExpenseAmount}
             />
@@ -207,48 +213,50 @@ export default function CateringOrderDetailsScreen({ route, navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FAF9F6' },
+const getStyles = (theme, isDarkMode) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.background },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingTop: 20, marginBottom: 20 },
   backBtn: { marginRight: 15 },
-  mainTitle: { fontSize: 28, fontWeight: '800', color: '#111', letterSpacing: -0.5 },
+  mainTitle: { fontSize: 28, fontWeight: '800', color: theme.text, letterSpacing: -0.5 },
   scrollContent: { paddingHorizontal: 24, paddingBottom: 100 },
   
   card: {
-    backgroundColor: '#fff', borderRadius: 24, padding: 20, marginBottom: 20,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 10, elevation: 2,
+    backgroundColor: theme.card, borderRadius: 24, padding: 20, marginBottom: 20,
+    shadowColor: theme.shadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 10, elevation: 2,
   },
-  customerName: { fontSize: 22, fontWeight: '800', color: '#111' },
-  orderDate: { fontSize: 14, color: '#888', marginTop: 4, fontWeight: '500' },
+  customerName: { fontSize: 22, fontWeight: '800', color: theme.text },
+  orderDate: { fontSize: 14, color: theme.textSecondary, marginTop: 4, fontWeight: '500' },
+  saveBtn: { backgroundColor: theme.primary, paddingVertical: 12, borderRadius: 12 },
+  saveBtnText: { color: theme.background, fontWeight: '700' },
   
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 },
-  summaryLabel: { fontSize: 15, color: '#666', fontWeight: '500' },
+  summaryLabel: { fontSize: 15, color: theme.textSecondary, fontWeight: '500' },
   summaryValue: { fontSize: 16, fontWeight: '700' },
-  profitRow: { borderTopWidth: 1, borderTopColor: '#eee', marginTop: 10, paddingTop: 15 },
-  summaryLabelBold: { fontSize: 16, fontWeight: '800', color: '#111' },
+  profitRow: { borderTopWidth: 1, borderTopColor: theme.border, marginTop: 10, paddingTop: 15 },
+  summaryLabelBold: { fontSize: 16, fontWeight: '800', color: theme.text },
   summaryValueBold: { fontSize: 20, fontWeight: '800' },
 
   sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, marginTop: 10 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#111' },
-  addBtn: { backgroundColor: '#111', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
-  addBtnText: { color: '#fff', fontSize: 13, fontWeight: '700', marginLeft: 4 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: theme.text },
+  addBtn: { backgroundColor: theme.text, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  addBtnText: { color: theme.background, fontSize: 13, fontWeight: '700', marginLeft: 4 },
 
   expenseItem: { 
-    backgroundColor: '#fff', flexDirection: 'row', justifyContent: 'space-between', 
+    backgroundColor: theme.card, flexDirection: 'row', justifyContent: 'space-between', 
     padding: 16, borderRadius: 16, marginBottom: 10,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.02, shadowRadius: 5, elevation: 1
+    shadowColor: theme.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.02, shadowRadius: 5, elevation: 1
   },
-  expenseCategory: { fontSize: 15, fontWeight: '600', color: '#111' },
-  expenseAmount: { fontSize: 15, fontWeight: '700', color: '#ef4444' },
-  emptyText: { color: '#888', fontStyle: 'italic', marginBottom: 20 },
+  expenseCategory: { fontSize: 15, fontWeight: '600', color: theme.text },
+  expenseAmount: { fontSize: 15, fontWeight: '700', color: theme.error },
+  emptyText: { color: theme.textSecondary, fontStyle: 'italic', marginBottom: 20 },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 24 },
-  modalContent: { backgroundColor: '#fff', borderRadius: 24, padding: 24 },
-  modalTitle: { fontSize: 20, fontWeight: '800', marginBottom: 20, textAlign: 'center' },
-  modalInput: { backgroundColor: '#f9f9f9', borderRadius: 12, padding: 16, fontSize: 16, marginBottom: 15 },
+  modalContent: { backgroundColor: theme.card, borderRadius: 24, padding: 24 },
+  modalTitle: { fontSize: 20, fontWeight: '800', color: theme.text, marginBottom: 20, textAlign: 'center' },
+  modalInput: { backgroundColor: theme.inputBackground, color: theme.text, borderRadius: 12, padding: 16, fontSize: 16, marginBottom: 15 },
   modalActions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
   cancelBtn: { flex: 1, padding: 16, alignItems: 'center' },
-  cancelBtnText: { color: '#888', fontWeight: '700' },
-  saveBtn: { flex: 1, backgroundColor: '#111', padding: 16, borderRadius: 12, alignItems: 'center' },
-  saveBtnText: { color: '#fff', fontWeight: '700' }
+  cancelBtnText: { color: theme.textSecondary, fontWeight: '700' },
+  saveBtn: { flex: 1, backgroundColor: theme.text, padding: 16, borderRadius: 12, alignItems: 'center' },
+  saveBtnText: { color: theme.background, fontWeight: '700' }
 });
