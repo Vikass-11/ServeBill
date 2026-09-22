@@ -10,6 +10,7 @@ import * as Sharing from 'expo-sharing';
 import { InvoiceContext } from '../context/InvoiceContext';
 import { MenuContext } from '../context/MenuContext';
 import { BusinessContext } from '../context/BusinessContext';
+import { ThemeContext } from '../context/ThemeContext';
 
 function escapeHtml(value) {
   return String(value)
@@ -25,6 +26,8 @@ export default function InvoicePreviewScreen({ route, navigation }) {
   const { addInvoice } = useContext(InvoiceContext);
   const { tiffinItems } = useContext(MenuContext);
   const { businessProfile } = useContext(BusinessContext);
+  const { theme, isDarkMode } = useContext(ThemeContext);
+  const styles = getStyles(theme, isDarkMode);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   const invoiceDate = new Date().toLocaleDateString('en-IN');
@@ -473,11 +476,11 @@ export default function InvoicePreviewScreen({ route, navigation }) {
     <SafeAreaView style={styles.container}>
       <View style={styles.topActions}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconButton}>
-          <Ionicons name="arrow-back" size={24} color="#2c3e50" />
+          <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={styles.previewTitle}>Review Bill</Text>
         <TouchableOpacity onPress={onShare} style={styles.iconButton}>
-          <Ionicons name="share-social-outline" size={24} color="#3498db" />
+          <Ionicons name="share-social-outline" size={24} color={theme.primary} />
         </TouchableOpacity>
       </View>
 
@@ -568,7 +571,7 @@ export default function InvoicePreviewScreen({ route, navigation }) {
             <Text style={[styles.totalAmount, dynamicStyles.totalAmount]}>₹{finalTotal.toFixed(2)}</Text>
           </View>
           <View style={styles.bottomStatus}>
-            <Ionicons name="checkmark-circle" size={16} color="#27ae60" />
+            <Ionicons name="checkmark-circle" size={16} color={theme.success} />
             <Text style={styles.statusText}> Computer Generated Invoice</Text>
           </View>
         </View>
@@ -613,24 +616,24 @@ export default function InvoicePreviewScreen({ route, navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f3f5' },
+const getStyles = (theme, isDarkMode) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.background },
   topActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 15,
-    backgroundColor: '#f0f3f5',
+    backgroundColor: theme.background,
   },
   iconButton: { padding: 6 },
-  previewTitle: { fontSize: 18, fontWeight: 'bold', color: '#2c3e50' },
+  previewTitle: { fontSize: 18, fontWeight: 'bold', color: theme.text },
   invoicePaper: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.card,
     marginHorizontal: 15,
     borderRadius: 5,
     paddingHorizontal: 20,
     elevation: 10,
-    shadowColor: '#000',
+    shadowColor: theme.shadow,
     shadowOpacity: 0.15,
     shadowRadius: 15,
   },
@@ -644,32 +647,32 @@ const styles = StyleSheet.create({
     marginBottom: 25,
   },
   headerLeft: { flex: 1, paddingRight: 16 },
-  companyName: { fontSize: 22, fontWeight: '900', color: '#2c3e50', letterSpacing: 1 },
+  companyName: { fontSize: 22, fontWeight: '900', color: theme.text, letterSpacing: 1 },
   companyNameSpacious: { fontSize: 26 },
   companyNameCompact: { fontSize: 20 },
-  invoiceSubtitle: { fontSize: 12, color: '#7f8c8d', fontWeight: '600', marginTop: 3 },
-  contactText: { fontSize: 12, color: '#7f8c8d', marginTop: 3 },
-  invoiceBadge: { backgroundColor: '#f0f3f5', padding: 8, borderRadius: 5 },
-  invoiceBadgeText: { fontSize: 12, fontWeight: '800', color: '#3498db' },
+  invoiceSubtitle: { fontSize: 12, color: theme.textSecondary, fontWeight: '600', marginTop: 3 },
+  contactText: { fontSize: 12, color: theme.textSecondary, marginTop: 3 },
+  invoiceBadge: { backgroundColor: theme.inputBackground, padding: 8, borderRadius: 5 },
+  invoiceBadgeText: { fontSize: 12, fontWeight: '800', color: theme.primary },
   billToSection: { marginBottom: 20 },
-  label: { fontSize: 10, fontWeight: '800', color: '#bdc3c7', marginBottom: 4 },
-  clientNameText: { fontSize: 20, fontWeight: 'bold', color: '#2c3e50' },
+  label: { fontSize: 10, fontWeight: '800', color: theme.textMuted, marginBottom: 4 },
+  clientNameText: { fontSize: 20, fontWeight: 'bold', color: theme.text },
   clientNameSpacious: { fontSize: 24 },
   clientNameCompact: { fontSize: 18 },
-  dateText: { fontSize: 13, color: '#7f8c8d', marginTop: 2 },
-  divider: { height: 2, backgroundColor: '#f0f3f5', marginBottom: 20 },
+  dateText: { fontSize: 13, color: theme.textSecondary, marginTop: 2 },
+  divider: { height: 2, backgroundColor: theme.border, marginBottom: 20 },
   eventSection: { marginBottom: 25 },
   dayHeader: {
-    backgroundColor: '#fdfdfd',
+    backgroundColor: isDarkMode ? '#222' : '#fdfdfd',
     borderLeftWidth: 4,
-    borderLeftColor: '#3498db',
+    borderLeftColor: theme.primary,
     paddingLeft: 10,
     marginBottom: 15,
     paddingVertical: 2,
   },
   dayHeaderSpacious: { paddingVertical: 4 },
   dayHeaderCompact: { marginBottom: 10 },
-  dayHeaderText: { fontSize: 14, fontWeight: 'bold', color: '#34495e' },
+  dayHeaderText: { fontSize: 14, fontWeight: 'bold', color: theme.text },
   dayHeaderTextSpacious: { fontSize: 16 },
   dayHeaderTextCompact: { fontSize: 13 },
   itemRow: {
@@ -679,14 +682,14 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   itemMain: { flex: 0.8, paddingRight: 10 },
-  itemNameText: { fontSize: 15, fontWeight: '700', color: '#2c3e50' },
+  itemNameText: { fontSize: 15, fontWeight: '700', color: theme.text },
   itemNameSpacious: { fontSize: 17 },
   itemNameCompact: { fontSize: 14 },
-  itemSubDetail: { fontSize: 12, color: '#7f8c8d', marginTop: 3 },
+  itemSubDetail: { fontSize: 12, color: theme.textSecondary, marginTop: 3 },
   itemDetailSpacious: { fontSize: 13 },
   itemDetailCompact: { fontSize: 11 },
-  dishListText: { fontSize: 11, color: '#95a5a6', fontStyle: 'italic', marginVertical: 2 },
-  priceText: { fontSize: 15, fontWeight: 'bold', color: '#2c3e50' },
+  dishListText: { fontSize: 11, color: theme.textMuted, fontStyle: 'italic', marginVertical: 2 },
+  priceText: { fontSize: 15, fontWeight: 'bold', color: theme.text },
   priceSpacious: { fontSize: 17 },
   priceCompact: { fontSize: 14 },
   totalBlock: {
@@ -694,23 +697,23 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     borderTopWidth: 2,
     borderTopStyle: 'dashed',
-    borderTopColor: '#f0f3f5',
+    borderTopColor: theme.border,
   },
   totalRowSub: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  totalLabelSub: { fontSize: 15, color: '#7f8c8d' },
-  totalAmountSub: { fontSize: 15, fontWeight: '600', color: '#2c3e50' },
+  totalLabelSub: { fontSize: 15, color: theme.textSecondary },
+  totalAmountSub: { fontSize: 15, fontWeight: '600', color: theme.text },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  totalLabel: { fontSize: 18, fontWeight: 'bold', color: '#7f8c8d' },
-  totalAmount: { fontSize: 28, fontWeight: '900', color: '#27ae60' },
+  totalLabel: { fontSize: 18, fontWeight: 'bold', color: theme.textSecondary },
+  totalAmount: { fontSize: 28, fontWeight: '900', color: theme.success },
   totalAmountSpacious: { fontSize: 32 },
   totalAmountCompact: { fontSize: 24 },
   bottomStatus: { flexDirection: 'row', alignItems: 'center', marginTop: 15, justifyContent: 'center' },
-  statusText: { fontSize: 10, color: '#bdc3c7', textTransform: 'uppercase', letterSpacing: 1 },
+  statusText: { fontSize: 10, color: theme.textMuted, textTransform: 'uppercase', letterSpacing: 1 },
   actionBar: {
     paddingHorizontal: 15,
     paddingTop: 12,
     paddingBottom: 90,
-    backgroundColor: '#f0f3f5',
+    backgroundColor: theme.background,
   },
   secondaryAction: { marginBottom: 10 },
   primaryAction: {},
