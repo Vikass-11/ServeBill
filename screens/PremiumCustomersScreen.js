@@ -14,9 +14,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { CustomerContext } from '../context/CustomerContext';
+import { ThemeContext } from '../context/ThemeContext';
 
 export default function PremiumCustomersScreen() {
   const { customers, addCustomer, deleteCustomer } = useContext(CustomerContext);
+  const { theme, isDarkMode } = useContext(ThemeContext);
+  const styles = getStyles(theme, isDarkMode);
   const [isAddModalVisible, setAddModalVisible] = useState(false);
 
   const [newName, setNewName] = useState('');
@@ -65,7 +68,7 @@ export default function PremiumCustomersScreen() {
         
         <View style={styles.header}>
           <Text style={styles.mainTitle}>
-            Manage <Text style={{ color: '#888' }}>Clients.</Text>
+            Manage <Text style={{ color: theme.textMuted }}>Clients.</Text>
           </Text>
         </View>
 
@@ -75,7 +78,7 @@ export default function PremiumCustomersScreen() {
           activeOpacity={0.8}
         >
           <View style={styles.addCustomerContent}>
-            <Ionicons name="person-add" size={24} color="#FF7F50" style={{ marginBottom: 10 }} />
+            <Ionicons name="person-add" size={24} color={theme.primary} style={{ marginBottom: 10 }} />
             <Text style={styles.addCustomerTitle}>Add New Client</Text>
             <Text style={styles.addCustomerSub}>Save details for faster billing</Text>
           </View>
@@ -95,16 +98,16 @@ export default function PremiumCustomersScreen() {
                 <View style={styles.customerInfo}>
                   <Text style={styles.customerName}>{c.name}</Text>
                   <View style={styles.customerDetailRow}>
-                    <Ionicons name="call-outline" size={14} color="#888" style={{ marginRight: 6 }} />
+                    <Ionicons name="call-outline" size={14} color={theme.textSecondary} style={{ marginRight: 6 }} />
                     <Text style={styles.customerDetailText}>{c.phone}</Text>
                   </View>
                   <View style={styles.customerDetailRow}>
-                    <Ionicons name="location-outline" size={14} color="#888" style={{ marginRight: 6 }} />
+                    <Ionicons name="location-outline" size={14} color={theme.textSecondary} style={{ marginRight: 6 }} />
                     <Text style={styles.customerDetailText} numberOfLines={2}>{c.address}</Text>
                   </View>
                 </View>
                 <TouchableOpacity onPress={() => confirmDelete(c.id)} style={styles.deleteBtn}>
-                  <Ionicons name="trash-outline" size={20} color="#FF7F50" />
+                  <Ionicons name="trash-outline" size={20} color={theme.primary} />
                 </TouchableOpacity>
               </View>
             ))
@@ -133,6 +136,7 @@ export default function PremiumCustomersScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder="e.g. Acme Corp"
+                  placeholderTextColor={theme.textMuted}
                   value={newName}
                   onChangeText={setNewName}
                 />
@@ -143,6 +147,7 @@ export default function PremiumCustomersScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder="e.g. +1 555-0199"
+                  placeholderTextColor={theme.textMuted}
                   keyboardType="phone-pad"
                   value={newPhone}
                   onChangeText={setNewPhone}
@@ -154,6 +159,7 @@ export default function PremiumCustomersScreen() {
                 <TextInput
                   style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
                   placeholder="Full Address"
+                  placeholderTextColor={theme.textMuted}
                   multiline
                   value={newAddress}
                   onChangeText={setNewAddress}
@@ -171,18 +177,18 @@ export default function PremiumCustomersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FAF9F6' },
+const getStyles = (theme, isDarkMode) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.background },
   header: { paddingHorizontal: 24, paddingTop: 20, marginBottom: 20 },
-  mainTitle: { fontSize: 32, fontWeight: '800', color: '#111', letterSpacing: -0.5 },
+  mainTitle: { fontSize: 32, fontWeight: '800', color: theme.text, letterSpacing: -0.5 },
   
   scrollContent: { paddingBottom: 100, paddingHorizontal: 24 },
   
   addCustomerCard: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.card,
     borderRadius: 24,
     borderWidth: 2,
-    borderColor: '#FFF0EA',
+    borderColor: isDarkMode ? '#2A1A14' : '#FFF0EA',
     borderStyle: 'dashed',
     marginBottom: 30,
   },
@@ -191,35 +197,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  addCustomerTitle: { fontSize: 18, fontWeight: '700', color: '#111' },
-  addCustomerSub: { fontSize: 13, color: '#888', marginTop: 4 },
+  addCustomerTitle: { fontSize: 18, fontWeight: '700', color: theme.text },
+  addCustomerSub: { fontSize: 13, color: theme.textSecondary, marginTop: 4 },
   
   listSection: { marginTop: 10 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#111', marginBottom: 15 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: theme.text, marginBottom: 15 },
   
   emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
-  emptyText: { color: '#888', marginTop: 10, fontSize: 15 },
+  emptyText: { color: theme.textSecondary, marginTop: 10, fontSize: 15 },
   
   customerCard: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.card,
     borderRadius: 20,
     padding: 20,
     marginBottom: 15,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowColor: theme.shadow, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.03, shadowRadius: 10, elevation: 2,
   },
   customerInfo: { flex: 1 },
-  customerName: { fontSize: 17, fontWeight: '700', color: '#111', marginBottom: 8 },
+  customerName: { fontSize: 17, fontWeight: '700', color: theme.text, marginBottom: 8 },
   customerDetailRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-  customerDetailText: { fontSize: 13, color: '#666', flexShrink: 1 },
+  customerDetailText: { fontSize: 13, color: theme.textSecondary, flexShrink: 1 },
   
-  deleteBtn: { padding: 10, marginLeft: 10, backgroundColor: '#FFF0EA', borderRadius: 12 },
+  deleteBtn: { padding: 10, marginLeft: 10, backgroundColor: isDarkMode ? '#2A1A14' : '#FFF0EA', borderRadius: 12 },
   
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.card,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     paddingHorizontal: 24,
@@ -227,28 +233,28 @@ const styles = StyleSheet.create({
     maxHeight: '90%',
   },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle: { fontSize: 22, fontWeight: '800', color: '#111' },
+  modalTitle: { fontSize: 22, fontWeight: '800', color: theme.text },
   
   inputGroup: { marginBottom: 20 },
-  inputLabel: { fontSize: 13, fontWeight: '700', color: '#888', marginBottom: 8, marginLeft: 4 },
+  inputLabel: { fontSize: 13, fontWeight: '700', color: theme.textSecondary, marginBottom: 8, marginLeft: 4 },
   input: {
-    backgroundColor: '#f9f9f9',
+    backgroundColor: theme.inputBackground,
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 16,
     fontSize: 15,
-    color: '#111',
+    color: theme.text,
     borderWidth: 1,
-    borderColor: '#eee',
+    borderColor: theme.border,
   },
   
   saveBtn: {
-    backgroundColor: '#111',
+    backgroundColor: theme.text,
     borderRadius: 16,
     paddingVertical: 18,
     alignItems: 'center',
     marginTop: 10,
     marginBottom: 30,
   },
-  saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  saveBtnText: { color: theme.background, fontSize: 16, fontWeight: '700' },
 });
