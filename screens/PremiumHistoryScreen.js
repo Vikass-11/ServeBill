@@ -13,9 +13,12 @@ import * as Sharing from 'expo-sharing';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { InvoiceContext } from '../context/InvoiceContext';
+import { ThemeContext } from '../context/ThemeContext';
 
 export default function PremiumHistoryScreen({ navigation }) {
   const { invoices, deleteInvoice } = useContext(InvoiceContext);
+  const { theme, isDarkMode } = useContext(ThemeContext);
+  const styles = getStyles(theme, isDarkMode);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Filter invoices based on search (Client Name)
@@ -73,7 +76,7 @@ export default function PremiumHistoryScreen({ navigation }) {
     >
       <View style={styles.cardInfo}>
         <View style={styles.clientRow}>
-          <Ionicons name="person-circle-outline" size={20} color="#111" />
+          <Ionicons name="person-circle-outline" size={20} color={theme.text} />
           <Text style={styles.clientName}>{item.clientName}</Text>
         </View>
         <Text style={styles.dateLabel}>
@@ -83,7 +86,7 @@ export default function PremiumHistoryScreen({ navigation }) {
 
       <View style={styles.cardRight}>
         <Text style={styles.amountText}>
-           <Text style={{color: '#FF7F50', fontSize: 14}}>₹</Text>{parseFloat(item.grandTotal || 0).toFixed(2)}
+           <Text style={{color: theme.primary, fontSize: 14}}>₹</Text>{parseFloat(item.grandTotal || 0).toFixed(2)}
         </Text>
         <TouchableOpacity onPress={() => confirmDelete(item.id)} style={styles.deleteBtn}>
           <Ionicons name="trash-outline" size={18} color="#aaa" />
@@ -98,16 +101,16 @@ export default function PremiumHistoryScreen({ navigation }) {
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           {navigation.canGoBack && navigation.canGoBack() && (
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-              <Ionicons name="arrow-back" size={24} color="#111" />
+              <Ionicons name="arrow-back" size={24} color={theme.text} />
             </TouchableOpacity>
           )}
           <Text style={styles.mainTitle}>
-            Past <Text style={{color: '#888'}}>Orders.</Text>
+            Past <Text style={{color: theme.textMuted}}>Orders.</Text>
           </Text>
         </View>
         <TouchableOpacity onPress={exportCSV} style={styles.exportBtn}>
-          <Ionicons name="download-outline" size={22} color="#111" />
-          <Text style={{marginLeft: 5, fontWeight: '600'}}>Export</Text>
+          <Ionicons name="download-outline" size={22} color={theme.text} />
+          <Text style={{marginLeft: 5, fontWeight: '600', color: theme.text}}>Export</Text>
         </TouchableOpacity>
       </View>
 
@@ -119,7 +122,7 @@ export default function PremiumHistoryScreen({ navigation }) {
         </View>
         <View style={styles.summaryRight}>
             <View style={styles.iconCircle}>
-                <Ionicons name="stats-chart" size={24} color="#FF7F50" />
+                <Ionicons name="stats-chart" size={24} color={theme.primary} />
             </View>
             <Text style={styles.invoiceCount}>{invoices.length} Bills</Text>
         </View>
@@ -127,11 +130,11 @@ export default function PremiumHistoryScreen({ navigation }) {
 
       {/* SEARCH BAR */}
       <View style={styles.searchContainer}>
-        <Ionicons name="search-outline" size={20} color="#aaa" style={styles.searchIcon} />
+        <Ionicons name="search-outline" size={20} color={theme.textSecondary} style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
           placeholder="Search customer name..."
-          placeholderTextColor="#aaa"
+          placeholderTextColor={theme.textMuted}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
@@ -152,7 +155,7 @@ export default function PremiumHistoryScreen({ navigation }) {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconCircle}>
-                <Ionicons name="receipt-outline" size={40} color="#ccc" />
+                <Ionicons name="receipt-outline" size={40} color={theme.textMuted} />
             </View>
             <Text style={styles.emptyText}>
               {searchQuery ? "No matching records found." : "No invoices saved yet."}
@@ -164,70 +167,70 @@ export default function PremiumHistoryScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FAF9F6' },
+const getStyles = (theme, isDarkMode) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.background },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingTop: 20, marginBottom: 20 },
   backBtn: { marginRight: 15 },
-  mainTitle: { fontSize: 32, fontWeight: '800', color: '#111', letterSpacing: -0.5 },
-  exportBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#eaeaea', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12 },
+  mainTitle: { fontSize: 32, fontWeight: '800', color: theme.text, letterSpacing: -0.5 },
+  exportBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.inputBackground, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12 },
   
   summaryCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    backgroundColor: '#111',
+    backgroundColor: theme.tabBar,
     marginHorizontal: 24,
     borderRadius: 24,
     padding: 24,
     marginBottom: 20,
-    shadowColor: '#000',
+    shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.15,
     shadowRadius: 20,
     elevation: 8,
   },
   summaryLeft: { justifyContent: 'center' },
-  statsLabel: { color: '#888', fontSize: 13, fontWeight: '600', marginBottom: 5 },
-  statsValue: { color: '#fff', fontSize: 32, fontWeight: '800' },
+  statsLabel: { color: theme.textSecondary, fontSize: 13, fontWeight: '600', marginBottom: 5 },
+  statsValue: { color: theme.success, fontSize: 32, fontWeight: '800' },
   summaryRight: { alignItems: 'center', justifyContent: 'center' },
   iconCircle: {
       width: 48,
       height: 48,
       borderRadius: 24,
-      backgroundColor: '#222',
+      backgroundColor: isDarkMode ? '#222' : theme.background,
       justifyContent: 'center',
       alignItems: 'center',
       marginBottom: 8,
   },
-  invoiceCount: { color: '#aaa', fontSize: 12, fontWeight: '600' },
+  invoiceCount: { color: theme.textMuted, fontSize: 12, fontWeight: '600' },
   
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: theme.card,
     marginHorizontal: 24,
     marginBottom: 20,
     paddingHorizontal: 16,
     borderRadius: 20,
     height: 56,
-    shadowColor: '#000',
+    shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
     shadowRadius: 10,
     elevation: 2,
   },
   searchIcon: { marginRight: 10 },
-  searchInput: { flex: 1, fontSize: 16, color: '#111' },
+  searchInput: { flex: 1, fontSize: 16, color: theme.text },
   
   listContent: { paddingHorizontal: 24, paddingBottom: 120 }, // 120 padding for floating tab bar
   invoiceCard: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.card,
     borderRadius: 20,
     padding: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
-    shadowColor: '#000',
+    shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.03,
     shadowRadius: 8,
@@ -235,19 +238,19 @@ const styles = StyleSheet.create({
   },
   cardInfo: { flex: 1 },
   clientRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  clientName: { fontSize: 16, fontWeight: '700', color: '#111', marginLeft: 8 },
-  dateLabel: { fontSize: 12, color: '#888', marginLeft: 2 },
+  clientName: { fontSize: 16, fontWeight: '700', color: theme.text, marginLeft: 8 },
+  dateLabel: { fontSize: 12, color: theme.textSecondary, marginLeft: 2 },
   
   cardRight: { alignItems: 'flex-end', justifyContent: 'center' },
-  amountText: { fontSize: 18, fontWeight: '800', color: '#111', marginBottom: 8 },
+  amountText: { fontSize: 18, fontWeight: '800', color: theme.text, marginBottom: 8 },
   deleteBtn: { padding: 4 },
   
   emptyContainer: { alignItems: 'center', marginTop: 60 },
   emptyIconCircle: {
-      width: 80, height: 80, borderRadius: 40, backgroundColor: '#fff',
+      width: 80, height: 80, borderRadius: 40, backgroundColor: theme.card,
       justifyContent: 'center', alignItems: 'center', marginBottom: 15,
-      shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+      shadowColor: theme.shadow, shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
   },
-  emptyText: { color: '#888', fontSize: 15, fontWeight: '500' }
+  emptyText: { color: theme.textSecondary, fontSize: 15, fontWeight: '500' }
 });
