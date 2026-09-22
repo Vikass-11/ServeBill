@@ -4,9 +4,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { BusinessContext } from '../../context/BusinessContext';
+import { ThemeContext } from '../../context/ThemeContext';
 
 export default function AddShopExpenseScreen({ navigation }) {
   const { addShopExpense } = useContext(BusinessContext);
+  const { theme, isDarkMode } = useContext(ThemeContext);
+  const styles = getStyles(theme, isDarkMode);
   
   const [expenseType, setExpenseType] = useState('PURCHASE'); // 'PURCHASE' or 'OTHER'
   const [date, setDate] = useState(new Date());
@@ -53,9 +56,9 @@ export default function AddShopExpenseScreen({ navigation }) {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#111" />
+          <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
-        <Text style={styles.mainTitle}>Add <Text style={{ color: '#4ade80' }}>Expense</Text></Text>
+        <Text style={styles.mainTitle}>Add <Text style={{ color: theme.success }}>Expense</Text></Text>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -78,7 +81,7 @@ export default function AddShopExpenseScreen({ navigation }) {
 
         <TouchableOpacity style={styles.datePickerBtn} onPress={() => setShowPicker(true)}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Ionicons name="calendar-outline" size={20} color="#111" />
+            <Ionicons name="calendar-outline" size={20} color={theme.text} />
             <Text style={styles.datePickerText}>{date.toLocaleDateString('en-GB')}</Text>
           </View>
           <Text style={styles.changeText}>Edit</Text>
@@ -99,6 +102,7 @@ export default function AddShopExpenseScreen({ navigation }) {
             style={styles.input}
             keyboardType="numeric"
             placeholder="0"
+            placeholderTextColor={theme.textMuted}
             value={amount}
             onChangeText={setAmount}
           />
@@ -110,6 +114,7 @@ export default function AddShopExpenseScreen({ navigation }) {
             <TextInput
               style={[styles.input, { fontSize: 16 }]}
               placeholder="e.g. Rice, Dal, Oil..."
+              placeholderTextColor={theme.textMuted}
               value={item}
               onChangeText={setItem}
             />
@@ -120,6 +125,7 @@ export default function AddShopExpenseScreen({ navigation }) {
             <TextInput
               style={[styles.input, { fontSize: 16 }]}
               placeholder="e.g. Rent, Salary, Electricity..."
+              placeholderTextColor={theme.textMuted}
               value={category}
               onChangeText={setCategory}
             />
@@ -131,6 +137,7 @@ export default function AddShopExpenseScreen({ navigation }) {
           <TextInput
             style={[styles.input, { fontSize: 16, height: 80, textAlignVertical: 'top' }]}
             placeholder="Any extra details..."
+            placeholderTextColor={theme.textMuted}
             multiline
             value={notes}
             onChangeText={setNotes}
@@ -146,41 +153,41 @@ export default function AddShopExpenseScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FAF9F6' },
+const getStyles = (theme, isDarkMode) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.background },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingTop: 20, marginBottom: 20 },
   backBtn: { marginRight: 15 },
-  mainTitle: { fontSize: 28, fontWeight: '800', color: '#111', letterSpacing: -0.5 },
+  mainTitle: { fontSize: 28, fontWeight: '800', color: theme.text, letterSpacing: -0.5 },
   scrollContent: { paddingHorizontal: 24, paddingBottom: 100 },
   
   toggleContainer: { 
-    flexDirection: 'row', backgroundColor: '#e5e5e5', borderRadius: 12, padding: 4, marginBottom: 25 
+    flexDirection: 'row', backgroundColor: theme.inputBackground, borderRadius: 12, padding: 4, marginBottom: 25 
   },
   toggleBtn: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 10 },
-  toggleBtnActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
-  toggleText: { fontSize: 14, fontWeight: '600', color: '#888' },
-  toggleTextActive: { color: '#111', fontWeight: '800' },
+  toggleBtnActive: { backgroundColor: theme.card, shadowColor: theme.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
+  toggleText: { fontSize: 14, fontWeight: '600', color: theme.textSecondary },
+  toggleTextActive: { color: theme.text, fontWeight: '800' },
 
   datePickerBtn: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    backgroundColor: '#fff', padding: 18, borderRadius: 16, marginBottom: 25,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 10, elevation: 2,
+    backgroundColor: theme.card, padding: 18, borderRadius: 16, marginBottom: 25,
+    shadowColor: theme.shadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 10, elevation: 2,
   },
-  datePickerText: { fontSize: 16, fontWeight: '600', color: '#111', marginLeft: 10 },
-  changeText: { color: '#4ade80', fontSize: 13, fontWeight: '700' },
+  datePickerText: { fontSize: 16, fontWeight: '600', color: theme.text, marginLeft: 10 },
+  changeText: { color: theme.success, fontSize: 13, fontWeight: '700' },
 
   inputGroup: { marginBottom: 20 },
-  inputLabel: { fontSize: 14, fontWeight: '700', color: '#666', marginBottom: 8, marginLeft: 4 },
+  inputLabel: { fontSize: 14, fontWeight: '700', color: theme.textSecondary, marginBottom: 8, marginLeft: 4 },
   input: {
-    backgroundColor: '#fff', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 16,
-    fontSize: 20, fontWeight: '700', color: '#111',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.02, shadowRadius: 8, elevation: 1,
+    backgroundColor: theme.card, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 16,
+    fontSize: 20, fontWeight: '700', color: theme.text,
+    shadowColor: theme.shadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.02, shadowRadius: 8, elevation: 1,
   },
 
   saveBtn: {
-    backgroundColor: '#4ade80', marginTop: 10,
+    backgroundColor: theme.success, marginTop: 10,
     paddingVertical: 18, borderRadius: 16, alignItems: 'center',
-    shadowColor: '#4ade80', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 15, elevation: 5,
+    shadowColor: theme.success, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 15, elevation: 5,
   },
-  saveBtnText: { color: '#111', fontSize: 16, fontWeight: '800' }
+  saveBtnText: { color: isDarkMode ? '#fff' : '#111', fontSize: 16, fontWeight: '800' }
 });
