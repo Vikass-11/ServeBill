@@ -4,10 +4,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { BusinessContext } from '../context/BusinessContext';
 import { InvoiceContext } from '../context/InvoiceContext';
+import { ThemeContext } from '../context/ThemeContext';
 
 export default function OverallDashboardScreen({ navigation }) {
   const { shopSales, shopExpenses } = useContext(BusinessContext);
   const { invoices } = useContext(InvoiceContext);
+  const { theme } = useContext(ThemeContext);
+  const styles = getStyles(theme);
 
   const stats = useMemo(() => {
     const currentMonth = new Date().getMonth();
@@ -66,13 +69,13 @@ export default function OverallDashboardScreen({ navigation }) {
         
         <View style={styles.header}>
           <Text style={styles.mainTitle}>
-            Business <Text style={{ color: '#888' }}>Overview.</Text>
+            Business <Text style={{ color: theme.textMuted }}>Overview.</Text>
           </Text>
           <TouchableOpacity 
             style={styles.profileButton} 
             onPress={() => navigation.navigate('PremiumProfile')}
           >
-            <Ionicons name="settings-outline" size={24} color="#111" />
+            <Ionicons name="settings-outline" size={24} color={theme.text} />
           </TouchableOpacity>
         </View>
 
@@ -80,7 +83,7 @@ export default function OverallDashboardScreen({ navigation }) {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <View style={{flexDirection: 'row', alignItems: 'center'}}>
-              <Ionicons name="storefront" size={20} color="#FF7F50" style={{marginRight: 8}} />
+              <Ionicons name="storefront" size={20} color={theme.primary} style={{marginRight: 8}} />
               <Text style={styles.cardTitle}>SHOP</Text>
             </View>
           </View>
@@ -90,7 +93,7 @@ export default function OverallDashboardScreen({ navigation }) {
           </View>
           <View style={[styles.row, { marginTop: 10 }]}>
             <Text style={styles.statLabel}>Estimated Profit</Text>
-            <Text style={[styles.statValue, { color: '#4ade80' }]}>₹{stats.shopProfit}</Text>
+            <Text style={[styles.statValue, { color: theme.success }]}>₹{stats.shopProfit}</Text>
           </View>
         </View>
 
@@ -108,7 +111,7 @@ export default function OverallDashboardScreen({ navigation }) {
           </View>
           <View style={[styles.row, { marginTop: 10 }]}>
             <Text style={styles.statLabel}>Estimated Profit</Text>
-            <Text style={[styles.statValue, { color: '#4ade80' }]}>₹{stats.cateringProfit}</Text>
+            <Text style={[styles.statValue, { color: theme.success }]}>₹{stats.cateringProfit}</Text>
           </View>
         </View>
 
@@ -124,7 +127,7 @@ export default function OverallDashboardScreen({ navigation }) {
           </View>
           <View style={[styles.row, styles.totalDivider]}>
             <Text style={styles.totalLabel}>Total Profit</Text>
-            <Text style={[styles.totalValue, { color: '#4ade80', fontSize: 32 }]}>₹{stats.totalProfit}</Text>
+            <Text style={[styles.totalValue, { color: theme.success, fontSize: 32 }]}>₹{stats.totalProfit}</Text>
           </View>
         </View>
 
@@ -133,19 +136,19 @@ export default function OverallDashboardScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FAF9F6' },
+const getStyles = (theme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.background },
   scrollContent: { paddingHorizontal: 24, paddingBottom: 100 },
   header: { paddingTop: 20, marginBottom: 25, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  mainTitle: { fontSize: 32, fontWeight: '800', color: '#111', letterSpacing: -0.5 },
+  mainTitle: { fontSize: 32, fontWeight: '800', color: theme.text, letterSpacing: -0.5 },
   profileButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#fff',
+    backgroundColor: theme.card,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -153,26 +156,26 @@ const styles = StyleSheet.create({
   },
   
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.card,
     borderRadius: 24,
     padding: 24,
     marginBottom: 20,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
+    shadowColor: theme.shadow, shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.04, shadowRadius: 15, elevation: 3,
   },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  cardTitle: { fontSize: 16, fontWeight: '800', color: '#111', letterSpacing: 1 },
+  cardTitle: { fontSize: 16, fontWeight: '800', color: theme.text, letterSpacing: 1 },
   
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  statLabel: { fontSize: 15, color: '#666', fontWeight: '600' },
-  statValue: { fontSize: 20, fontWeight: '800', color: '#111' },
+  statLabel: { fontSize: 15, color: theme.textSecondary, fontWeight: '600' },
+  statValue: { fontSize: 20, fontWeight: '800', color: theme.text },
 
   totalCard: {
-    backgroundColor: '#111',
+    backgroundColor: theme.tabBar,
     borderRadius: 24,
     padding: 24,
     marginTop: 10,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 10 },
+    shadowColor: theme.shadow, shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.15, shadowRadius: 20, elevation: 8,
   },
   totalLabel: { fontSize: 15, color: '#aaa', fontWeight: '600' },
