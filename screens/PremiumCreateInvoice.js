@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { MenuContext } from '../context/MenuContext';
 import { CustomerContext } from '../context/CustomerContext';
 import { InvoiceContext } from '../context/InvoiceContext';
+import { ThemeContext } from '../context/ThemeContext';
 
 export default function PremiumCreateInvoiceScreen({ navigation }) {
   const { tiffinItems, mealDishes, updateTiffinItem } = useContext(MenuContext);
@@ -45,6 +46,9 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
   // CRM
   const { customers } = useContext(CustomerContext);
   const [isCustomerModalVisible, setCustomerModalVisible] = useState(false);
+  
+  const { theme, isDarkMode } = useContext(ThemeContext);
+  const styles = getStyles(theme, isDarkMode);
 
   const addNewDateEvent = () => {
     setEvents([
@@ -174,17 +178,17 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
         <View style={styles.header}>
           {navigation.canGoBack && navigation.canGoBack() && (
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-              <Ionicons name="arrow-back" size={24} color="#111" />
+              <Ionicons name="arrow-back" size={24} color={theme.text} />
             </TouchableOpacity>
           )}
           <Text style={styles.mainTitle}>
-            Create <Text style={{color: '#888'}}>Bill.</Text>
+            Create <Text style={{color: theme.textMuted}}>Bill.</Text>
           </Text>
         </View>
 
         <View style={styles.clientCard}>
           <View style={styles.iconHeading}>
-            <Ionicons name="business" size={20} color="#111" />
+            <Ionicons name="business" size={20} color={theme.text} />
             <Text style={styles.sectionTitle}>Customer Details</Text>
             <View style={{flex: 1}} />
             <TouchableOpacity onPress={() => setCustomerModalVisible(true)} style={styles.pickClientBtn}>
@@ -195,7 +199,7 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
             <TextInput
               style={styles.input}
               placeholder="Client Name / Company Name"
-              placeholderTextColor="#aaa"
+              placeholderTextColor={theme.textMuted}
               value={clientName}
               onChangeText={setClientName}
             />
@@ -204,7 +208,7 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
             <TextInput
               style={styles.input}
               placeholder="Phone Number"
-              placeholderTextColor="#aaa"
+              placeholderTextColor={theme.textMuted}
               keyboardType="phone-pad"
               value={clientPhone}
               onChangeText={setClientPhone}
@@ -230,7 +234,7 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
                 }}
               >
                 <View style={styles.row}>
-                  <Ionicons name="calendar-outline" size={20} color="#111" />
+                  <Ionicons name="calendar-outline" size={20} color={theme.text} />
                   <Text style={styles.datePickerText}>
                     {' '}
                     {new Date(ev.date).toLocaleDateString('en-GB')}
@@ -255,7 +259,7 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
                       style={styles.counterBtn}
                       onPress={() => updateTiffinQuantity(ev.id, item.id, -1)}
                     >
-                      <Ionicons name="remove" size={20} color="#111" />
+                      <Ionicons name="remove" size={20} color={theme.text} />
                     </TouchableOpacity>
                     <TextInput
                       style={styles.qtyInput}
@@ -269,7 +273,7 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
                       style={styles.counterBtn}
                       onPress={() => updateTiffinQuantity(ev.id, item.id, 1)}
                     >
-                      <Ionicons name="add" size={20} color="#111" />
+                      <Ionicons name="add" size={20} color={theme.text} />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -310,21 +314,21 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
         ))}
 
         <TouchableOpacity style={styles.addDateBtn} onPress={addNewDateEvent}>
-          <Ionicons name="add" size={24} color="#111" />
+          <Ionicons name="add" size={24} color={theme.text} />
           <Text style={styles.addDateBtnText}> Add Another Date</Text>
         </TouchableOpacity>
         
         <View style={styles.clientCard}>
           <View style={styles.iconHeading}>
-            <Ionicons name="car-outline" size={20} color="#111" />
+            <Ionicons name="car-outline" size={20} color={theme.text} />
             <Text style={styles.sectionTitle}>Transport Charge (+)</Text>
           </View>
           <View style={[styles.inputWrapper, { flexDirection: 'row', alignItems: 'center' }]}>
-            <Text style={{ fontSize: 15, fontWeight: '700', color: '#111', marginRight: 5 }}>₹</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: theme.text, marginRight: 5 }}>₹</Text>
             <TextInput
               style={[styles.input, { flex: 1 }]}
               placeholder="0"
-              placeholderTextColor="#aaa"
+              placeholderTextColor={theme.textMuted}
               keyboardType="numeric"
               value={transportCharge}
               onChangeText={setTransportCharge}
@@ -438,7 +442,7 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
                   <Ionicons
                     name={tempSelectedDishes.includes(dish.name) ? 'checkmark-circle' : 'ellipse-outline'}
                     size={24}
-                    color={tempSelectedDishes.includes(dish.name) ? '#FF7F50' : '#ccc'}
+                    color={tempSelectedDishes.includes(dish.name) ? theme.primary : theme.textMuted}
                   />
                   <Text style={styles.checkboxLabel}>{dish.name}</Text>
                 </TouchableOpacity>
@@ -450,6 +454,7 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
                   <TextInput
                     style={styles.modalInput}
                     placeholder="Package Label"
+                    placeholderTextColor={theme.textMuted}
                     value={tempMealName}
                     onChangeText={setTempMealName}
                   />
@@ -459,6 +464,7 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
                     <TextInput
                       style={styles.modalInput}
                       placeholder="Price"
+                      placeholderTextColor={theme.textMuted}
                       keyboardType="numeric"
                       value={tempMealPrice}
                       onChangeText={setTempMealPrice}
@@ -468,6 +474,7 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
                     <TextInput
                       style={styles.modalInput}
                       placeholder="Qty"
+                      placeholderTextColor={theme.textMuted}
                       keyboardType="numeric"
                       value={tempMealQty}
                       onChangeText={setTempMealQty}
@@ -511,8 +518,8 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
                       setCustomerModalVisible(false);
                     }}
                   >
-                    <Text style={{fontSize: 16, fontWeight: '600', color: '#111'}}>{c.name}</Text>
-                    <Text style={{fontSize: 13, color: '#888', marginTop: 4}}>{c.phone}</Text>
+                    <Text style={{fontSize: 16, fontWeight: '600', color: theme.text}}>{c.name}</Text>
+                    <Text style={{fontSize: 13, color: theme.textSecondary, marginTop: 4}}>{c.phone}</Text>
                   </TouchableOpacity>
                 ))
               )}
@@ -524,99 +531,99 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FAF9F6' },
+const getStyles = (theme, isDarkMode) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.background },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingTop: 20, marginBottom: 15 },
   backBtn: { marginRight: 15 },
-  mainTitle: { fontSize: 32, fontWeight: '800', color: '#111', letterSpacing: -0.5 },
+  mainTitle: { fontSize: 32, fontWeight: '800', color: theme.text, letterSpacing: -0.5 },
   
   scrollContent: { paddingBottom: 160, paddingHorizontal: 24 }, // Extra padding for fixed footer + tab bar
   
   clientCard: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.card,
     padding: 20,
     borderRadius: 24,
     marginBottom: 20,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
+    shadowColor: theme.shadow, shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.04, shadowRadius: 15, elevation: 3,
   },
   iconHeading: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#111', marginLeft: 8 },
-  pickClientBtn: { backgroundColor: '#FFF0EA', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
-  pickClientText: { color: '#FF7F50', fontSize: 12, fontWeight: '700' },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: theme.text, marginLeft: 8 },
+  pickClientBtn: { backgroundColor: isDarkMode ? '#2A1A14' : '#FFF0EA', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  pickClientText: { color: theme.primary, fontSize: 12, fontWeight: '700' },
   inputWrapper: {
-      backgroundColor: '#f9f9f9',
+      backgroundColor: theme.inputBackground,
       borderRadius: 16,
       paddingHorizontal: 16,
   },
-  input: { paddingVertical: 16, fontSize: 15, color: '#111' },
+  input: { paddingVertical: 16, fontSize: 15, color: theme.text },
   
   eventCard: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.card,
     borderRadius: 24,
     marginBottom: 20,
     overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
+    shadowColor: theme.shadow, shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.04, shadowRadius: 15, elevation: 3,
   },
   eventHeader: { 
       flexDirection: 'row', justifyContent: 'space-between', 
       paddingHorizontal: 20, paddingVertical: 15, alignItems: 'center',
-      borderBottomWidth: 1, borderBottomColor: '#f0f0f0'
+      borderBottomWidth: 1, borderBottomColor: theme.border
   },
-  eventDayText: { color: '#111', fontSize: 16, fontWeight: '800' },
-  deleteCircle: { backgroundColor: '#FF7F50', width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center'},
+  eventDayText: { color: theme.text, fontSize: 16, fontWeight: '800' },
+  deleteCircle: { backgroundColor: theme.primary, width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center'},
   
   cardPadding: { padding: 20 },
   datePickerBtn: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    backgroundColor: '#f9f9f9', padding: 16, borderRadius: 16, marginBottom: 20,
+    backgroundColor: theme.inputBackground, padding: 16, borderRadius: 16, marginBottom: 20,
   },
-  datePickerText: { fontSize: 15, fontWeight: '600', color: '#111', marginLeft: 5 },
-  changeText: { color: '#888', fontSize: 13, fontWeight: '600' },
+  datePickerText: { fontSize: 15, fontWeight: '600', color: theme.text, marginLeft: 5 },
+  changeText: { color: theme.textSecondary, fontSize: 13, fontWeight: '600' },
   
   subHeaderRow: {
     flexDirection: 'row', alignItems: 'center', marginBottom: 15, marginTop: 10
   },
   mealHeaderSpacing: { marginTop: 30 },
-  subTitle: { fontSize: 15, fontWeight: '700', color: '#111', marginLeft: 8 },
+  subTitle: { fontSize: 15, fontWeight: '700', color: theme.text, marginLeft: 8 },
   
   menuRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f9f9f9',
+    paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.inputBackground,
   },
   itemInfo: { flex: 1, paddingRight: 10 },
-  itemName: { fontSize: 15, fontWeight: '600', color: '#111' },
-  itemSubText: { color: '#888', fontSize: 12, marginTop: 2 },
+  itemName: { fontSize: 15, fontWeight: '600', color: theme.text },
+  itemSubText: { color: theme.textSecondary, fontSize: 12, marginTop: 2 },
   
-  counter: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f9f9f9', borderRadius: 12, padding: 4 },
+  counter: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.inputBackground, borderRadius: 12, padding: 4 },
   counterBtn: { width: 32, height: 32, justifyContent: 'center', alignItems: 'center' },
   qtyInput: {
-    width: 40, textAlign: 'center', fontSize: 16, fontWeight: '700', color: '#111',
+    width: 40, textAlign: 'center', fontSize: 16, fontWeight: '700', color: theme.text,
   },
   
   buildMealBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     padding: 16, borderRadius: 16, marginTop: 20,
-    borderWidth: 1, borderColor: '#FF7F50', borderStyle: 'dashed', backgroundColor: '#FFF0EA'
+    borderWidth: 1, borderColor: theme.primary, borderStyle: 'dashed', backgroundColor: isDarkMode ? '#2A1A14' : '#FFF0EA'
   },
-  buildMealBtnText: { color: '#FF7F50', fontWeight: '700', marginLeft: 5 },
+  buildMealBtnText: { color: theme.primary, fontWeight: '700', marginLeft: 5 },
   
   addedMealCard: {
-    backgroundColor: '#f9f9f9', padding: 16, borderRadius: 16, marginBottom: 10,
+    backgroundColor: theme.inputBackground, padding: 16, borderRadius: 16, marginBottom: 10,
     flexDirection: 'row', alignItems: 'center',
   },
   mealInfo: { flex: 1 },
-  mealNameText: { fontWeight: '700', color: '#111' },
-  mealDetailText: { fontSize: 13, color: '#FF7F50', marginTop: 4, fontWeight: '600' },
-  dishListText: { fontSize: 11, color: '#888', marginTop: 4 },
+  mealNameText: { fontWeight: '700', color: theme.text },
+  mealDetailText: { fontSize: 13, color: theme.primary, marginTop: 4, fontWeight: '600' },
+  dishListText: { fontSize: 11, color: theme.textSecondary, marginTop: 4 },
   
   addDateBtn: {
-    flexDirection: 'row', backgroundColor: '#eaeaea',
+    flexDirection: 'row', backgroundColor: theme.inputBackground,
     padding: 18, borderRadius: 20, alignItems: 'center', justifyContent: 'center',
     marginBottom: 20,
   },
-  addDateBtnText: { color: '#111', fontSize: 15, fontWeight: '700', marginLeft: 5 },
+  addDateBtnText: { color: theme.text, fontSize: 15, fontWeight: '700', marginLeft: 5 },
   
   footerContainer: {
       position: 'absolute', bottom: 100, // Above the tab bar
@@ -626,25 +633,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: theme.card,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 20,
     marginBottom: 10,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowColor: theme.shadow, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05, shadowRadius: 10, elevation: 3,
   },
   chargeLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#111',
+    color: theme.text,
     flex: 1,
     marginRight: 10,
   },
   chargeInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f9f9f9',
+    backgroundColor: theme.inputBackground,
     borderRadius: 12,
     paddingHorizontal: 10,
     width: 90,
@@ -652,7 +659,7 @@ const styles = StyleSheet.create({
   chargeCurrency: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#111',
+    color: theme.text,
     marginRight: 4,
   },
   chargeInput: {
@@ -660,44 +667,44 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 15,
     fontWeight: '700',
-    color: '#111',
+    color: theme.text,
   },
   footerWrapper: {
-    backgroundColor: '#111',
+    backgroundColor: theme.text,
     borderRadius: 24,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 10 },
+    shadowColor: theme.shadow, shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.2, shadowRadius: 20, elevation: 10,
   },
   totalContainer: { flex: 1, paddingLeft: 10 },
-  totalLabel: { fontSize: 12, color: '#888', fontWeight: '600' },
-  totalValue: { fontSize: 24, fontWeight: '800', color: '#fff' },
+  totalLabel: { fontSize: 12, color: theme.background, opacity: 0.7, fontWeight: '600' },
+  totalValue: { fontSize: 24, fontWeight: '800', color: theme.background },
   previewBtn: { 
-      backgroundColor: '#FF7F50', paddingVertical: 14, paddingHorizontal: 20, 
+      backgroundColor: theme.primary, paddingVertical: 14, paddingHorizontal: 20, 
       borderRadius: 16, flexDirection: 'row', alignItems: 'center'
   },
   previewBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
-  modalContent: { backgroundColor: '#fff', borderRadius: 24, padding: 24, maxHeight: '80%' },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: '#111', marginBottom: 20, textAlign: 'center' },
+  modalContent: { backgroundColor: theme.card, borderRadius: 24, padding: 24, maxHeight: '80%' },
+  modalTitle: { fontSize: 20, fontWeight: '800', color: theme.text, marginBottom: 20, textAlign: 'center' },
   modalScroll: { marginBottom: 20 },
-  checkboxRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  checkboxLabel: { fontSize: 15, marginLeft: 12, color: '#111', fontWeight: '500' },
+  checkboxRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.border },
+  checkboxLabel: { fontSize: 15, marginLeft: 12, color: theme.text, fontWeight: '500' },
   
   modalInputSection: { marginTop: 10 },
-  modalInputWrapper: { backgroundColor: '#f9f9f9', borderRadius: 16, paddingHorizontal: 16, marginBottom: 12 },
-  modalInput: { paddingVertical: 14, fontSize: 15, color: '#111' },
+  modalInputWrapper: { backgroundColor: theme.inputBackground, borderRadius: 16, paddingHorizontal: 16, marginBottom: 12 },
+  modalInput: { paddingVertical: 14, fontSize: 15, color: theme.text },
   halfInput: { flex: 1 },
   rightGap: { marginRight: 6 },
   leftGap: { marginLeft: 6 },
   
   modalActions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 },
   cancelBtn: { padding: 16, flex: 1, alignItems: 'center' },
-  cancelBtnText: { color: '#888', fontWeight: '700', fontSize: 15 },
-  saveBtn: { backgroundColor: '#111', paddingVertical: 16, flex: 1, borderRadius: 16, alignItems: 'center' },
-  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  cancelBtnText: { color: theme.textSecondary, fontWeight: '700', fontSize: 15 },
+  saveBtn: { backgroundColor: theme.text, paddingVertical: 16, flex: 1, borderRadius: 16, alignItems: 'center' },
+  saveBtnText: { color: theme.background, fontWeight: '700', fontSize: 15 },
   row: { flexDirection: 'row', alignItems: 'center' },
 });
