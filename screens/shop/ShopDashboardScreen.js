@@ -3,9 +3,12 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { BusinessContext } from '../../context/BusinessContext';
+import { ThemeContext } from '../../context/ThemeContext';
 
 export default function ShopDashboardScreen({ navigation }) {
   const { shopSales, shopExpenses } = useContext(BusinessContext);
+  const { theme, isDarkMode } = useContext(ThemeContext);
+  const styles = getStyles(theme);
 
   const stats = useMemo(() => {
     const todayStr = new Date().toLocaleDateString('en-GB');
@@ -58,14 +61,14 @@ export default function ShopDashboardScreen({ navigation }) {
         
         <View style={styles.header}>
           <Text style={styles.mainTitle}>
-            Shop <Text style={{ color: '#888' }}>Dashboard.</Text>
+            Shop <Text style={{ color: theme.textMuted }}>Dashboard.</Text>
           </Text>
         </View>
 
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Today's Sales</Text>
-            <Ionicons name="today" size={20} color="#FF7F50" />
+            <Ionicons name="today" size={20} color={theme.primary} />
           </View>
           <View style={styles.row}>
             <View style={styles.statBox}>
@@ -87,7 +90,7 @@ export default function ShopDashboardScreen({ navigation }) {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>This Month</Text>
-            <Ionicons name="calendar" size={20} color="#4ade80" />
+            <Ionicons name="calendar" size={20} color={theme.success} />
           </View>
           
           <View style={styles.monthlyRow}>
@@ -107,19 +110,19 @@ export default function ShopDashboardScreen({ navigation }) {
 
         <View style={styles.actionRow}>
           <TouchableOpacity 
-            style={[styles.actionBtn, { backgroundColor: '#FFF0EA', borderColor: '#FF7F50', borderWidth: 1 }]}
+            style={[styles.actionBtn, { backgroundColor: isDarkMode ? '#2A1A14' : '#FFF0EA', borderColor: theme.primary, borderWidth: 1 }]}
             onPress={() => navigation.navigate('AddShopSale')}
           >
-            <Ionicons name="cash" size={24} color="#FF7F50" />
-            <Text style={[styles.actionBtnText, { color: '#FF7F50' }]}>Add Sales</Text>
+            <Ionicons name="cash" size={24} color={theme.primary} />
+            <Text style={[styles.actionBtnText, { color: theme.primary }]}>Add Sales</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={[styles.actionBtn, { backgroundColor: '#f0fdf4', borderColor: '#4ade80', borderWidth: 1 }]}
+            style={[styles.actionBtn, { backgroundColor: isDarkMode ? '#0F3A1F' : '#f0fdf4', borderColor: theme.success, borderWidth: 1 }]}
             onPress={() => navigation.navigate('AddShopExpense')}
           >
-            <Ionicons name="cart" size={24} color="#4ade80" />
-            <Text style={[styles.actionBtnText, { color: '#4ade80' }]}>Add Purchase/Expense</Text>
+            <Ionicons name="cart" size={24} color={theme.success} />
+            <Text style={[styles.actionBtnText, { color: theme.success }]}>Add Purchase/Expense</Text>
           </TouchableOpacity>
         </View>
 
@@ -128,41 +131,41 @@ export default function ShopDashboardScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FAF9F6' },
+const getStyles = (theme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.background },
   scrollContent: { paddingHorizontal: 24, paddingBottom: 100 },
   header: { paddingTop: 20, marginBottom: 25 },
-  mainTitle: { fontSize: 32, fontWeight: '800', color: '#111', letterSpacing: -0.5 },
+  mainTitle: { fontSize: 32, fontWeight: '800', color: theme.text, letterSpacing: -0.5 },
   
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.card,
     borderRadius: 24,
     padding: 20,
     marginBottom: 20,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
+    shadowColor: theme.shadow, shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.04, shadowRadius: 15, elevation: 3,
   },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: '#111' },
+  cardTitle: { fontSize: 16, fontWeight: '700', color: theme.text },
   
   row: { flexDirection: 'row', justifyContent: 'space-between' },
   statBox: { flex: 1, alignItems: 'center' },
-  statLabel: { fontSize: 13, color: '#888', fontWeight: '600', marginBottom: 4 },
-  statValue: { fontSize: 22, fontWeight: '800', color: '#111' },
-  divider: { width: 1, backgroundColor: '#eee', marginHorizontal: 15 },
+  statLabel: { fontSize: 13, color: theme.textMuted, fontWeight: '600', marginBottom: 4 },
+  statValue: { fontSize: 22, fontWeight: '800', color: theme.text },
+  divider: { width: 1, backgroundColor: theme.border, marginHorizontal: 15 },
   
-  totalBox: { marginTop: 15, paddingTop: 15, borderTopWidth: 1, borderTopColor: '#eee', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  totalLabel: { fontSize: 15, fontWeight: '700', color: '#111' },
-  totalValue: { fontSize: 24, fontWeight: '800', color: '#FF7F50' },
+  totalBox: { marginTop: 15, paddingTop: 15, borderTopWidth: 1, borderTopColor: theme.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  totalLabel: { fontSize: 15, fontWeight: '700', color: theme.text },
+  totalValue: { fontSize: 24, fontWeight: '800', color: theme.primary },
 
   monthlyRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
-  monthlyLabel: { fontSize: 15, color: '#666', fontWeight: '500' },
-  monthlyRevenue: { fontSize: 16, fontWeight: '700', color: '#111' },
-  monthlyExpense: { fontSize: 16, fontWeight: '700', color: '#ef4444' },
+  monthlyLabel: { fontSize: 15, color: theme.textSecondary, fontWeight: '500' },
+  monthlyRevenue: { fontSize: 16, fontWeight: '700', color: theme.text },
+  monthlyExpense: { fontSize: 16, fontWeight: '700', color: theme.error },
 
-  monthlyTotalBox: { marginTop: 10, paddingTop: 15, borderTopWidth: 1, borderTopColor: '#eee', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  monthlyTotalLabel: { fontSize: 16, fontWeight: '800', color: '#111' },
-  monthlyTotalValue: { fontSize: 28, fontWeight: '800', color: '#4ade80' },
+  monthlyTotalBox: { marginTop: 10, paddingTop: 15, borderTopWidth: 1, borderTopColor: theme.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  monthlyTotalLabel: { fontSize: 16, fontWeight: '800', color: theme.text },
+  monthlyTotalValue: { fontSize: 28, fontWeight: '800', color: theme.success },
 
   actionRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
   actionBtn: { flex: 1, padding: 16, borderRadius: 16, alignItems: 'center', marginHorizontal: 5 },
