@@ -9,7 +9,8 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
+import { ThemeProvider, ThemeContext } from './context/ThemeContext';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -73,6 +74,8 @@ function OverviewStack({ onLogout }) {
 
 // --- NEW PREMIUM MAIN APP (LIGHT THEME) ---
 function CustomTabBar({ state, descriptors, navigation }) {
+  const { theme, isDarkMode } = useContext(ThemeContext);
+  const styles = getStyles(theme, isDarkMode);
   return (
     <View style={styles.floatingTabBarWrapper}>
       <View style={styles.floatingTabBar}>
@@ -112,7 +115,7 @@ function CustomTabBar({ state, descriptors, navigation }) {
                 <Ionicons 
                   name={iconName + (isFocused ? '' : '-outline')} 
                   size={20} 
-                  color={isFocused ? '#fff' : '#666'} 
+                  color={isFocused ? theme.card : theme.textSecondary} 
                 />
               </View>
             </TouchableOpacity>
@@ -124,8 +127,9 @@ function CustomTabBar({ state, descriptors, navigation }) {
 }
 
 function PremiumMainApp({ onLogout }) {
+  const { isDarkMode } = useContext(ThemeContext);
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={isDarkMode ? DarkTheme : DefaultTheme}>
       <Tab.Navigator
         tabBar={(props) => <CustomTabBar {...props} />}
         screenOptions={{ headerShown: false }}
@@ -145,6 +149,8 @@ function PremiumMainApp({ onLogout }) {
 // ----------------------------------------
 
 function PremiumLandingGate({ onUnlock }) {
+  const { theme, isDarkMode } = useContext(ThemeContext);
+  const styles = getStyles(theme, isDarkMode);
   const { invoices } = useContext(InvoiceContext);
 
   const todayStr = new Date().toLocaleDateString('en-IN');
@@ -266,8 +272,8 @@ function PremiumLandingGate({ onUnlock }) {
   };
 
   return (
-    <SafeAreaView style={styles.premiumContainer}>
-      <LinearGradient colors={['#FAF9F6', '#FAF9F6']} style={styles.premiumGradient}>
+    <SafeAreaView style={[styles.premiumContainer, { backgroundColor: theme.background }]}>
+      <LinearGradient colors={[theme.background, theme.background]} style={styles.premiumGradient}>
         
         {/* Dynamic Orbs */}
         <Animated.View style={[styles.premiumGlowOrb, styles.premiumGlowOrbTop, animatedOrb1]} />
@@ -276,10 +282,10 @@ function PremiumLandingGate({ onUnlock }) {
         <Animated.View style={[styles.premiumHero, animatedHero]}>
             <View style={styles.premiumHeader}>
               <View style={styles.premiumIconWrap}>
-                <Ionicons name="flash" size={24} color="#FF7F50" />
+                <Ionicons name="flash" size={24} color={theme.primary} />
               </View>
               <View style={styles.premiumProfile}>
-                <Ionicons name="person-circle" size={42} color="#111" />
+                <Ionicons name="person-circle" size={42} color={theme.text} />
                 <View style={styles.premiumNotificationDot} />
               </View>
             </View>
@@ -288,33 +294,33 @@ function PremiumLandingGate({ onUnlock }) {
               <Text style={styles.premiumGreeting}>Hi, Admin 👋</Text>
               
               <Animated.View style={animatedText1}>
-                <Text style={styles.premiumTitle}>
-                  Smart <Text style={{color: '#FF7F50'}}>Billing.</Text>
+                <Text style={[styles.premiumTitle, { color: theme.text }]}>
+                  Smart <Text style={{color: theme.primary}}>Billing.</Text>
                 </Text>
               </Animated.View>
               
               <Animated.View style={animatedText2}>
-                <Text style={styles.premiumTitle2}>Smooth Business.</Text>
+                <Text style={[styles.premiumTitle2, { color: theme.text }]}>Smooth Business.</Text>
               </Animated.View>
             </View>
 
-            <Animated.View style={[styles.premiumGlassCard, animatedCard]}>
+            <Animated.View style={[styles.premiumGlassCard, animatedCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
               <View style={styles.premiumCardHeader}>
                 <Text style={styles.premiumCardTitle}>Daily Overview</Text>
                 <View style={styles.trendPill}>
-                  <Ionicons name="trending-up" size={14} color="#FF7F50" />
+                  <Ionicons name="trending-up" size={14} color={theme.primary} />
                   <Text style={styles.trendText}>Active</Text>
                 </View>
               </View>
               <View style={styles.premiumStatsRow}>
                 <View style={styles.premiumStat}>
-                  <Text style={styles.premiumStatValue}>₹{todaysSales.toFixed(2)}</Text>
-                  <Text style={styles.premiumStatLabel}>Today's Revenue</Text>
+                  <Text style={[styles.premiumStatValue, { color: theme.text }]}>₹{todaysSales.toFixed(2)}</Text>
+                  <Text style={[styles.premiumStatLabel, { color: theme.textSecondary }]}>Today's Revenue</Text>
                 </View>
-                <View style={styles.premiumStatDivider} />
+                <View style={[styles.premiumStatDivider, { backgroundColor: theme.border }]} />
                 <View style={styles.premiumStat}>
-                  <Text style={styles.premiumStatValue}>{todaysCount}</Text>
-                  <Text style={styles.premiumStatLabel}>Invoices Generated</Text>
+                  <Text style={[styles.premiumStatValue, { color: theme.text }]}>{todaysCount}</Text>
+                  <Text style={[styles.premiumStatLabel, { color: theme.textSecondary }]}>Invoices Generated</Text>
                 </View>
               </View>
             </Animated.View>
@@ -328,12 +334,12 @@ function PremiumLandingGate({ onUnlock }) {
                 onPress={handleBiometricAuth}
               >
                 <LinearGradient 
-                  colors={['#111', '#111']} 
+                  colors={[theme.text, theme.text]} 
                   start={{x: 0, y: 0}} end={{x: 1, y: 1}}
                   style={styles.premiumUnlockGradient}
                 >
                   <Text style={styles.premiumUnlockText}>Unlock Workspace</Text>
-                  <Ionicons name="lock-open-outline" size={22} color="#fff" />
+                  <Ionicons name="lock-open-outline" size={22} color={theme.background} />
                 </LinearGradient>
               </TouchableOpacity>
             </Animated.View>
@@ -349,20 +355,22 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <BusinessProvider>
-        <MenuProvider>
-          <InvoiceProvider>
-            <CustomerProvider>
-              {isUnlocked ? <PremiumMainApp onLogout={() => setIsUnlocked(false)} /> : <PremiumLandingGate onUnlock={() => setIsUnlocked(true)} />}
-            </CustomerProvider>
-          </InvoiceProvider>
-        </MenuProvider>
-      </BusinessProvider>
+      <ThemeProvider>
+        <BusinessProvider>
+          <MenuProvider>
+            <InvoiceProvider>
+              <CustomerProvider>
+                {isUnlocked ? <PremiumMainApp onLogout={() => setIsUnlocked(false)} /> : <PremiumLandingGate onUnlock={() => setIsUnlocked(true)} />}
+              </CustomerProvider>
+            </InvoiceProvider>
+          </MenuProvider>
+        </BusinessProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme, isDarkMode) => StyleSheet.create({
   landingContainer: { flex: 1, backgroundColor: '#0c1622' },
   landingGradient: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   glowOrb: {
@@ -454,14 +462,14 @@ const styles = StyleSheet.create({
   },
   floatingTabBar: {
     flexDirection: 'row',
-    backgroundColor: '#111',
+    backgroundColor: theme.tabBar,
     borderRadius: 40,
     paddingVertical: 10,
     paddingHorizontal: 15,
     width: '100%',
     maxWidth: 400,
     justifyContent: 'space-between',
-    shadowColor: '#000',
+    shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
     shadowRadius: 20,
@@ -480,9 +488,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   activeIconContainer: {
-    backgroundColor: '#FF7F50', // Orange active circle
+    backgroundColor: theme.primary, // active circle
     borderRadius: 22,
-    shadowColor: '#FF7F50',
+    shadowColor: theme.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
@@ -490,7 +498,7 @@ const styles = StyleSheet.create({
   },
   premiumContainer: { 
     flex: 1, 
-    backgroundColor: '#FAF9F6', // Light mode
+    backgroundColor: theme.background,
     height: Platform.OS === 'web' ? '100vh' : '100%',
     overflow: 'hidden',
   },
@@ -506,7 +514,7 @@ const styles = StyleSheet.create({
     top: -100,
     right: -100,
     backgroundColor: 'rgba(255, 127, 80, 0.15)', // Light orange orb
-    shadowColor: '#FF7F50',
+    shadowColor: theme.primary,
     shadowRadius: 60,
   },
   premiumGlowOrbBottom: {
@@ -514,8 +522,8 @@ const styles = StyleSheet.create({
     height: 350,
     bottom: -80,
     left: -120,
-    backgroundColor: 'rgba(255, 240, 234, 0.8)', // Peach orb
-    shadowColor: '#FFF0EA',
+    backgroundColor: isDarkMode ? 'rgba(255, 127, 80, 0.05)' : 'rgba(255, 240, 234, 0.8)', // Peach orb
+    shadowColor: theme.card,
     shadowRadius: 60,
   },
   premiumHero: {
@@ -535,12 +543,12 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#FFF0EA',
+    backgroundColor: theme.inputBackground,
     borderWidth: 1,
-    borderColor: '#FEE0D2',
+    borderColor: theme.border,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#FF7F50',
+    shadowColor: theme.primary,
     shadowOpacity: 0.1,
     shadowRadius: 10,
   },
@@ -556,13 +564,13 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: '#FF0000',
     borderWidth: 2,
-    borderColor: '#FAF9F6',
+    borderColor: theme.background,
   },
   premiumTextWrap: {
     marginBottom: 45,
   },
   premiumGreeting: {
-    color: '#888',
+    color: theme.textSecondary,
     fontSize: 18,
     marginBottom: 12,
     fontWeight: '600',
@@ -583,12 +591,12 @@ const styles = StyleSheet.create({
     lineHeight: 48,
   },
   premiumGlassCard: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.card,
     borderRadius: 28,
     padding: 28,
     borderWidth: 1,
-    borderColor: '#eee',
-    shadowColor: '#000',
+    borderColor: theme.border,
+    shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 15 },
     shadowOpacity: 0.05,
     shadowRadius: 25,
@@ -601,7 +609,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   premiumCardTitle: {
-    color: '#888',
+    color: theme.textSecondary,
     fontSize: 15,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -610,13 +618,13 @@ const styles = StyleSheet.create({
   trendPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF0EA',
+    backgroundColor: theme.inputBackground,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
   },
   trendText: {
-    color: '#FF7F50',
+    color: theme.primary,
     fontSize: 12,
     fontWeight: '700',
     marginLeft: 4,
@@ -643,7 +651,7 @@ const styles = StyleSheet.create({
   premiumStatDivider: {
     width: 1,
     height: 50,
-    backgroundColor: '#eee',
+    backgroundColor: theme.border,
     marginHorizontal: 24,
   },
   premiumUnlockButton: {
@@ -663,7 +671,7 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   premiumUnlockText: {
-    color: '#fff',
+    color: theme.background,
     fontSize: 18,
     fontWeight: '800',
     marginRight: 12,
