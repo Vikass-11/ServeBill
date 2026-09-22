@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 // Import our Context
 import { MenuContext } from '../context/MenuContext';
+import { ThemeContext } from '../context/ThemeContext';
 
 export default function PremiumManageMenuScreen() {
   // Pull in BOTH lists and functions from Context
@@ -12,6 +13,8 @@ export default function PremiumManageMenuScreen() {
     tiffinItems, addTiffinItem, deleteTiffinItem,
     mealDishes, addMealDish, deleteMealDish 
   } = useContext(MenuContext);
+  const { theme, isDarkMode } = useContext(ThemeContext);
+  const styles = getStyles(theme, isDarkMode);
 
   // Tab State
   const [activeTab, setActiveTab] = useState('tiffin'); 
@@ -68,7 +71,7 @@ export default function PremiumManageMenuScreen() {
       {/* HEADER */}
       <View style={styles.header}>
         <Text style={styles.mainTitle}>
-          Manage <Text style={{color: '#888'}}>Menu.</Text>
+          Manage <Text style={{color: theme.textMuted}}>Menu.</Text>
         </Text>
       </View>
 
@@ -79,9 +82,9 @@ export default function PremiumManageMenuScreen() {
           onPress={() => setActiveTab('tiffin')}
         >
           <View style={[styles.catIconPlaceholder, activeTab === 'tiffin' && styles.catActive]}>
-              <Ionicons name="cafe" size={24} color={activeTab === 'tiffin' ? '#fff' : '#FF7F50'} />
+              <Ionicons name="cafe" size={24} color={activeTab === 'tiffin' ? theme.background : theme.primary} />
           </View>
-          <Text style={[styles.catText, activeTab === 'tiffin' && {fontWeight: 'bold', color: '#222'}]}>Tiffins</Text>
+          <Text style={[styles.catText, activeTab === 'tiffin' && {fontWeight: 'bold', color: theme.text}]}>Tiffins</Text>
           {activeTab === 'tiffin' && <View style={styles.activeDot} />}
         </TouchableOpacity>
         
@@ -90,9 +93,9 @@ export default function PremiumManageMenuScreen() {
           onPress={() => setActiveTab('meals')}
         >
           <View style={[styles.catIconPlaceholder, activeTab === 'meals' && styles.catActive]}>
-              <Ionicons name="fast-food" size={24} color={activeTab === 'meals' ? '#fff' : '#FF7F50'} />
+              <Ionicons name="fast-food" size={24} color={activeTab === 'meals' ? theme.background : theme.primary} />
           </View>
-          <Text style={[styles.catText, activeTab === 'meals' && {fontWeight: 'bold', color: '#222'}]}>Meals</Text>
+          <Text style={[styles.catText, activeTab === 'meals' && {fontWeight: 'bold', color: theme.text}]}>Meals</Text>
           {activeTab === 'meals' && <View style={styles.activeDot} />}
         </TouchableOpacity>
       </View>
@@ -203,17 +206,17 @@ export default function PremiumManageMenuScreen() {
         <View style={styles.listItem}>
           <View style={styles.listLeftInfo}>
             <View style={styles.iconBoxTiffin}>
-              <Ionicons name="cafe-outline" size={20} color="#FF7F50" />
+              <Ionicons name="cafe-outline" size={20} color={theme.primary} />
             </View>
             <View>
               <Text style={styles.itemName}>{item.name}</Text>
               <Text style={styles.itemPrice}>
-                <Text style={{color: '#FF7F50'}}>₹</Text>{item.price} / {item.unit} • Stock: {item.stock || 0}
+                <Text style={{color: theme.primary}}>₹</Text>{item.price} / {item.unit} • Stock: {item.stock || 0}
               </Text>
             </View>
           </View>
           <TouchableOpacity onPress={() => deleteTiffinItem(item.id)} style={styles.deleteBtn}>
-            <Ionicons name="remove-circle-outline" size={24} color="#111" />
+            <Ionicons name="remove-circle-outline" size={24} color={theme.text} />
           </TouchableOpacity>
         </View>
       );
@@ -222,12 +225,12 @@ export default function PremiumManageMenuScreen() {
         <View style={styles.listItem}>
           <View style={styles.listLeftInfo}>
             <View style={styles.iconBoxMeal}>
-              <Ionicons name="restaurant-outline" size={20} color="#111" />
+              <Ionicons name="restaurant-outline" size={20} color={theme.text} />
             </View>
             <Text style={styles.itemName}>{item.name}</Text>
           </View>
           <TouchableOpacity onPress={() => deleteMealDish(item.id)} style={styles.deleteBtn}>
-            <Ionicons name="remove-circle-outline" size={24} color="#111" />
+            <Ionicons name="remove-circle-outline" size={24} color={theme.text} />
           </TouchableOpacity>
         </View>
       );
@@ -255,84 +258,84 @@ export default function PremiumManageMenuScreen() {
 }
 
 // --- STYLES ---
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FAF9F6' },
+const getStyles = (theme, isDarkMode) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.background },
   header: { paddingHorizontal: 24, paddingTop: 20, marginBottom: 10 },
-  mainTitle: { fontSize: 32, fontWeight: '800', color: '#111', letterSpacing: -0.5 },
+  mainTitle: { fontSize: 32, fontWeight: '800', color: theme.text, letterSpacing: -0.5 },
   
   categoriesWrapper: {
     flexDirection: 'row',
     justifyContent: 'center',
     marginBottom: 20,
-    backgroundColor: '#f2f2f2',
+    backgroundColor: theme.inputBackground,
     paddingVertical: 15,
     borderRadius: 40,
     marginHorizontal: 24,
   },
   categoryItem: { alignItems: 'center', marginHorizontal: 20 },
   catIconPlaceholder: {
-    width: 60, height: 60, borderRadius: 30, backgroundColor: '#fff',
+    width: 60, height: 60, borderRadius: 30, backgroundColor: theme.card,
     justifyContent: 'center', alignItems: 'center', marginBottom: 8,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowColor: theme.shadow, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05, shadowRadius: 8, elevation: 3,
   },
-  catActive: { backgroundColor: '#111' },
-  catText: { fontSize: 13, color: '#888' },
-  activeDot: { width: 20, height: 3, backgroundColor: '#111', borderRadius: 2, marginTop: 4 },
+  catActive: { backgroundColor: theme.text },
+  catText: { fontSize: 13, color: theme.textSecondary },
+  activeDot: { width: 20, height: 3, backgroundColor: theme.text, borderRadius: 2, marginTop: 4 },
   
   content: { flex: 1, paddingHorizontal: 24 },
   
   inputCard: { 
-    backgroundColor: '#fff', padding: 20, borderRadius: 24, marginBottom: 20,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
+    backgroundColor: theme.card, padding: 20, borderRadius: 24, marginBottom: 20,
+    shadowColor: theme.shadow, shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.05, shadowRadius: 15, elevation: 3,
   },
-  cardHeader: { fontSize: 18, fontWeight: '700', color: '#111', marginBottom: 15 },
-  helperText: { color: '#888', marginBottom: 20, fontSize: 13, lineHeight: 18 },
+  cardHeader: { fontSize: 18, fontWeight: '700', color: theme.text, marginBottom: 15 },
+  helperText: { color: theme.textSecondary, marginBottom: 20, fontSize: 13, lineHeight: 18 },
   
   inputWrapper: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#f9f9f9', borderRadius: 16, paddingHorizontal: 16, marginBottom: 12,
+    backgroundColor: theme.inputBackground, borderRadius: 16, paddingHorizontal: 16, marginBottom: 12,
   },
   inputIcon: { marginRight: 10 },
-  input: { flex: 1, paddingVertical: 16, fontSize: 16, color: '#111' },
+  input: { flex: 1, paddingVertical: 16, fontSize: 16, color: theme.text },
   
   unitRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
   unitBtn: { 
     flex: 1, paddingVertical: 12, borderRadius: 12, 
-    alignItems: 'center', marginHorizontal: 4, backgroundColor: '#f9f9f9',
-    borderWidth: 1, borderColor: '#eee'
+    alignItems: 'center', marginHorizontal: 4, backgroundColor: theme.inputBackground,
+    borderWidth: 1, borderColor: theme.border
   },
-  activeUnitBtn: { backgroundColor: '#111', borderColor: '#111' },
-  unitBtnText: { color: '#888', fontWeight: '600', fontSize: 13 },
-  activeUnitBtnText: { color: '#fff' },
+  activeUnitBtn: { backgroundColor: theme.text, borderColor: theme.text },
+  unitBtnText: { color: theme.textSecondary, fontWeight: '600', fontSize: 13 },
+  activeUnitBtnText: { color: theme.background },
   
   primaryButton: { 
-    backgroundColor: '#111', borderRadius: 16, paddingVertical: 16, 
+    backgroundColor: theme.text, borderRadius: 16, paddingVertical: 16, 
     alignItems: 'center', justifyContent: 'center', marginTop: 10
   },
-  primaryButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  primaryButtonText: { color: theme.background, fontSize: 16, fontWeight: '700' },
   
-  sectionTitle: { fontSize: 20, fontWeight: '800', color: '#111', marginBottom: 15, marginTop: 10 },
+  sectionTitle: { fontSize: 20, fontWeight: '800', color: theme.text, marginBottom: 15, marginTop: 10 },
   
   listItem: { 
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', 
-    backgroundColor: '#fff', padding: 16, borderRadius: 20, marginBottom: 12, 
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    backgroundColor: theme.card, padding: 16, borderRadius: 20, marginBottom: 12, 
+    shadowColor: theme.shadow, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.03, shadowRadius: 10, elevation: 2,
     marginHorizontal: 24,
   },
   listLeftInfo: { flexDirection: 'row', alignItems: 'center' },
   iconBoxTiffin: { 
-    width: 48, height: 48, borderRadius: 24, backgroundColor: '#FFF0EA', 
+    width: 48, height: 48, borderRadius: 24, backgroundColor: isDarkMode ? '#2A1A14' : '#FFF0EA', 
     justifyContent: 'center', alignItems: 'center', marginRight: 15 
   },
   iconBoxMeal: { 
-    width: 48, height: 48, borderRadius: 24, backgroundColor: '#f5f5f5', 
+    width: 48, height: 48, borderRadius: 24, backgroundColor: theme.inputBackground, 
     justifyContent: 'center', alignItems: 'center', marginRight: 15 
   },
-  itemName: { fontSize: 16, fontWeight: '700', color: '#111', marginBottom: 4 },
-  itemPrice: { color: '#888', fontSize: 14, fontWeight: '600' },
+  itemName: { fontSize: 16, fontWeight: '700', color: theme.text, marginBottom: 4 },
+  itemPrice: { color: theme.textSecondary, fontSize: 14, fontWeight: '600' },
   
   deleteBtn: { padding: 8 },
 });
