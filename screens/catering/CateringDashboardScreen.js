@@ -3,9 +3,12 @@ import { ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { InvoiceContext } from '../../context/InvoiceContext';
+import { ThemeContext } from '../../context/ThemeContext';
 
 export default function CateringDashboardScreen({ navigation }) {
   const { invoices } = useContext(InvoiceContext);
+  const { theme, isDarkMode } = useContext(ThemeContext);
+  const styles = getStyles(theme);
 
   const stats = useMemo(() => {
     const currentMonth = new Date().getMonth();
@@ -56,7 +59,7 @@ export default function CateringDashboardScreen({ navigation }) {
         
         <View style={styles.header}>
           <Text style={styles.mainTitle}>
-            Catering <Text style={{ color: '#888' }}>Dashboard.</Text>
+            Catering <Text style={{ color: theme.textMuted }}>Dashboard.</Text>
           </Text>
         </View>
 
@@ -78,20 +81,20 @@ export default function CateringDashboardScreen({ navigation }) {
             </View>
           </View>
 
-          <View style={[styles.row, { marginTop: 20, paddingTop: 20, borderTopWidth: 1, borderTopColor: '#eee' }]}>
+          <View style={[styles.row, { marginTop: 20, paddingTop: 20, borderTopWidth: 1, borderTopColor: theme.border }]}>
             <View style={styles.statBox}>
               <Text style={styles.statLabel}>Expenses</Text>
-              <Text style={[styles.statValue, { color: '#ef4444' }]}>₹{stats.monthExpenses}</Text>
+              <Text style={[styles.statValue, { color: theme.error }]}>₹{stats.monthExpenses}</Text>
             </View>
             <View style={styles.divider} />
             <View style={styles.statBox}>
               <Text style={styles.statLabel}>Profit</Text>
-              <Text style={[styles.statValue, { color: '#4ade80' }]}>₹{stats.monthProfit}</Text>
+              <Text style={[styles.statValue, { color: theme.success }]}>₹{stats.monthProfit}</Text>
             </View>
           </View>
         </View>
 
-        <View style={[styles.card, { backgroundColor: '#fff5f5', borderColor: '#fed7d7', borderWidth: 1 }]}>
+        <View style={[styles.card, { backgroundColor: isDarkMode ? '#3A1515' : '#fff5f5', borderColor: isDarkMode ? theme.error : '#fed7d7', borderWidth: 1 }]}>
           <View style={styles.cardHeader}>
             <Text style={[styles.cardTitle, { color: '#c53030' }]}>Pending Payments</Text>
             <Ionicons name="alert-circle" size={20} color="#c53030" />
@@ -102,15 +105,15 @@ export default function CateringDashboardScreen({ navigation }) {
 
         <View style={styles.actionRow}>
           <TouchableOpacity 
-            style={[styles.actionBtn, { backgroundColor: '#f0fdf4', borderColor: '#4ade80', borderWidth: 1 }]}
+            style={[styles.actionBtn, { backgroundColor: isDarkMode ? '#0F3A1F' : '#f0fdf4', borderColor: theme.success, borderWidth: 1 }]}
             onPress={() => navigation.navigate('CreateCateringOrder')}
           >
-            <Ionicons name="add-circle" size={24} color="#4ade80" />
-            <Text style={[styles.actionBtnText, { color: '#4ade80' }]}>New Order</Text>
+            <Ionicons name="add-circle" size={24} color={theme.success} />
+            <Text style={[styles.actionBtnText, { color: theme.success }]}>New Order</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={[styles.actionBtn, { backgroundColor: '#f3e8ff', borderColor: '#a855f7', borderWidth: 1 }]}
+            style={[styles.actionBtn, { backgroundColor: isDarkMode ? '#2B1A3A' : '#f3e8ff', borderColor: '#a855f7', borderWidth: 1 }]}
             onPress={() => navigation.navigate('CateringOrders')}
           >
             <Ionicons name="list" size={24} color="#a855f7" />
@@ -123,28 +126,28 @@ export default function CateringDashboardScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FAF9F6' },
+const getStyles = (theme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.background },
   scrollContent: { paddingHorizontal: 24, paddingBottom: 100 },
   header: { paddingTop: 20, marginBottom: 25 },
-  mainTitle: { fontSize: 32, fontWeight: '800', color: '#111', letterSpacing: -0.5 },
+  mainTitle: { fontSize: 32, fontWeight: '800', color: theme.text, letterSpacing: -0.5 },
   
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.card,
     borderRadius: 24,
     padding: 24,
     marginBottom: 20,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
+    shadowColor: theme.shadow, shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.04, shadowRadius: 15, elevation: 3,
   },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  cardTitle: { fontSize: 18, fontWeight: '700', color: '#111' },
+  cardTitle: { fontSize: 18, fontWeight: '700', color: theme.text },
   
   row: { flexDirection: 'row', justifyContent: 'space-between' },
   statBox: { flex: 1, alignItems: 'center' },
-  statLabel: { fontSize: 14, color: '#888', fontWeight: '600', marginBottom: 6 },
-  statValue: { fontSize: 22, fontWeight: '800', color: '#111' },
-  divider: { width: 1, backgroundColor: '#eee', marginHorizontal: 15 },
+  statLabel: { fontSize: 14, color: theme.textSecondary, fontWeight: '600', marginBottom: 6 },
+  statValue: { fontSize: 22, fontWeight: '800', color: theme.text },
+  divider: { width: 1, backgroundColor: theme.border, marginHorizontal: 15 },
   
   actionRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
   actionBtn: { flex: 1, padding: 16, borderRadius: 16, alignItems: 'center', marginHorizontal: 5 },
