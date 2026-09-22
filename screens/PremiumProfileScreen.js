@@ -3,9 +3,12 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert 
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BusinessContext } from '../context/BusinessContext';
+import { ThemeContext } from '../context/ThemeContext';
 
 export default function PremiumProfileScreen({ onLogout }) {
   const { businessProfile, updateBusinessProfile } = useContext(BusinessContext);
+  const { theme, isDarkMode, toggleTheme } = useContext(ThemeContext);
+  const styles = getStyles(theme);
   
   const [profileData, setProfileData] = useState({
     name: businessProfile?.name || '',
@@ -28,10 +31,10 @@ export default function PremiumProfileScreen({ onLogout }) {
         <View style={styles.header}>
           <View style={styles.avatarContainer}>
             <View style={styles.avatarPlaceholder}>
-              <Ionicons name="business" size={50} color="#FF7F50" />
+              <Ionicons name="business" size={50} color={theme.primary} />
             </View>
             <View style={styles.badge}>
-              <Ionicons name="checkmark-circle" size={20} color="#FF7F50" style={{backgroundColor: '#fff', borderRadius: 10}} />
+              <Ionicons name="checkmark-circle" size={20} color={theme.primary} style={{backgroundColor: theme.card, borderRadius: 10}} />
             </View>
           </View>
           <Text style={styles.name}>{profileData.name || 'Your Business'}</Text>
@@ -102,6 +105,22 @@ export default function PremiumProfileScreen({ onLogout }) {
         </View>
 
         <View style={styles.spacer} />
+
+        {/* Preferences */}
+        <View style={styles.formContainer}>
+          <Text style={styles.sectionTitle}>Preferences</Text>
+          <View style={styles.preferenceRow}>
+            <View style={styles.preferenceLeft}>
+              <Ionicons name={isDarkMode ? 'moon' : 'sunny'} size={22} color={theme.text} style={{marginRight: 10}} />
+              <Text style={styles.preferenceLabel}>Dark Mode</Text>
+            </View>
+            <TouchableOpacity onPress={toggleTheme} style={styles.toggleSwitch}>
+              <View style={[styles.toggleThumb, isDarkMode && styles.toggleThumbActive]} />
+            </TouchableOpacity>
+          </View>
+        </View>
+        
+        <View style={styles.spacer} />
         
         {/* Logout Button */}
         {onLogout && (
@@ -120,10 +139,10 @@ export default function PremiumProfileScreen({ onLogout }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF9F6', 
+    backgroundColor: theme.background, 
   },
   scrollContent: {
     paddingHorizontal: 24,
@@ -141,12 +160,12 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#FFE5D9', 
+    backgroundColor: theme.primaryLight, 
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 4,
-    borderColor: '#fff',
-    shadowColor: '#000',
+    borderColor: theme.card,
+    shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.1,
     shadowRadius: 15,
@@ -160,19 +179,19 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#222',
+    color: theme.text,
     marginBottom: 4,
   },
   email: {
     fontSize: 14,
-    color: '#888',
+    color: theme.textSecondary,
   },
   formContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.card,
     borderRadius: 24,
     paddingVertical: 24,
     paddingHorizontal: 20,
-    shadowColor: '#000',
+    shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.05,
     shadowRadius: 20,
@@ -181,7 +200,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#111',
+    color: theme.text,
     marginBottom: 20,
   },
   inputGroup: {
@@ -190,31 +209,31 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#666',
+    color: theme.textSecondary,
     marginBottom: 8,
     marginLeft: 4,
   },
   input: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.inputBackground,
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: theme.inputBorder,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 15,
-    color: '#333',
+    color: theme.text,
   },
   textArea: {
     minHeight: 80,
     textAlignVertical: 'top',
   },
   saveButton: {
-    backgroundColor: '#FF7F50',
+    backgroundColor: theme.primary,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 10,
-    shadowColor: '#FF7F50',
+    shadowColor: theme.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -228,6 +247,44 @@ const styles = StyleSheet.create({
   },
   spacer: {
     height: 30,
+  },
+  preferenceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  preferenceLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  preferenceLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: theme.text,
+  },
+  toggleSwitch: {
+    width: 50,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: theme.inputBorder,
+    justifyContent: 'center',
+    padding: 2,
+  },
+  toggleThumb: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#fff',
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  toggleThumbActive: {
+    backgroundColor: theme.primary,
+    transform: [{ translateX: 20 }],
   },
   logoutContainer: {
     marginBottom: 20,
