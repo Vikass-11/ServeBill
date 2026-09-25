@@ -19,9 +19,9 @@ import { CustomerContext } from '../context/CustomerContext';
 import { InvoiceContext } from '../context/InvoiceContext';
 import { ThemeContext } from '../context/ThemeContext';
 
-export default function PremiumCreateInvoiceScreen({ navigation }) {
+export default function PremiumCreateInvoiceScreen({ route, navigation }) {
   const { tiffinItems, mealDishes, updateTiffinItem } = useContext(MenuContext);
-  const { addInvoice } = useContext(InvoiceContext);
+  const { addInvoice, updateInvoice } = useContext(InvoiceContext);
   const [clientName, setClientName] = useState('');
   const [transportCharge, setTransportCharge] = useState('');
   const [clientPhone, setClientPhone] = useState('');
@@ -42,6 +42,26 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
   const [tempMealPrice, setTempMealPrice] = useState('');
   const [tempMealQty, setTempMealQty] = useState('');
   const [tempSelectedDishes, setTempSelectedDishes] = useState([]);
+
+  const [advanceAmount, setAdvanceAmount] = useState('');
+  const [extraItems, setExtraItems] = useState([]);
+  
+  const [isExtraModalVisible, setExtraModalVisible] = useState(false);
+  const [tempExtraDesc, setTempExtraDesc] = useState('');
+  const [tempExtraAmount, setTempExtraAmount] = useState('');
+
+  const editInvoice = route.params?.editInvoice;
+
+  React.useEffect(() => {
+    if (editInvoice) {
+      setClientName(editInvoice.clientName || '');
+      setClientPhone(editInvoice.clientPhone || '');
+      setTransportCharge(editInvoice.transportCharge?.toString() || '');
+      setAdvanceAmount(editInvoice.advanceAmount?.toString() || '');
+      if (editInvoice.events && editInvoice.events.length > 0) setEvents(editInvoice.events);
+      if (editInvoice.extraItems) setExtraItems(editInvoice.extraItems);
+    }
+  }, [editInvoice]);
 
   // CRM
   const { customers } = useContext(CustomerContext);
@@ -168,7 +188,28 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
         total += meal.price * meal.quantity;
       });
     });
+    extraItems.forEach((extra) => {
+      total += parseFloat(extra.amount) || 0;
+    });
     return total;
+  };
+
+  const saveExtraItem = () => {
+    if (!tempExtraDesc.trim() || !tempExtraAmount) {
+      Alert.alert('Missing Info', 'Enter description and amount.');
+      return;
+    }
+    setExtraItems([
+      ...extraItems,
+      { id: Date.now().toString(), description: tempExtraDesc, amount: parseFloat(tempExtraAmount) }
+    ]);
+    setTempExtraDesc('');
+    setTempExtraAmount('');
+    setExtraModalVisible(false);
+  };
+
+  const removeExtraItem = (id) => {
+    setExtraItems(extraItems.filter(item => item.id !== id));
   };
 
   return (
@@ -335,6 +376,50 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
             />
           </View>
         </View>
+
+        {/* EXTRA ITEMS SECTION */}
+        <View style={styles.clientCard}>
+          <View style={styles.iconHeading}>
+            <Ionicons name="list-circle-outline" size={20} color={theme.text} />
+            <Text style={styles.sectionTitle}>Extra Items / Charges</Text>
+            <View style={{flex: 1}} />
+            <TouchableOpacity onPress={() => setExtraModalVisible(true)} style={styles.pickClientBtn}>
+              <Text style={styles.pickClientText}>+ Add Extra</Text>
+            </TouchableOpacity>
+          </View>
+          {extraItems.length === 0 ? (
+             <Text style={{color: theme.textSecondary, fontSize: 13, fontStyle: 'italic'}}>No extra items added.</Text>
+          ) : (
+            extraItems.map((item) => (
+              <View key={item.id} style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10}}>
+                <Text style={{color: theme.text, fontSize: 15, flex: 1}}>{item.description}</Text>
+                <Text style={{color: theme.text, fontSize: 15, fontWeight: '700', marginRight: 15}}>₹{item.amount}</Text>
+                <TouchableOpacity onPress={() => removeExtraItem(item.id)}>
+                  <Ionicons name="trash-outline" size={18} color={theme.error} />
+                </TouchableOpacity>
+              </View>
+            ))
+          )}
+        </View>
+
+        {/* ADVANCE PAYMENT SECTION */}
+        <View style={styles.clientCard}>
+          <View style={styles.iconHeading}>
+            <Ionicons name="cash-outline" size={20} color={theme.text} />
+            <Text style={styles.sectionTitle}>Advance Received (-)</Text>
+          </View>
+          <View style={[styles.inputWrapper, { flexDirection: 'row', alignItems: 'center' }]}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: theme.text, marginRight: 5 }}>₹</Text>
+            <TextInput
+              style={[styles.input, { flex: 1 }]}
+              placeholder="0"
+              placeholderTextColor={theme.textMuted}
+              keyboardType="numeric"
+              value={advanceAmount}
+              onChangeText={setAdvanceAmount}
+            />
+          </View>
+        </View>
       </ScrollView>
 
       {showPicker && Platform.OS === 'web' && (
@@ -396,18 +481,26 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
                   });
                 });
 
-                // Automatically save to records
                 const newInvoice = {
-                  id: Date.now().toString(),
+                  id: editInvoice ? editInvoice.id : Date.now().toString(),
                   clientName,
                   clientPhone,
-                  date: new Date().toLocaleDateString('en-IN'),
+                  date: editInvoice ? editInvoice.date : new Date().toLocaleDateString('en-IN'),
                   events,
                   subTotal,
                   taxAmount,
                   grandTotal: grandTotal.toFixed(2),
+                  transportCharge: transportCharge ? parseFloat(transportCharge) : 0,
+                  advanceAmount: advanceAmount ? parseFloat(advanceAmount) : 0,
+                  amountReceived: advanceAmount ? parseFloat(advanceAmount) : (editInvoice?.amountReceived || 0),
+                  extraItems
                 };
-                addInvoice(newInvoice);
+                
+                if (editInvoice) {
+                  updateInvoice(newInvoice.id, newInvoice);
+                } else {
+                  addInvoice(newInvoice);
+                }
 
                 navigation.navigate('InvoicePreview', {
                   clientName,
@@ -417,6 +510,8 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
                   taxAmount,
                   grandTotal,
                   transportCharge: transportCharge ? parseFloat(transportCharge) : 0,
+                  advanceAmount: advanceAmount ? parseFloat(advanceAmount) : 0,
+                  extraItems,
                   isPreviewOnly: true, // Hide save button in preview since it's auto-saved
                 });
               }}
@@ -426,6 +521,46 @@ export default function PremiumCreateInvoiceScreen({ navigation }) {
             </TouchableOpacity>
           </View>
       </View>
+
+      {/* EXTRA ITEMS MODAL */}
+      <Modal visible={isExtraModalVisible} animationType="fade" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Add Extra Item</Text>
+            
+            <View style={styles.modalInputSection}>
+              <View style={styles.modalInputWrapper}>
+                  <TextInput
+                    style={styles.modalInput}
+                    placeholder="Description (e.g. Banana Leaves)"
+                    placeholderTextColor={theme.textMuted}
+                    value={tempExtraDesc}
+                    onChangeText={setTempExtraDesc}
+                  />
+              </View>
+              <View style={styles.modalInputWrapper}>
+                  <TextInput
+                    style={styles.modalInput}
+                    placeholder="Total Amount (₹)"
+                    placeholderTextColor={theme.textMuted}
+                    keyboardType="numeric"
+                    value={tempExtraAmount}
+                    onChangeText={setTempExtraAmount}
+                  />
+              </View>
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity onPress={() => setExtraModalVisible(false)} style={styles.cancelBtn}>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={saveExtraItem} style={styles.saveBtn}>
+                <Text style={styles.saveBtnText}>Add Item</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* MODAL */}
       <Modal visible={isModalVisible} animationType="fade" transparent>
