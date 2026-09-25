@@ -22,7 +22,7 @@ function escapeHtml(value) {
 }
 
 export default function InvoicePreviewScreen({ route, navigation }) {
-  const { clientName, clientPhone, events, subTotal: previousSubTotal, taxAmount, grandTotal, transportCharge = 0 } = route.params;
+  const { clientName, clientPhone, events, subTotal: previousSubTotal, taxAmount, grandTotal, transportCharge = 0, advanceAmount = 0, extraItems = [], autoDownload = false } = route.params;
   const { addInvoice } = useContext(InvoiceContext);
   const { tiffinItems } = useContext(MenuContext);
   const { businessProfile } = useContext(BusinessContext);
@@ -34,7 +34,17 @@ export default function InvoicePreviewScreen({ route, navigation }) {
   
   const subTotal = parseFloat(grandTotal);
   const transportAmount = parseFloat(transportCharge);
+  const advanceAmt = parseFloat(advanceAmount);
   const finalTotal = subTotal + transportAmount;
+  const balanceDue = finalTotal - advanceAmt;
+
+  React.useEffect(() => {
+    if (autoDownload) {
+      setTimeout(() => {
+        handleDownloadPdf();
+      }, 500);
+    }
+  }, []);
 
   const orderedEvents = useMemo(
     () =>
@@ -73,6 +83,9 @@ export default function InvoicePreviewScreen({ route, navigation }) {
       subTotal: previousSubTotal,
       taxAmount,
       grandTotal: finalTotal.toFixed(2),
+      transportCharge: transportAmount,
+      advanceAmount: advanceAmt,
+      extraItems
     };
 
     addInvoice(newInvoice);
@@ -83,7 +96,7 @@ export default function InvoicePreviewScreen({ route, navigation }) {
   const onShare = async () => {
     try {
       await Share.share({
-        message: `Invoice for ${clientName}\nSubtotal: ₹${subTotal.toFixed(2)}\nTransport Charge: ₹${transportAmount.toFixed(2)}\nTotal Amount: ₹${finalTotal.toFixed(2)}\nGenerated via ${businessProfile?.name || 'our app'}`,
+        message: `Invoice for ${clientName}\nSubtotal: ₹${subTotal.toFixed(2)}\nTransport Charge: ₹${transportAmount.toFixed(2)}\nTotal Amount: ₹${finalTotal.toFixed(2)}\nAdvance: ₹${advanceAmt.toFixed(2)}\nBalance Due: ₹${balanceDue.toFixed(2)}\nGenerated via ${businessProfile?.name || 'our app'}`,
       });
     } catch (error) {
       console.log(error.message);
@@ -91,7 +104,7 @@ export default function InvoicePreviewScreen({ route, navigation }) {
   };
 
   const onWhatsAppShare = () => {
-    const text = `*Invoice for ${clientName}*\n\n*Subtotal:* ₹${subTotal.toFixed(2)}\n*Transport Charge:* ₹${transportAmount.toFixed(2)}\n*Total Amount:* ₹${finalTotal.toFixed(2)}\n\n_Generated via ${businessProfile?.name || 'our app'}_`;
+    const text = `*Invoice for ${clientName}*\n\n*Subtotal:* ₹${subTotal.toFixed(2)}\n*Transport Charge:* ₹${transportAmount.toFixed(2)}\n*Total Amount:* ₹${finalTotal.toFixed(2)}\n*Advance:* ₹${advanceAmt.toFixed(2)}\n*Balance Due:* ₹${balanceDue.toFixed(2)}\n\n_Generated via ${businessProfile?.name || 'our app'}_`;
     
     let phoneStr = clientPhone ? clientPhone.replace(/\D/g, '') : '';
     if (phoneStr && phoneStr.length === 10) phoneStr = '91' + phoneStr;
@@ -377,6 +390,22 @@ export default function InvoicePreviewScreen({ route, navigation }) {
 
           ${eventBlocks}
 
+          ${extraItems && extraItems.length > 0 ? `
+          <div class="event-block">
+            <div class="day-header">Extra Items & Charges</div>
+            <table class="items-table">
+              ${extraItems.map(item => `
+                <tr>
+                  <td>
+                    <div class="item-name">${escapeHtml(item.description)}</div>
+                  </td>
+                  <td class="item-price">₹${parseFloat(item.amount).toFixed(2)}</td>
+                </tr>
+              `).join('')}
+            </table>
+          </div>
+          ` : ''}
+
           <div class="grand-total">
             <div class="total-row">
               <span>Subtotal:</span>
@@ -387,9 +416,20 @@ export default function InvoicePreviewScreen({ route, navigation }) {
               <span>Transport Charge:</span>
               <span>₹${transportAmount.toFixed(2)}</span>
             </div>
-            <div class="grand-total-box">
-              <span>Grand Total:</span>
-              <span>₹${finalTotal.toFixed(2)}</span>
+            
+            <div class="total-row">
+              <span><strong>Grand Total:</strong></span>
+              <span><strong>₹${finalTotal.toFixed(2)}</strong></span>
+            </div>
+
+            <div class="total-row" style="color: #e53e3e;">
+              <span>Advance Received:</span>
+              <span>-₹${advanceAmt.toFixed(2)}</span>
+            </div>
+
+            <div class="grand-total-box" style="margin-top: 10px;">
+              <span>Balance Due:</span>
+              <span>₹${balanceDue.toFixed(2)}</span>
             </div>
           </div>
         </body>
@@ -411,15 +451,35 @@ export default function InvoicePreviewScreen({ route, navigation }) {
           base64: false,
         });
 
-        const canShare = await Sharing.isAvailableAsync();
-        if (canShare) {
-          await Sharing.shareAsync(uri, {
-            mimeType: 'application/pdf',
-            dialogTitle: 'Export Invoice PDF',
-            UTI: '.pdf',
-          });
+        if (Platform.OS === 'android') {
+          try {
+            const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+            if (permissions.granted) {
+              const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+              const fileName = `Invoice_${clientName.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.pdf`;
+              const savedUri = await FileSystem.StorageAccessFramework.createFileAsync(permissions.directoryUri, fileName, 'application/pdf');
+              await FileSystem.writeAsStringAsync(savedUri, base64, { encoding: FileSystem.EncodingType.Base64 });
+              Alert.alert('Saved', 'Invoice PDF saved to your selected folder successfully.');
+            } else {
+              // Fallback to sharing if permission denied
+              await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
+            }
+          } catch (e) {
+            console.log("Storage access framework error", e);
+            await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
+          }
         } else {
-          Alert.alert('PDF Ready', `Invoice PDF created at:\n${uri}`);
+          // iOS sharing to save
+          const canShare = await Sharing.isAvailableAsync();
+          if (canShare) {
+            await Sharing.shareAsync(uri, {
+              mimeType: 'application/pdf',
+              dialogTitle: 'Export Invoice PDF',
+              UTI: '.pdf',
+            });
+          } else {
+            Alert.alert('PDF Ready', `Invoice PDF created at:\n${uri}`);
+          }
         }
       }
     } catch (error) {
@@ -556,6 +616,24 @@ export default function InvoicePreviewScreen({ route, navigation }) {
           </View>
         ))}
 
+        {extraItems && extraItems.length > 0 && (
+          <View style={styles.eventSection}>
+            <View style={[styles.dayHeader, dynamicStyles.dayHeader]}>
+              <Text style={[styles.dayHeaderText, dynamicStyles.dayHeaderText]}>
+                Extra Items & Charges
+              </Text>
+            </View>
+            {extraItems.map((item) => (
+              <View key={item.id} style={styles.itemRow}>
+                <View style={styles.itemMain}>
+                  <Text style={[styles.itemNameText, dynamicStyles.itemName]}>{item.description}</Text>
+                </View>
+                <Text style={[styles.priceText, dynamicStyles.price]}>₹{parseFloat(item.amount).toFixed(2)}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
         <View style={styles.totalBlock}>
           <View style={styles.totalRowSub}>
             <Text style={styles.totalLabelSub}>Subtotal</Text>
@@ -566,9 +644,17 @@ export default function InvoicePreviewScreen({ route, navigation }) {
             <Text style={styles.totalLabelSub}>Transport Charge</Text>
             <Text style={styles.totalAmountSub}>₹{transportAmount.toFixed(2)}</Text>
           </View>
-          <View style={[styles.totalRow, { marginTop: 10 }]}>
+          <View style={[styles.totalRow, { marginTop: 10, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: theme.border }]}>
             <Text style={styles.totalLabel}>Grand Total</Text>
-            <Text style={[styles.totalAmount, dynamicStyles.totalAmount]}>₹{finalTotal.toFixed(2)}</Text>
+            <Text style={[styles.totalAmount, dynamicStyles.totalAmount, { fontSize: 20 }]}>₹{finalTotal.toFixed(2)}</Text>
+          </View>
+          <View style={[styles.totalRowSub, { marginTop: 10 }]}>
+            <Text style={[styles.totalLabelSub, { color: theme.error }]}>Advance Received (-)</Text>
+            <Text style={[styles.totalAmountSub, { color: theme.error }]}>₹{advanceAmt.toFixed(2)}</Text>
+          </View>
+          <View style={[styles.totalRow, { marginTop: 10 }]}>
+            <Text style={styles.totalLabel}>Balance Due</Text>
+            <Text style={[styles.totalAmount, dynamicStyles.totalAmount, { color: theme.primary }]}>₹{balanceDue.toFixed(2)}</Text>
           </View>
           <View style={styles.bottomStatus}>
             <Ionicons name="checkmark-circle" size={16} color={theme.success} />
