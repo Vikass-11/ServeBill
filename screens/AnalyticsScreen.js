@@ -28,10 +28,11 @@ export default function AnalyticsScreen() {
     }
 
     invoices.forEach(inv => {
+      const gTotal = parseFloat(inv.grandTotal) || 0;
       if (revenueMap[inv.date] !== undefined) {
-        revenueMap[inv.date] += inv.grandTotal;
+        revenueMap[inv.date] += gTotal;
       }
-      total += inv.grandTotal;
+      total += gTotal;
 
       // Calculate top items
       if (inv.events) {
