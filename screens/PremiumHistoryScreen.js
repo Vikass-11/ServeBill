@@ -88,9 +88,37 @@ export default function PremiumHistoryScreen({ navigation }) {
         <Text style={styles.amountText}>
            <Text style={{color: theme.primary, fontSize: 14}}>₹</Text>{parseFloat(item.grandTotal || 0).toFixed(2)}
         </Text>
-        <TouchableOpacity onPress={() => confirmDelete(item.id)} style={styles.deleteBtn}>
-          <Ionicons name="trash-outline" size={18} color="#aaa" />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('CreateCateringOrder', { editInvoice: item })} 
+            style={[styles.actionBtn, { backgroundColor: theme.primary + '20' }]}
+          >
+            <Ionicons name="create-outline" size={18} color={theme.primary} />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('InvoicePreview', {
+              clientName: item.clientName,
+              clientPhone: item.clientPhone,
+              events: item.events,
+              subTotal: item.subTotal,
+              taxAmount: item.taxAmount,
+              grandTotal: item.grandTotal,
+              transportCharge: item.transportCharge || 0,
+              advanceAmount: item.advanceAmount || 0,
+              extraItems: item.extraItems || [],
+              isPreviewOnly: true,
+              autoDownload: true
+            })} 
+            style={[styles.actionBtn, { backgroundColor: theme.success + '20' }]}
+          >
+            <Ionicons name="download-outline" size={18} color={theme.success} />
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => confirmDelete(item.id)} style={[styles.actionBtn, { backgroundColor: theme.error + '20' }]}>
+            <Ionicons name="trash-outline" size={18} color={theme.error} />
+          </TouchableOpacity>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -243,7 +271,7 @@ const getStyles = (theme, isDarkMode) => StyleSheet.create({
   
   cardRight: { alignItems: 'flex-end', justifyContent: 'center' },
   amountText: { fontSize: 18, fontWeight: '800', color: theme.text, marginBottom: 8 },
-  deleteBtn: { padding: 4 },
+  actionBtn: { padding: 6, borderRadius: 8, marginLeft: 8 },
   
   emptyContainer: { alignItems: 'center', marginTop: 60 },
   emptyIconCircle: {
