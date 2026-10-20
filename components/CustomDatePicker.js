@@ -1,11 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { ThemeContext } from '../context/ThemeContext';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
 
 export default function CustomDatePicker({ visible, initialDate, onSelect, onClose }) {
+  const { theme, isDarkMode } = useContext(ThemeContext);
+  const styles = getStyles(theme, isDarkMode);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   
   useEffect(() => {
@@ -97,13 +103,16 @@ export default function CustomDatePicker({ visible, initialDate, onSelect, onClo
         <View style={styles.container}>
           <View style={styles.header}>
             <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.arrowBtn}>
-              <Ionicons name="chevron-back" size={24} color="#111" />
+              <Ionicons name="chevron-back" size={20} color={theme.text} />
             </TouchableOpacity>
-            <Text style={styles.monthTitle}>
-              {MONTHS[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-            </Text>
+            <View style={{ alignItems: 'center' }}>
+              <Text style={styles.monthTitle}>
+                {MONTHS[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+              </Text>
+              <Text style={styles.selectPrompt}>SELECT EVENT DATE</Text>
+            </View>
             <TouchableOpacity onPress={() => changeMonth(1)} style={styles.arrowBtn}>
-              <Ionicons name="chevron-forward" size={24} color="#111" />
+              <Ionicons name="chevron-forward" size={20} color={theme.text} />
             </TouchableOpacity>
           </View>
 
@@ -115,8 +124,8 @@ export default function CustomDatePicker({ visible, initialDate, onSelect, onClo
 
           {renderCalendar()}
 
-          <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
-            <Text style={styles.cancelBtnText}>Cancel</Text>
+          <TouchableOpacity style={styles.cancelBtn} onPress={onClose} activeOpacity={0.8}>
+            <Text style={styles.cancelBtnText}>Dismiss</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -124,25 +133,27 @@ export default function CustomDatePicker({ visible, initialDate, onSelect, onClo
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme, isDarkMode) => StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20
   },
   container: {
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 20,
+    backgroundColor: theme.card,
+    borderRadius: 26,
+    padding: 22,
     width: '100%',
-    maxWidth: 400,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 5
+    maxWidth: 380,
+    borderWidth: 1,
+    borderColor: theme.border,
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: isDarkMode ? 0.4 : 0.12,
+    shadowRadius: 24,
+    elevation: 8
   },
   header: {
     flexDirection: 'row',
@@ -151,25 +162,35 @@ const styles = StyleSheet.create({
     marginBottom: 20
   },
   arrowBtn: {
-    padding: 8,
-    backgroundColor: '#f9f9f9',
-    borderRadius: 12
+    padding: 10,
+    backgroundColor: theme.inputBackground,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: theme.border,
   },
   monthTitle: {
-    fontSize: 18,
+    fontSize: 17,
+    fontWeight: '900',
+    color: theme.text,
+    letterSpacing: -0.3,
+  },
+  selectPrompt: {
+    fontSize: 9,
     fontWeight: '800',
-    color: '#111'
+    color: theme.primary,
+    letterSpacing: 0.8,
+    marginTop: 2,
   },
   weekDays: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 10
+    marginBottom: 12
   },
   weekDayText: {
-    color: '#888',
-    fontWeight: '700',
-    fontSize: 13,
-    width: 40,
+    color: theme.textMuted,
+    fontWeight: '800',
+    fontSize: 11,
+    width: 38,
     textAlign: 'center'
   },
   grid: {
@@ -182,32 +203,42 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
-    borderRadius: 20
+    marginBottom: 8,
+    borderRadius: 16
   },
   todayCell: {
-    backgroundColor: '#FF7F50'
+    backgroundColor: theme.primary,
+    shadowColor: theme.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
   },
   cellText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#111'
+    fontSize: 14,
+    fontWeight: '700',
+    color: theme.text
   },
   mutedText: {
-    color: '#ddd'
+    color: theme.border,
+    opacity: 0.5
   },
   todayText: {
-    color: '#fff'
+    color: '#FFFFFF',
+    fontWeight: '900'
   },
   cancelBtn: {
-    marginTop: 10,
+    marginTop: 14,
     paddingVertical: 14,
     alignItems: 'center',
-    backgroundColor: '#f9f9f9',
-    borderRadius: 12
+    backgroundColor: theme.inputBackground,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.border,
   },
   cancelBtnText: {
-    fontWeight: '700',
-    color: '#111'
+    fontWeight: '800',
+    fontSize: 13,
+    color: theme.textSecondary
   }
 });
