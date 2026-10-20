@@ -285,7 +285,7 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
               </TouchableOpacity>
 
               <View style={styles.subHeaderRow}>
-                <Ionicons name="cafe-outline" size={18} color="#FF7F50" />
+                <Ionicons name="cafe-outline" size={18} color={theme.primary} />
                 <Text style={styles.subTitle}>Tiffin Quantities</Text>
               </View>
 
@@ -321,7 +321,7 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
               ))}
 
               <View style={[styles.subHeaderRow, styles.mealHeaderSpacing]}>
-                <Ionicons name="restaurant-outline" size={18} color="#FF7F50" />
+                <Ionicons name="restaurant-outline" size={18} color={theme.accentPurple} />
                 <Text style={styles.subTitle}>Meal Packages</Text>
               </View>
 
@@ -347,7 +347,7 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
                   setModalVisible(true);
                 }}
               >
-                <Ionicons name="add-circle-outline" size={20} color="#FF7F50" />
+                <Ionicons name="add-circle-outline" size={20} color={theme.primary} />
                 <Text style={styles.buildMealBtnText}> Build Meals for Day {index + 1}</Text>
               </TouchableOpacity>
             </View>
@@ -451,75 +451,88 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
 
       {/* FLOATING CHECKOUT BAR */}
       <View style={styles.footerContainer}>
-          <View style={styles.footerWrapper}>
-            <View style={styles.totalContainer}>
-              <Text style={styles.totalLabel}>Grand Total</Text>
-              <Text style={styles.totalValue}>
-                ₹{(calculateGrandTotal() + (parseFloat(transportCharge) || 0)).toFixed(2)}
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.previewBtn}
-              onPress={() => {
-                if (!clientName.trim()) {
-                  Alert.alert('Error', 'Please enter a customer name.');
-                  return;
-                }
+        <LinearGradient
+          colors={isDarkMode ? ['#131B2E', '#0B101D'] : ['#0F172A', '#1E293B']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.footerWrapper}
+        >
+          <View style={styles.totalContainer}>
+            <Text style={styles.totalLabel}>Grand Total</Text>
+            <Text style={styles.totalValue}>
+              ₹{(calculateGrandTotal() + (parseFloat(transportCharge) || 0)).toFixed(2)}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.previewBtn}
+            activeOpacity={0.88}
+            onPress={() => {
+              if (!clientName.trim()) {
+                Alert.alert('Error', 'Please enter a customer name.');
+                return;
+              }
 
-                const subTotal = calculateGrandTotal();
-                const taxAmount = 0;
-                const grandTotal = subTotal + (parseFloat(transportCharge) || 0);
+              const subTotal = calculateGrandTotal();
+              const taxAmount = 0;
+              const grandTotal = subTotal + (parseFloat(transportCharge) || 0);
 
-                // Deduct stock levels
-                events.forEach((ev) => {
-                  tiffinItems.forEach((item) => {
-                    const qty = ev.tiffinQuantities[item.id] || 0;
-                    if (qty > 0) {
-                      const newStock = Math.max(0, (item.stock || 0) - qty);
-                      updateTiffinItem({ ...item, stock: newStock });
-                    }
-                  });
+              // Deduct stock levels
+              events.forEach((ev) => {
+                tiffinItems.forEach((item) => {
+                  const qty = ev.tiffinQuantities[item.id] || 0;
+                  if (qty > 0) {
+                    const newStock = Math.max(0, (item.stock || 0) - qty);
+                    updateTiffinItem({ ...item, stock: newStock });
+                  }
                 });
+              });
 
-                const newInvoice = {
-                  id: editInvoice ? editInvoice.id : Date.now().toString(),
-                  clientName,
-                  clientPhone,
-                  date: editInvoice ? editInvoice.date : new Date().toLocaleDateString('en-IN'),
-                  events,
-                  subTotal,
-                  taxAmount,
-                  grandTotal: grandTotal.toFixed(2),
-                  transportCharge: transportCharge ? parseFloat(transportCharge) : 0,
-                  advanceAmount: advanceAmount ? parseFloat(advanceAmount) : 0,
-                  amountReceived: advanceAmount ? parseFloat(advanceAmount) : (editInvoice?.amountReceived || 0),
-                  extraItems
-                };
-                
-                if (editInvoice) {
-                  updateInvoice(newInvoice.id, newInvoice);
-                } else {
-                  addInvoice(newInvoice);
-                }
+              const newInvoice = {
+                id: editInvoice ? editInvoice.id : Date.now().toString(),
+                clientName,
+                clientPhone,
+                date: editInvoice ? editInvoice.date : new Date().toLocaleDateString('en-IN'),
+                events,
+                subTotal,
+                taxAmount,
+                grandTotal: grandTotal.toFixed(2),
+                transportCharge: transportCharge ? parseFloat(transportCharge) : 0,
+                advanceAmount: advanceAmount ? parseFloat(advanceAmount) : 0,
+                amountReceived: advanceAmount ? parseFloat(advanceAmount) : (editInvoice?.amountReceived || 0),
+                extraItems
+              };
+              
+              if (editInvoice) {
+                updateInvoice(newInvoice.id, newInvoice);
+              } else {
+                addInvoice(newInvoice);
+              }
 
-                navigation.navigate('InvoicePreview', {
-                  clientName,
-                  clientPhone,
-                  events,
-                  subTotal,
-                  taxAmount,
-                  grandTotal,
-                  transportCharge: transportCharge ? parseFloat(transportCharge) : 0,
-                  advanceAmount: advanceAmount ? parseFloat(advanceAmount) : 0,
-                  extraItems,
-                  isPreviewOnly: true, // Hide save button in preview since it's auto-saved
-                });
-              }}
+              navigation.navigate('InvoicePreview', {
+                clientName,
+                clientPhone,
+                events,
+                subTotal,
+                taxAmount,
+                grandTotal,
+                transportCharge: transportCharge ? parseFloat(transportCharge) : 0,
+                advanceAmount: advanceAmount ? parseFloat(advanceAmount) : 0,
+                extraItems,
+                isPreviewOnly: true, // Hide save button in preview since it's auto-saved
+              });
+            }}
+          >
+            <LinearGradient
+              colors={theme.primaryGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.previewBtnGradient}
             >
               <Text style={styles.previewBtnText}>Generate Bill</Text>
-              <Ionicons name="arrow-forward" size={18} color="#fff" style={{marginLeft: 8}}/>
-            </TouchableOpacity>
-          </View>
+              <Ionicons name="arrow-forward" size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />
+            </LinearGradient>
+          </TouchableOpacity>
+        </LinearGradient>
       </View>
 
       {/* EXTRA ITEMS MODAL */}
@@ -805,22 +818,37 @@ const getStyles = (theme, isDarkMode) => StyleSheet.create({
     color: theme.text,
   },
   footerWrapper: {
-    backgroundColor: theme.text,
     borderRadius: 24,
-    padding: 16,
+    padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: theme.shadow, shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2, shadowRadius: 20, elevation: 10,
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: isDarkMode ? 0.4 : 0.18,
+    shadowRadius: 20,
+    elevation: 10,
+    borderWidth: 1,
+    borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.15)',
   },
   totalContainer: { flex: 1, paddingLeft: 10 },
-  totalLabel: { fontSize: 12, color: theme.background, opacity: 0.7, fontWeight: '600' },
-  totalValue: { fontSize: 24, fontWeight: '800', color: theme.background },
+  totalLabel: { fontSize: 11, color: '#94A3B8', fontWeight: '800', letterSpacing: 0.5 },
+  totalValue: { fontSize: 22, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.4 },
   previewBtn: { 
-      backgroundColor: theme.primary, paddingVertical: 14, paddingHorizontal: 20, 
-      borderRadius: 16, flexDirection: 'row', alignItems: 'center'
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: theme.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  previewBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  previewBtnGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  previewBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },
   
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
   modalContent: { backgroundColor: theme.card, borderRadius: 24, padding: 24, maxHeight: '80%' },
