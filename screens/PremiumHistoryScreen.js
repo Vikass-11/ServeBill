@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useMemo } from 'react';
 import {
   FlatList,
   StyleSheet,
@@ -12,6 +12,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { InvoiceContext } from '../context/InvoiceContext';
 import { ThemeContext } from '../context/ThemeContext';
 
@@ -22,17 +23,22 @@ export default function PremiumHistoryScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Filter invoices based on search (Client Name)
-  const filteredInvoices = invoices.filter((inv) =>
-    inv.clientName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredInvoices = useMemo(() => {
+    return invoices.filter((inv) =>
+      (inv.clientName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (inv.date || '').includes(searchQuery)
+    );
+  }, [invoices, searchQuery]);
 
   // Calculate Total Business Done
-  const totalBusiness = invoices.reduce((sum, inv) => sum + parseFloat(inv.grandTotal || 0), 0);
+  const totalBusiness = useMemo(() => {
+    return invoices.reduce((sum, inv) => sum + parseFloat(inv.grandTotal || 0), 0);
+  }, [invoices]);
 
-  const confirmDelete = (id) => {
+  const confirmDelete = (id, clientName) => {
     Alert.alert(
-      "Delete Record",
-      "Are you sure you want to remove this invoice from history?",
+      "Delete Invoice",
+      `Are you sure you want to permanently delete the invoice for "${clientName || 'Client'}"?`,
       [
         { text: "Cancel", style: "cancel" },
         { text: "Delete", style: "destructive", onPress: () => deleteInvoice(id) }
@@ -42,9 +48,13 @@ export default function PremiumHistoryScreen({ navigation }) {
 
   const exportCSV = async () => {
     try {
+      if (invoices.length === 0) {
+        Alert.alert('No Data', 'There are no invoices to export.');
+        return;
+      }
       const header = 'ID,Client Name,Phone,Date,SubTotal,TaxAmount,GrandTotal\n';
       const rows = invoices.map(inv => 
-        `${inv.id},"${inv.clientName}","${inv.clientPhone || ''}","${inv.date}",${inv.subTotal || inv.grandTotal},${inv.taxAmount || 0},${inv.grandTotal}`
+        `${inv.id},"${inv.clientName || ''}","${inv.clientPhone || ''}","${inv.date || ''}",${inv.subTotal || inv.grandTotal || 0},${inv.taxAmount || 0},${inv.grandTotal || 0}`
       ).join('\n');
       
       const csvContent = header + rows;
@@ -68,107 +78,135 @@ export default function PremiumHistoryScreen({ navigation }) {
     }
   };
 
-  const renderInvoiceItem = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.invoiceCard}
-      onPress={() => navigation.navigate('CateringOrderDetails', { invoiceId: item.id })}
-      activeOpacity={0.7}
-    >
-      <View style={styles.cardInfo}>
-        <View style={styles.clientRow}>
-          <Ionicons name="person-circle-outline" size={20} color={theme.text} />
-          <Text style={styles.clientName}>{item.clientName}</Text>
-        </View>
-        <Text style={styles.dateLabel}>
-          <Ionicons name="calendar-outline" size={14} color="#888" /> {item.date}
-        </Text>
-      </View>
+  const renderInvoiceItem = ({ item }) => {
+    const total = parseFloat(item.grandTotal || 0);
 
-      <View style={styles.cardRight}>
-        <Text style={styles.amountText}>
-           <Text style={{color: theme.primary, fontSize: 14}}>₹</Text>{parseFloat(item.grandTotal || 0).toFixed(2)}
-        </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <TouchableOpacity 
-            onPress={() => navigation.navigate('CreateCateringOrder', { editInvoice: item })} 
-            style={[styles.actionBtn, { backgroundColor: theme.primary + '20' }]}
-          >
-            <Ionicons name="create-outline" size={18} color={theme.primary} />
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            onPress={() => navigation.navigate('InvoicePreview', {
-              clientName: item.clientName,
-              clientPhone: item.clientPhone,
-              events: item.events,
-              subTotal: item.subTotal,
-              taxAmount: item.taxAmount,
-              grandTotal: item.grandTotal,
-              transportCharge: item.transportCharge || 0,
-              advanceAmount: item.advanceAmount || 0,
-              extraItems: item.extraItems || [],
-              isPreviewOnly: true,
-              autoDownload: true
-            })} 
-            style={[styles.actionBtn, { backgroundColor: theme.success + '20' }]}
-          >
-            <Ionicons name="download-outline" size={18} color={theme.success} />
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => confirmDelete(item.id)} style={[styles.actionBtn, { backgroundColor: theme.error + '20' }]}>
-            <Ionicons name="trash-outline" size={18} color={theme.error} />
-          </TouchableOpacity>
+    return (
+      <TouchableOpacity 
+        style={styles.invoiceCard}
+        onPress={() => navigation.navigate('CateringOrderDetails', { invoiceId: item.id })}
+        activeOpacity={0.8}
+      >
+        <View style={styles.cardInfo}>
+          <View style={styles.clientRow}>
+            <View style={styles.invoiceAvatar}>
+              <Ionicons name="document-text" size={18} color={theme.primary} />
+            </View>
+            <View style={{ marginLeft: 12, flex: 1 }}>
+              <Text style={styles.clientName} numberOfLines={1}>{item.clientName}</Text>
+              <Text style={styles.dateLabel}>
+                <Ionicons name="calendar-outline" size={12} color={theme.textSecondary} /> {item.date}
+              </Text>
+            </View>
+          </View>
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+
+        <View style={styles.cardRight}>
+          <Text style={styles.amountText}>
+            ₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </Text>
+          <View style={styles.actionButtonsRow}>
+            <TouchableOpacity 
+              onPress={() => navigation.navigate('CreateCateringOrder', { editInvoice: item })} 
+              style={[styles.actionBtn, { backgroundColor: theme.primaryLight }]}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="create-outline" size={16} color={theme.primary} />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              onPress={() => navigation.navigate('InvoicePreview', {
+                clientName: item.clientName,
+                clientPhone: item.clientPhone,
+                events: item.events,
+                subTotal: item.subTotal,
+                taxAmount: item.taxAmount,
+                grandTotal: item.grandTotal,
+                transportCharge: item.transportCharge || 0,
+                advanceAmount: item.advanceAmount || 0,
+                extraItems: item.extraItems || [],
+                isPreviewOnly: true,
+                autoDownload: true
+              })} 
+              style={[styles.actionBtn, { backgroundColor: theme.successLight }]}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="download-outline" size={16} color={theme.success} />
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              onPress={() => confirmDelete(item.id, item.clientName)} 
+              style={[styles.actionBtn, { backgroundColor: theme.errorLight }]}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="trash-outline" size={16} color={theme.error} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <View style={[styles.header, { justifyContent: 'space-between' }]}>
+      {/* HEADER */}
+      <View style={styles.header}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           {navigation.canGoBack && navigation.canGoBack() && (
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-              <Ionicons name="arrow-back" size={24} color={theme.text} />
+              <Ionicons name="arrow-back" size={22} color={theme.text} />
             </TouchableOpacity>
           )}
-          <Text style={styles.mainTitle}>
-            Past <Text style={{color: theme.textMuted}}>Orders.</Text>
-          </Text>
+          <View style={{ marginLeft: navigation.canGoBack && navigation.canGoBack() ? 10 : 0 }}>
+            <Text style={styles.mainTitle}>
+              Order <Text style={{ color: theme.primary }}>Archive.</Text>
+            </Text>
+            <Text style={styles.subtitle}>Historical invoices & export</Text>
+          </View>
         </View>
-        <TouchableOpacity onPress={exportCSV} style={styles.exportBtn}>
-          <Ionicons name="download-outline" size={22} color={theme.text} />
-          <Text style={{marginLeft: 5, fontWeight: '600', color: theme.text}}>Export</Text>
+
+        <TouchableOpacity onPress={exportCSV} style={styles.exportBtn} activeOpacity={0.85}>
+          <Ionicons name="share-outline" size={16} color={theme.text} style={{ marginRight: 6 }} />
+          <Text style={styles.exportBtnText}>CSV Export</Text>
         </TouchableOpacity>
       </View>
 
-      {/* TOTAL SUMMARY WIDGET */}
-      <View style={styles.summaryCard}>
-        <View style={styles.summaryLeft}>
-            <Text style={styles.statsLabel}>Total Revenue</Text>
-            <Text style={styles.statsValue}>₹{totalBusiness.toLocaleString('en-IN')}</Text>
-        </View>
-        <View style={styles.summaryRight}>
+      {/* SUMMARY WIDGET */}
+      <View style={styles.summaryCardShadow}>
+        <LinearGradient
+          colors={isDarkMode ? ['#131B2E', '#0B101D'] : ['#0F172A', '#1E293B']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.summaryCard}
+        >
+          <View style={styles.summaryLeft}>
+            <Text style={styles.statsLabel}>TOTAL INVOICED REVENUE</Text>
+            <Text style={styles.statsValue}>
+              ₹{totalBusiness.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </Text>
+          </View>
+          <View style={styles.summaryRight}>
             <View style={styles.iconCircle}>
-                <Ionicons name="stats-chart" size={24} color={theme.primary} />
+              <Ionicons name="stats-chart" size={22} color="#34D399" />
             </View>
-            <Text style={styles.invoiceCount}>{invoices.length} Bills</Text>
-        </View>
+            <Text style={styles.invoiceCount}>{invoices.length} Invoices</Text>
+          </View>
+        </LinearGradient>
       </View>
 
       {/* SEARCH BAR */}
       <View style={styles.searchContainer}>
-        <Ionicons name="search-outline" size={20} color={theme.textSecondary} style={styles.searchIcon} />
+        <Ionicons name="search-outline" size={18} color={theme.textMuted} style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search customer name..."
+          placeholder="Search by client or date..."
           placeholderTextColor={theme.textMuted}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
         {searchQuery.length > 0 && (
           <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Ionicons name="close-circle" size={18} color="#aaa" />
+            <Ionicons name="close-circle" size={18} color={theme.textMuted} />
           </TouchableOpacity>
         )}
       </View>
@@ -183,10 +221,13 @@ export default function PremiumHistoryScreen({ navigation }) {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconCircle}>
-                <Ionicons name="receipt-outline" size={40} color={theme.textMuted} />
+              <Ionicons name="receipt-outline" size={38} color={theme.primary} />
             </View>
-            <Text style={styles.emptyText}>
-              {searchQuery ? "No matching records found." : "No invoices saved yet."}
+            <Text style={styles.emptyTitle}>
+              {searchQuery ? "No matching records found" : "No invoices created yet"}
+            </Text>
+            <Text style={styles.emptySub}>
+              {searchQuery ? "Try searching another client name or date." : "Invoices you generate will be automatically recorded here."}
             </Text>
           </View>
         }
@@ -196,60 +237,143 @@ export default function PremiumHistoryScreen({ navigation }) {
 }
 
 const getStyles = (theme, isDarkMode) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.background },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingTop: 20, marginBottom: 20 },
-  backBtn: { marginRight: 15 },
-  mainTitle: { fontSize: 32, fontWeight: '800', color: theme.text, letterSpacing: -0.5 },
-  exportBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.inputBackground, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12 },
-  
+  container: { 
+    flex: 1, 
+    backgroundColor: theme.background 
+  },
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between',
+    paddingHorizontal: 20, 
+    paddingTop: 12, 
+    paddingBottom: 14,
+  },
+  backBtn: { 
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: theme.card,
+    borderWidth: 1,
+    borderColor: theme.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mainTitle: { 
+    fontSize: 26, 
+    fontWeight: '900', 
+    color: theme.text, 
+    letterSpacing: -0.6 
+  },
+  subtitle: {
+    fontSize: 12,
+    color: theme.textSecondary,
+    fontWeight: '500',
+    marginTop: 1,
+  },
+  exportBtn: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    backgroundColor: theme.card, 
+    paddingHorizontal: 14, 
+    paddingVertical: 8, 
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.border,
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: isDarkMode ? 0.2 : 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  exportBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: theme.text,
+  },
+  summaryCardShadow: {
+    marginHorizontal: 20,
+    borderRadius: 24,
+    marginBottom: 16,
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: isDarkMode ? 0.35 : 0.12,
+    shadowRadius: 20,
+    elevation: 6,
+  },
   summaryCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    backgroundColor: theme.tabBar,
-    marginHorizontal: 24,
     borderRadius: 24,
-    padding: 24,
-    marginBottom: 20,
-    shadowColor: theme.shadow,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 8,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.15)',
   },
-  summaryLeft: { justifyContent: 'center' },
-  statsLabel: { color: theme.textSecondary, fontSize: 13, fontWeight: '600', marginBottom: 5 },
-  statsValue: { color: theme.success, fontSize: 32, fontWeight: '800' },
-  summaryRight: { alignItems: 'center', justifyContent: 'center' },
+  summaryLeft: { 
+    justifyContent: 'center',
+    flex: 1,
+  },
+  statsLabel: { 
+    color: '#94A3B8', 
+    fontSize: 10, 
+    fontWeight: '800', 
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
+  statsValue: { 
+    color: '#FFFFFF', 
+    fontSize: 26, 
+    fontWeight: '900',
+    letterSpacing: -0.6,
+  },
+  summaryRight: { 
+    alignItems: 'center', 
+    justifyContent: 'center',
+  },
   iconCircle: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      backgroundColor: isDarkMode ? '#222' : theme.background,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: 8,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(52, 211, 153, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
   },
-  invoiceCount: { color: theme.textMuted, fontSize: 12, fontWeight: '600' },
-  
+  invoiceCount: { 
+    color: '#CBD5E1', 
+    fontSize: 11, 
+    fontWeight: '700',
+  },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.card,
-    marginHorizontal: 24,
-    marginBottom: 20,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    height: 56,
+    marginHorizontal: 20,
+    marginBottom: 14,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: theme.border,
+    paddingVertical: 10,
     shadowColor: theme.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: isDarkMode ? 0.2 : 0.04,
+    shadowRadius: 8,
     elevation: 2,
   },
-  searchIcon: { marginRight: 10 },
-  searchInput: { flex: 1, fontSize: 16, color: theme.text },
-  
-  listContent: { paddingHorizontal: 24, paddingBottom: 120 }, // 120 padding for floating tab bar
+  searchIcon: { 
+    marginRight: 10 
+  },
+  searchInput: { 
+    flex: 1, 
+    fontSize: 14, 
+    color: theme.text,
+    paddingVertical: 2,
+  },
+  listContent: { 
+    paddingHorizontal: 20, 
+    paddingBottom: 110 
+  },
   invoiceCard: {
     backgroundColor: theme.card,
     borderRadius: 20,
@@ -257,28 +381,88 @@ const getStyles = (theme, isDarkMode) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: theme.border,
     shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.03,
+    shadowOpacity: isDarkMode ? 0.2 : 0.03,
     shadowRadius: 8,
     elevation: 2,
   },
-  cardInfo: { flex: 1 },
-  clientRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  clientName: { fontSize: 16, fontWeight: '700', color: theme.text, marginLeft: 8 },
-  dateLabel: { fontSize: 12, color: theme.textSecondary, marginLeft: 2 },
-  
-  cardRight: { alignItems: 'flex-end', justifyContent: 'center' },
-  amountText: { fontSize: 18, fontWeight: '800', color: theme.text, marginBottom: 8 },
-  actionBtn: { padding: 6, borderRadius: 8, marginLeft: 8 },
-  
-  emptyContainer: { alignItems: 'center', marginTop: 60 },
-  emptyIconCircle: {
-      width: 80, height: 80, borderRadius: 40, backgroundColor: theme.card,
-      justifyContent: 'center', alignItems: 'center', marginBottom: 15,
-      shadowColor: theme.shadow, shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
+  cardInfo: { 
+    flex: 1,
+    marginRight: 10,
   },
-  emptyText: { color: theme.textSecondary, fontSize: 15, fontWeight: '500' }
+  clientRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center',
+  },
+  invoiceAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: theme.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  clientName: { 
+    fontSize: 15, 
+    fontWeight: '800', 
+    color: theme.text,
+    letterSpacing: -0.2,
+  },
+  dateLabel: { 
+    fontSize: 12, 
+    color: theme.textSecondary, 
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  cardRight: { 
+    alignItems: 'flex-end', 
+    justifyContent: 'center' 
+  },
+  amountText: { 
+    fontSize: 16, 
+    fontWeight: '900', 
+    color: theme.text, 
+    marginBottom: 6,
+    letterSpacing: -0.3,
+  },
+  actionButtonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  actionBtn: { 
+    padding: 7, 
+    borderRadius: 10, 
+    marginLeft: 6 
+  },
+  emptyContainer: { 
+    alignItems: 'center', 
+    marginTop: 50,
+    paddingHorizontal: 20,
+  },
+  emptyIconCircle: {
+    width: 76, 
+    height: 76, 
+    borderRadius: 38, 
+    backgroundColor: theme.primaryLight,
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    marginBottom: 14,
+  },
+  emptyTitle: { 
+    color: theme.text, 
+    fontSize: 16, 
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  emptySub: {
+    color: theme.textSecondary,
+    fontSize: 13,
+    textAlign: 'center',
+    maxWidth: 280,
+    lineHeight: 18,
+  },
 });
