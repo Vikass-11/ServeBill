@@ -40,16 +40,23 @@ if (MONGO_URI) {
 // Basic schemas and models for the billing app
 const InvoiceSchema = new mongoose.Schema({
   customerName: String,
+  clientName: String,
   customerPhone: String,
-  items: Array,
+  clientPhone: String,
+  items: { type: Array, default: [] },
+  events: { type: Array, default: [] },
   subTotal: Number,
   taxAmount: Number,
   total: Number,
-  date: { type: Date, default: Date.now },
+  grandTotal: String,
+  date: { type: String },
   businessType: { type: String, default: 'CATERING' },
   amountReceived: { type: Number, default: 0 },
+  transportCharge: { type: Number, default: 0 },
+  advanceAmount: { type: Number, default: 0 },
+  extraItems: { type: Array, default: [] },
   expenses: { type: Array, default: [] }
-});
+}, { strict: false });
 const Invoice = mongoose.model('Invoice', InvoiceSchema);
 
 const MenuSchema = new mongoose.Schema({

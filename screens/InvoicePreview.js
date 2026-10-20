@@ -95,8 +95,9 @@ export default function InvoicePreviewScreen({ route, navigation }) {
 
   const onShare = async () => {
     try {
+      const appName = (businessProfile && businessProfile.name) ? businessProfile.name : 'our app';
       await Share.share({
-        message: `Invoice for ${clientName}\nSubtotal: ₹${subTotal.toFixed(2)}\nTransport Charge: ₹${transportAmount.toFixed(2)}\nTotal Amount: ₹${finalTotal.toFixed(2)}\nAdvance: ₹${advanceAmt.toFixed(2)}\nBalance Due: ₹${balanceDue.toFixed(2)}\nGenerated via ${businessProfile?.name || 'our app'}`,
+        message: `Invoice for ${clientName}\nSubtotal: ₹${subTotal.toFixed(2)}\nTransport Charge: ₹${transportAmount.toFixed(2)}\nTotal Amount: ₹${finalTotal.toFixed(2)}\nAdvance: ₹${advanceAmt.toFixed(2)}\nBalance Due: ₹${balanceDue.toFixed(2)}\nGenerated via ${appName}`,
       });
     } catch (error) {
       console.log(error.message);
@@ -104,7 +105,8 @@ export default function InvoicePreviewScreen({ route, navigation }) {
   };
 
   const onWhatsAppShare = () => {
-    const text = `*Invoice for ${clientName}*\n\n*Subtotal:* ₹${subTotal.toFixed(2)}\n*Transport Charge:* ₹${transportAmount.toFixed(2)}\n*Total Amount:* ₹${finalTotal.toFixed(2)}\n*Advance:* ₹${advanceAmt.toFixed(2)}\n*Balance Due:* ₹${balanceDue.toFixed(2)}\n\n_Generated via ${businessProfile?.name || 'our app'}_`;
+    const appName = (businessProfile && businessProfile.name) ? businessProfile.name : 'our app';
+    const text = `*Invoice for ${clientName}*\n\n*Subtotal:* ₹${subTotal.toFixed(2)}\n*Transport Charge:* ₹${transportAmount.toFixed(2)}\n*Total Amount:* ₹${finalTotal.toFixed(2)}\n*Advance:* ₹${advanceAmt.toFixed(2)}\n*Balance Due:* ₹${balanceDue.toFixed(2)}\n\n_Generated via ${appName}_`;
     
     let phoneStr = clientPhone ? clientPhone.replace(/\D/g, '') : '';
     if (phoneStr && phoneStr.length === 10) phoneStr = '91' + phoneStr;
@@ -227,6 +229,12 @@ export default function InvoicePreviewScreen({ route, navigation }) {
         `;
       })
       .join('');
+
+    const bpName = (businessProfile && businessProfile.name) || '';
+    const bpTagline = (businessProfile && businessProfile.tagline) || '';
+    const bpPhone = (businessProfile && businessProfile.phone) || '';
+    const bpEmail = (businessProfile && businessProfile.email) || '';
+    const bpAddress = (businessProfile && businessProfile.address) || '';
 
     return `
       <html>
@@ -367,16 +375,16 @@ export default function InvoicePreviewScreen({ route, navigation }) {
           <div class="header">
             <div>
               <div class="brand-wrap">
-                ${logoDataUri ? `<img src="${logoDataUri}" alt="${escapeHtml(businessProfile?.name || '')} logo" class="logo" />` : ''}
+                ${logoDataUri ? `<img src="${logoDataUri}" alt="${escapeHtml(bpName)} logo" class="logo" />` : ''}
                 <div>
-                  <div class="brand">${escapeHtml(businessProfile?.name || '')}</div>
-                  <div class="sub">${escapeHtml(businessProfile?.tagline || '')}</div>
+                  <div class="brand">${escapeHtml(bpName)}</div>
+                  <div class="sub">${escapeHtml(bpTagline)}</div>
                 </div>
               </div>
               <div class="contact">
-                <div><strong>Phone:</strong> ${escapeHtml(businessProfile?.phone || '')}</div>
-                <div><strong>Email:</strong> ${escapeHtml(businessProfile?.email || '')}</div>
-                <div><strong>Address:</strong> ${escapeHtml(businessProfile?.address || '')}</div>
+                <div><strong>Phone:</strong> ${escapeHtml(bpPhone)}</div>
+                <div><strong>Email:</strong> ${escapeHtml(bpEmail)}</div>
+                <div><strong>Address:</strong> ${escapeHtml(bpAddress)}</div>
               </div>
             </div>
             <div class="badge">INVOICE</div>

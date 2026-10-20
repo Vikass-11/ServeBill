@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LineChart } from 'react-native-chart-kit';
 import { InvoiceContext } from '../context/InvoiceContext';
 
 const { width } = Dimensions.get('window');
@@ -83,32 +82,31 @@ export default function PremiumAnalyticsScreen({ onLogout }) {
             <Text style={styles.chartTitle}>Past 7 Days Revenue</Text>
             <Ionicons name="stats-chart" size={20} color="#FF7F50" />
           </View>
-          <LineChart
-            data={{
-              labels: stats.labels,
-              datasets: [{ data: stats.dataPoints.length > 0 ? stats.dataPoints : [0,0,0,0,0,0,0] }]
-            }}
-            width={width - 88} // Padding adjustments
-            height={220}
-            yAxisLabel="₹"
-            yAxisInterval={1}
-            chartConfig={{
-              backgroundColor: '#fff',
-              backgroundGradientFrom: '#fff',
-              backgroundGradientTo: '#fff',
-              decimalPlaces: 0,
-              color: (opacity = 1) => `rgba(255, 127, 80, ${opacity})`,
-              labelColor: (opacity = 1) => `rgba(136, 136, 136, ${opacity})`,
-              style: { borderRadius: 16 },
-              propsForDots: {
-                r: '6',
-                strokeWidth: '2',
-                stroke: '#ffa887'
-              }
-            }}
-            bezier
-            style={styles.chartStyle}
-          />
+          
+          <View style={styles.barsContainer}>
+            <View style={styles.barsRow}>
+              {stats.dataPoints.map((val, idx) => {
+                const max = Math.max(...stats.dataPoints, 1);
+                const heightPct = Math.max(Math.min((val / max) * 100, 100), val > 0 ? 12 : 6);
+                return (
+                  <View key={idx} style={styles.barColumn}>
+                    <View style={styles.barTrack}>
+                      <View 
+                        style={[
+                          styles.barFill, 
+                          { 
+                            height: `${heightPct}%`, 
+                            backgroundColor: val > 0 ? '#FF7F50' : '#E2E8F0' 
+                          }
+                        ]} 
+                      />
+                    </View>
+                    <Text style={styles.barDate}>{stats.labels[idx]}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
         </View>
 
         {/* KPI Cards */}
@@ -173,7 +171,12 @@ const styles = StyleSheet.create({
   },
   chartHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   chartTitle: { fontSize: 16, fontWeight: '700', color: '#111' },
-  chartStyle: { marginVertical: 8, borderRadius: 16 },
+  barsContainer: { height: 160, justifyContent: 'flex-end', marginTop: 10 },
+  barsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: '100%' },
+  barColumn: { flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end' },
+  barTrack: { flex: 1, width: '100%', alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 6 },
+  barFill: { width: 22, borderRadius: 11, minHeight: 6 },
+  barDate: { fontSize: 11, color: '#888', fontWeight: '600', marginTop: 4 },
 
   sectionTitle: { fontSize: 18, fontWeight: '700', color: '#111', marginBottom: 15 },
   

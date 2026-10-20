@@ -78,8 +78,17 @@ export default function PremiumHistoryScreen({ navigation }) {
     }
   };
 
+  const formatDateSafe = (dateVal) => {
+    if (!dateVal) return '';
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return String(dateVal);
+    return d.toLocaleDateString('en-IN');
+  };
+
   const renderInvoiceItem = ({ item }) => {
-    const total = parseFloat(item.grandTotal || 0);
+    const total = parseFloat(item.grandTotal || item.total || 0);
+    const displayName = item.clientName || item.customerName || 'Direct Client';
+    const displayDate = formatDateSafe(item.date);
 
     return (
       <TouchableOpacity 
@@ -93,9 +102,9 @@ export default function PremiumHistoryScreen({ navigation }) {
               <Ionicons name="document-text" size={18} color={theme.primary} />
             </View>
             <View style={{ marginLeft: 12, flex: 1 }}>
-              <Text style={styles.clientName} numberOfLines={1}>{item.clientName}</Text>
+              <Text style={styles.clientName} numberOfLines={1}>{displayName}</Text>
               <Text style={styles.dateLabel}>
-                <Ionicons name="calendar-outline" size={12} color={theme.textSecondary} /> {item.date}
+                <Ionicons name="calendar-outline" size={12} color={theme.textSecondary} /> {displayDate}
               </Text>
             </View>
           </View>
@@ -116,12 +125,12 @@ export default function PremiumHistoryScreen({ navigation }) {
             
             <TouchableOpacity 
               onPress={() => navigation.navigate('InvoicePreview', {
-                clientName: item.clientName,
-                clientPhone: item.clientPhone,
-                events: item.events,
-                subTotal: item.subTotal,
-                taxAmount: item.taxAmount,
-                grandTotal: item.grandTotal,
+                clientName: displayName,
+                clientPhone: item.clientPhone || item.customerPhone || '',
+                events: item.events || [],
+                subTotal: item.subTotal || item.total || total,
+                taxAmount: item.taxAmount || 0,
+                grandTotal: total.toFixed(2),
                 transportCharge: item.transportCharge || 0,
                 advanceAmount: item.advanceAmount || 0,
                 extraItems: item.extraItems || [],

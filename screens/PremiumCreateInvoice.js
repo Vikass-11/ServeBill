@@ -22,17 +22,48 @@ import { ThemeContext } from '../context/ThemeContext';
 export default function PremiumCreateInvoiceScreen({ route, navigation }) {
   const { tiffinItems, mealDishes, updateTiffinItem } = useContext(MenuContext);
   const { addInvoice, updateInvoice } = useContext(InvoiceContext);
-  const [clientName, setClientName] = useState('');
-  const [transportCharge, setTransportCharge] = useState('');
-  const [clientPhone, setClientPhone] = useState('');
-  const [events, setEvents] = useState([
-    {
-      id: Date.now().toString(),
-      date: new Date().toISOString(),
-      tiffinQuantities: {},
-      addedMeals: [],
-    },
-  ]);
+  const editInvoice = route.params?.editInvoice;
+
+  const sanitizeEvents = (rawEvents, fallbackDate) => {
+    if (!rawEvents || !Array.isArray(rawEvents) || rawEvents.length === 0) {
+      return [{
+        id: Date.now().toString(),
+        date: fallbackDate || new Date().toISOString(),
+        tiffinQuantities: {},
+        addedMeals: [],
+      }];
+    }
+    return rawEvents.map((ev, index) => ({
+      id: ev.id || `${Date.now()}-${index}`,
+      date: ev.date || fallbackDate || new Date().toISOString(),
+      tiffinQuantities: ev.tiffinQuantities && typeof ev.tiffinQuantities === 'object' ? ev.tiffinQuantities : {},
+      addedMeals: Array.isArray(ev.addedMeals)
+        ? ev.addedMeals.map((m, mIdx) => ({
+            id: m.id || `${Date.now()}-m-${mIdx}`,
+            name: m.name || 'Full Meals Package',
+            price: parseFloat(m.price) || 0,
+            quantity: parseInt(m.quantity, 10) || 1,
+            dishes: Array.isArray(m.dishes) ? m.dishes : [],
+          }))
+        : [],
+    }));
+  };
+
+  const formatDateSafe = (dateVal) => {
+    if (!dateVal) return new Date().toLocaleDateString('en-GB');
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) {
+      return String(dateVal);
+    }
+    return d.toLocaleDateString('en-GB');
+  };
+
+  const [clientName, setClientName] = useState(editInvoice?.clientName || editInvoice?.customerName || '');
+  const [transportCharge, setTransportCharge] = useState(editInvoice?.transportCharge != null ? editInvoice.transportCharge.toString() : '');
+  const [clientPhone, setClientPhone] = useState(editInvoice?.clientPhone || editInvoice?.customerPhone || '');
+  const [advanceAmount, setAdvanceAmount] = useState(editInvoice?.advanceAmount != null ? editInvoice.advanceAmount.toString() : '');
+  const [extraItems, setExtraItems] = useState(Array.isArray(editInvoice?.extraItems) ? editInvoice.extraItems : []);
+  const [events, setEvents] = useState(() => sanitizeEvents(editInvoice?.events, editInvoice?.date));
 
   const [showPicker, setShowPicker] = useState(false);
   const [activeEventId, setActiveEventId] = useState(null);
@@ -43,23 +74,20 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
   const [tempMealQty, setTempMealQty] = useState('');
   const [tempSelectedDishes, setTempSelectedDishes] = useState([]);
 
-  const [advanceAmount, setAdvanceAmount] = useState('');
-  const [extraItems, setExtraItems] = useState([]);
-  
   const [isExtraModalVisible, setExtraModalVisible] = useState(false);
   const [tempExtraDesc, setTempExtraDesc] = useState('');
   const [tempExtraAmount, setTempExtraAmount] = useState('');
 
-  const editInvoice = route.params?.editInvoice;
-
   React.useEffect(() => {
     if (editInvoice) {
-      setClientName(editInvoice.clientName || '');
-      setClientPhone(editInvoice.clientPhone || '');
-      setTransportCharge(editInvoice.transportCharge?.toString() || '');
-      setAdvanceAmount(editInvoice.advanceAmount?.toString() || '');
-      if (editInvoice.events && editInvoice.events.length > 0) setEvents(editInvoice.events);
-      if (editInvoice.extraItems) setExtraItems(editInvoice.extraItems);
+      setClientName(editInvoice.clientName || editInvoice.customerName || '');
+      setClientPhone(editInvoice.clientPhone || editInvoice.customerPhone || '');
+      setTransportCharge(editInvoice.transportCharge != null ? editInvoice.transportCharge.toString() : '');
+      setAdvanceAmount(editInvoice.advanceAmount != null ? editInvoice.advanceAmount.toString() : '');
+      setEvents(sanitizeEvents(editInvoice.events, editInvoice.date));
+      if (Array.isArray(editInvoice.extraItems)) {
+        setExtraItems(editInvoice.extraItems);
+      }
     }
   }, [editInvoice]);
 
@@ -105,11 +133,11 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
     setEvents(
       events.map((ev) => {
         if (ev.id !== eventId) return ev;
-        const currentQty = ev.tiffinQuantities[itemId] || 0;
+        const currentQty = (ev.tiffinQuantities && ev.tiffinQuantities[itemId]) || 0;
         return {
           ...ev,
           tiffinQuantities: {
-            ...ev.tiffinQuantities,
+            ...(ev.tiffinQuantities || {}),
             [itemId]: Math.max(0, currentQty + amount),
           },
         };
@@ -127,7 +155,7 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
         return {
           ...ev,
           tiffinQuantities: {
-            ...ev.tiffinQuantities,
+            ...(ev.tiffinQuantities || {}),
             [itemId]: Number.isNaN(parsedQuantity) ? 0 : parsedQuantity,
           },
         };
@@ -150,14 +178,14 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
     const newMeal = {
       id: Date.now().toString(),
       name: tempMealName,
-      price: parseFloat(tempMealPrice),
-      quantity: parseInt(tempMealQty, 10),
-      dishes: tempSelectedDishes,
+      price: parseFloat(tempMealPrice) || 0,
+      quantity: parseInt(tempMealQty, 10) || 1,
+      dishes: Array.isArray(tempSelectedDishes) ? tempSelectedDishes : [],
     };
 
     setEvents(
       events.map((ev) =>
-        ev.id === modalEventId ? { ...ev, addedMeals: [...ev.addedMeals, newMeal] } : ev
+        ev.id === modalEventId ? { ...ev, addedMeals: [...(ev.addedMeals || []), newMeal] } : ev
       )
     );
 
@@ -172,7 +200,7 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
     setEvents(
       events.map((ev) =>
         ev.id === eventId
-          ? { ...ev, addedMeals: ev.addedMeals.filter((meal) => meal.id !== mealId) }
+          ? { ...ev, addedMeals: (ev.addedMeals || []).filter((meal) => meal.id !== mealId) }
           : ev
       )
     );
@@ -180,17 +208,24 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
 
   const calculateGrandTotal = () => {
     let total = 0;
-    events.forEach((ev) => {
-      tiffinItems.forEach((item) => {
-        total += parseFloat(item.price) * (ev.tiffinQuantities[item.id] || 0);
-      });
-      ev.addedMeals.forEach((meal) => {
-        total += meal.price * meal.quantity;
-      });
+    (events || []).forEach((ev) => {
+      if (ev && tiffinItems) {
+        tiffinItems.forEach((item) => {
+          const qty = (ev.tiffinQuantities && ev.tiffinQuantities[item.id]) || 0;
+          total += (parseFloat(item.price) || 0) * (Number(qty) || 0);
+        });
+      }
+      if (ev && Array.isArray(ev.addedMeals)) {
+        ev.addedMeals.forEach((meal) => {
+          total += (parseFloat(meal.price) || 0) * (parseInt(meal.quantity, 10) || 0);
+        });
+      }
     });
-    extraItems.forEach((extra) => {
-      total += parseFloat(extra.amount) || 0;
-    });
+    if (Array.isArray(extraItems)) {
+      extraItems.forEach((extra) => {
+        total += parseFloat(extra.amount) || 0;
+      });
+    }
     return total;
   };
 
@@ -223,7 +258,7 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
             </TouchableOpacity>
           )}
           <Text style={styles.mainTitle}>
-            Create <Text style={{color: theme.textMuted}}>Bill.</Text>
+            {editInvoice ? 'Edit' : 'Create'} <Text style={{color: theme.textMuted}}>Bill.</Text>
           </Text>
         </View>
 
@@ -257,8 +292,8 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
           </View>
         </View>
 
-        {events.map((ev, index) => (
-          <View key={ev.id} style={styles.eventCard}>
+        {(events || []).map((ev, index) => (
+          <View key={ev.id || index} style={styles.eventCard}>
             <View style={styles.eventHeader}>
               <Text style={styles.eventDayText}>Service Day {index + 1}</Text>
               <TouchableOpacity onPress={() => removeEvent(ev.id)} style={styles.deleteCircle}>
@@ -278,7 +313,7 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
                   <Ionicons name="calendar-outline" size={20} color={theme.text} />
                   <Text style={styles.datePickerText}>
                     {' '}
-                    {new Date(ev.date).toLocaleDateString('en-GB')}
+                    {formatDateSafe(ev.date)}
                   </Text>
                 </View>
                 <Text style={styles.changeText}>Edit</Text>
@@ -289,7 +324,7 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
                 <Text style={styles.subTitle}>Tiffin Quantities</Text>
               </View>
 
-              {tiffinItems.map((item) => (
+              {(tiffinItems || []).map((item) => (
                 <View key={item.id} style={styles.menuRow}>
                   <View style={styles.itemInfo}>
                     <Text style={styles.itemName}>{item.name}</Text>
@@ -305,7 +340,7 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
                     <TextInput
                       style={styles.qtyInput}
                       keyboardType="number-pad"
-                      value={String(ev.tiffinQuantities[item.id] || 0)}
+                      value={String((ev.tiffinQuantities && ev.tiffinQuantities[item.id]) || 0)}
                       onChangeText={(value) => setTiffinQuantity(ev.id, item.id, value)}
                       selectTextOnFocus
                       maxLength={4}
@@ -325,14 +360,14 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
                 <Text style={styles.subTitle}>Meal Packages</Text>
               </View>
 
-              {ev.addedMeals.map((meal) => (
+              {(ev.addedMeals || []).map((meal) => (
                 <View key={meal.id} style={styles.addedMealCard}>
                   <View style={styles.mealInfo}>
                     <Text style={styles.mealNameText}>{meal.name}</Text>
                     <Text style={styles.mealDetailText}>
                       {meal.quantity} plates x ₹{meal.price}
                     </Text>
-                    <Text style={styles.dishListText}>Items: {meal.dishes.join(', ')}</Text>
+                    <Text style={styles.dishListText}>Items: {Array.isArray(meal.dishes) ? meal.dishes.join(', ') : ''}</Text>
                   </View>
                   <TouchableOpacity onPress={() => removeMeal(ev.id, meal.id)} style={{padding: 5}}>
                     <Ionicons name="trash-outline" size={22} color="#aaa" />

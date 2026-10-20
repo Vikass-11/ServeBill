@@ -211,8 +211,8 @@ export default function CateringDashboardScreen({ navigation }) {
                       <Ionicons name="restaurant-outline" size={16} color={theme.accentPurple} />
                     </View>
                     <View style={{ marginLeft: 12 }}>
-                      <Text style={styles.recentClientName}>{inv.clientName}</Text>
-                      <Text style={styles.recentEventDate}>{inv.date}</Text>
+                      <Text style={styles.recentClientName}>{inv.clientName || inv.customerName || 'Direct Client'}</Text>
+                      <Text style={styles.recentEventDate}>{inv.date ? (isNaN(new Date(inv.date).getTime()) ? inv.date : new Date(inv.date).toLocaleDateString('en-IN')) : ''}</Text>
                     </View>
                   </View>
 

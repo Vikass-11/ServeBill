@@ -1,7 +1,6 @@
-import React, { useContext, useMemo } from 'react';
+import React, { useContext, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Dimensions, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LineChart } from 'react-native-chart-kit';
 import { InvoiceContext } from '../context/InvoiceContext';
 import { MenuContext } from '../context/MenuContext';
 import { ThemeContext } from '../context/ThemeContext';
@@ -15,6 +14,8 @@ export default function AnalyticsScreen() {
   const { tiffinItems } = useContext(MenuContext);
   const { theme, isDarkMode } = useContext(ThemeContext);
   const styles = getStyles(theme, isDarkMode);
+
+  const [selectedDayIdx, setSelectedDayIdx] = useState(null);
 
   const { labels, data, totalRevenue, topItemName, topItemCount, avgOrderValue } = useMemo(() => {
     // Process last 7 days of revenue
@@ -83,25 +84,8 @@ export default function AnalyticsScreen() {
     };
   }, [invoices, tiffinItems]);
 
-  const chartConfig = {
-    backgroundColor: theme.card,
-    backgroundGradientFrom: theme.card,
-    backgroundGradientTo: theme.card,
-    color: (opacity = 1) => `rgba(255, 90, 54, ${opacity})`,
-    labelColor: () => theme.textSecondary,
-    strokeWidth: 3,
-    barPercentage: 0.5,
-    useShadowColorFromDataset: false,
-    propsForDots: {
-      r: '5',
-      strokeWidth: '2',
-      stroke: theme.primary,
-    },
-    propsForBackgroundLines: {
-      stroke: theme.border,
-      strokeDasharray: '4',
-    },
-  };
+  const maxVal = Math.max(...data, 1);
+  const hasVelocity = data.some(v => v > 0);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -168,26 +152,80 @@ export default function AnalyticsScreen() {
             </View>
             <View style={styles.trendBadge}>
               <Ionicons name="trending-up" size={12} color={theme.primary} style={{ marginRight: 4 }} />
-              <Text style={styles.trendBadgeText}>Active</Text>
+              <Text style={styles.trendBadgeText}>{hasVelocity ? 'Active' : 'Standby'}</Text>
             </View>
           </View>
 
-          <View style={styles.chartContainer}>
-            <LineChart
-              data={{
-                labels: labels.length > 0 ? labels : ['1','2','3','4','5','6','7'],
-                datasets: [{ data: data.length > 0 && data.some(v => v > 0) ? data : [0, 0, 0, 0, 0, 0, 0] }]
-              }}
-              width={screenWidth - 68}
-              height={200}
-              chartConfig={chartConfig}
-              bezier
-              style={{ borderRadius: 16 }}
-              withInnerLines={true}
-              withOuterLines={false}
-              withVerticalLines={false}
-              fromZero={true}
-            />
+          {/* Interactive Tooltip & Details Banner */}
+          <View style={styles.chartInspectRow}>
+            <Text style={styles.chartInspectDate}>
+              {selectedDayIdx !== null ? `Date: ${labels[selectedDayIdx]}` : 'Tap a bar to inspect'}
+            </Text>
+            <Text style={styles.chartInspectValue}>
+              {selectedDayIdx !== null 
+                ? `₹${data[selectedDayIdx].toLocaleString('en-IN')}` 
+                : (hasVelocity ? `Peak: ₹${Math.max(...data).toLocaleString('en-IN')}` : '₹0')}
+            </Text>
+          </View>
+
+          {/* Bars Visualization */}
+          <View style={styles.barsContainer}>
+            {/* Horizontal Guide Lines */}
+            <View style={styles.gridContainer}>
+              <View style={[styles.gridLine, { borderColor: isDarkMode ? '#1E293B' : '#F1F5F9' }]} />
+              <View style={[styles.gridLine, { borderColor: isDarkMode ? '#1E293B' : '#F1F5F9' }]} />
+              <View style={[styles.gridLine, { borderColor: isDarkMode ? '#1E293B' : '#F1F5F9' }]} />
+            </View>
+
+            <View style={styles.barsRow}>
+              {data.map((val, idx) => {
+                const isSelected = selectedDayIdx === idx;
+                const ratio = val / maxVal;
+                const heightPct = Math.max(Math.min(ratio * 100, 100), val > 0 ? 12 : 6);
+
+                return (
+                  <TouchableOpacity
+                    key={idx}
+                    activeOpacity={0.75}
+                    onPress={() => setSelectedDayIdx(isSelected ? null : idx)}
+                    style={styles.barColumn}
+                  >
+                    <View style={styles.barTrack}>
+                      <View
+                        style={[
+                          styles.barFill,
+                          {
+                            height: `${heightPct}%`,
+                            backgroundColor: isSelected 
+                              ? theme.primary 
+                              : (val > 0 
+                                  ? (isDarkMode ? '#FF6B4A' : theme.primary) 
+                                  : (isDarkMode ? '#232D3F' : '#E2E8F0')),
+                            opacity: selectedDayIdx !== null && !isSelected ? 0.4 : 1,
+                            shadowColor: val > 0 ? theme.primary : 'transparent',
+                            shadowOffset: { width: 0, height: 3 },
+                            shadowOpacity: val > 0 ? 0.35 : 0,
+                            shadowRadius: 5,
+                            elevation: val > 0 ? 2 : 0,
+                          }
+                        ]}
+                      />
+                    </View>
+                    <Text
+                      style={[
+                        styles.barLabelText,
+                        {
+                          color: isSelected ? theme.primary : theme.textSecondary,
+                          fontWeight: isSelected ? '800' : '600'
+                        }
+                      ]}
+                    >
+                      {labels[idx]}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
         </View>
 
@@ -383,8 +421,71 @@ const getStyles = (theme, isDarkMode) => StyleSheet.create({
     fontWeight: '800',
     color: theme.primary,
   },
-  chartContainer: {
+  chartInspectRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    backgroundColor: isDarkMode ? '#131B2E' : '#F8FAFC',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 16,
+  },
+  chartInspectDate: {
+    fontSize: 12,
+    color: theme.textSecondary,
+    fontWeight: '600',
+  },
+  chartInspectValue: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: theme.primary,
+  },
+  barsContainer: {
+    height: 170,
+    justifyContent: 'flex-end',
+    position: 'relative',
+    marginTop: 6,
+  },
+  gridContainer: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'space-between',
+    paddingBottom: 26,
+    zIndex: 0,
+  },
+  gridLine: {
+    borderBottomWidth: 1,
+    borderStyle: 'dashed',
+    width: '100%',
+  },
+  barsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    height: '100%',
+    zIndex: 1,
+  },
+  barColumn: {
+    flex: 1,
+    alignItems: 'center',
+    height: '100%',
+    justifyContent: 'flex-end',
+  },
+  barTrack: {
+    flex: 1,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingBottom: 6,
+  },
+  barFill: {
+    width: 22,
+    borderRadius: 11,
+    minHeight: 6,
+  },
+  barLabelText: {
+    fontSize: 10,
+    letterSpacing: -0.2,
   },
   insightsGrid: {
     flexDirection: 'row',
