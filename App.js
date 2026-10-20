@@ -72,16 +72,30 @@ function OverviewStack({ onLogout }) {
   );
 }
 
-// --- NEW PREMIUM MAIN APP (LIGHT THEME) ---
+// --- NEW EXECUTIVE TAB BAR ---
+const TAB_CONFIG = {
+  Overview: { label: 'Home', activeIcon: 'grid', inactiveIcon: 'grid-outline' },
+  Shop: { label: 'Shop', activeIcon: 'storefront', inactiveIcon: 'storefront-outline' },
+  Catering: { label: 'Catering', activeIcon: 'restaurant', inactiveIcon: 'restaurant-outline' },
+  Menu: { label: 'Menu', activeIcon: 'fast-food', inactiveIcon: 'fast-food-outline' },
+  Clients: { label: 'Clients', activeIcon: 'people', inactiveIcon: 'people-outline' },
+  Analytics: { label: 'Insights', activeIcon: 'stats-chart', inactiveIcon: 'stats-chart-outline' },
+};
+
 function CustomTabBar({ state, descriptors, navigation }) {
   const { theme, isDarkMode } = useContext(ThemeContext);
   const styles = getStyles(theme, isDarkMode);
+
   return (
-    <View style={styles.floatingTabBarWrapper}>
+    <View style={styles.floatingTabBarWrapper} pointerEvents="box-none">
       <View style={styles.floatingTabBar}>
         {state.routes.map((route, index) => {
-          const { options } = descriptors[route.key];
           const isFocused = state.index === index;
+          const config = TAB_CONFIG[route.name] || {
+            label: route.name,
+            activeIcon: 'ellipse',
+            inactiveIcon: 'ellipse-outline',
+          };
 
           const onPress = () => {
             const event = navigation.emit({
@@ -95,28 +109,31 @@ function CustomTabBar({ state, descriptors, navigation }) {
             }
           };
 
-          let iconName = 'ellipse';
-          if (route.name === 'Overview') iconName = 'briefcase';
-          else if (route.name === 'Shop') iconName = 'storefront';
-          else if (route.name === 'Catering') iconName = 'restaurant';
-          else if (route.name === 'Menu') iconName = 'fast-food';
-          else if (route.name === 'Clients') iconName = 'people';
-          else if (route.name === 'Analytics') iconName = 'bar-chart';
-
           return (
             <TouchableOpacity
-              key={index}
+              key={route.key}
               accessibilityRole="button"
               accessibilityState={isFocused ? { selected: true } : {}}
               onPress={onPress}
+              activeOpacity={0.7}
               style={styles.tabItem}
             >
-              <View style={[styles.iconContainer, isFocused && styles.activeIconContainer]}>
-                <Ionicons 
-                  name={iconName + (isFocused ? '' : '-outline')} 
-                  size={20} 
-                  color={isFocused ? theme.card : theme.textSecondary} 
+              <View style={[styles.tabContent, isFocused && styles.tabContentActive]}>
+                <Ionicons
+                  name={isFocused ? config.activeIcon : config.inactiveIcon}
+                  size={19}
+                  color={isFocused ? theme.primary : theme.tabBarInactive}
                 />
+                <Text
+                  style={[
+                    styles.tabLabel,
+                    { color: isFocused ? theme.primary : theme.tabBarInactive },
+                    isFocused && styles.tabLabelActive,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {config.label}
+                </Text>
               </View>
             </TouchableOpacity>
           );
@@ -273,78 +290,98 @@ function PremiumLandingGate({ onUnlock }) {
 
   return (
     <SafeAreaView style={[styles.premiumContainer, { backgroundColor: theme.background }]}>
-      <LinearGradient colors={[theme.background, theme.background]} style={styles.premiumGradient}>
-        
-        {/* Dynamic Orbs */}
+      <LinearGradient 
+        colors={isDarkMode ? ['#090D16', '#141D30', '#090D16'] : ['#F8FAFC', '#FFF4ED', '#F8FAFC']} 
+        style={styles.premiumGradient}
+      >
+        {/* Dynamic Ambient Orbs */}
         <Animated.View style={[styles.premiumGlowOrb, styles.premiumGlowOrbTop, animatedOrb1]} />
         <Animated.View style={[styles.premiumGlowOrb, styles.premiumGlowOrbBottom, animatedOrb2]} />
 
         <Animated.View style={[styles.premiumHero, animatedHero]}>
-            <View style={styles.premiumHeader}>
-              <View style={styles.premiumIconWrap}>
-                <Ionicons name="flash" size={24} color={theme.primary} />
-              </View>
-              <View style={styles.premiumProfile}>
-                <Ionicons name="person-circle" size={42} color={theme.text} />
-                <View style={styles.premiumNotificationDot} />
+          <View style={styles.premiumHeader}>
+            <View style={styles.brandBadge}>
+              <LinearGradient colors={theme.primaryGradient} style={styles.brandIconCircle}>
+                <Ionicons name="flash" size={20} color="#FFFFFF" />
+              </LinearGradient>
+              <View style={{ marginLeft: 10 }}>
+                <Text style={styles.brandName}>ServeBill</Text>
+                <Text style={styles.brandTag}>BUSINESS SUITE</Text>
               </View>
             </View>
 
-            <View style={styles.premiumTextWrap}>
-              <Text style={styles.premiumGreeting}>Hi, Admin 👋</Text>
-              
-              <Animated.View style={animatedText1}>
-                <Text style={[styles.premiumTitle, { color: theme.text }]}>
-                  Smart <Text style={{color: theme.primary}}>Billing.</Text>
+            <View style={styles.securityStatusPill}>
+              <View style={styles.securityDot} />
+              <Text style={styles.securityStatusText}>Secured</Text>
+            </View>
+          </View>
+
+          <View style={styles.premiumTextWrap}>
+            <Text style={styles.premiumGreeting}>Welcome Back 👋</Text>
+            <Animated.View style={animatedText1}>
+              <Text style={[styles.premiumTitle, { color: theme.text }]}>
+                Smart <Text style={{ color: theme.primary }}>Billing.</Text>
+              </Text>
+            </Animated.View>
+            <Animated.View style={animatedText2}>
+              <Text style={[styles.premiumTitle2, { color: theme.text }]}>Smooth Business.</Text>
+            </Animated.View>
+          </View>
+
+          <Animated.View style={[styles.premiumGlassCard, animatedCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <View style={styles.premiumCardHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="sparkles" size={16} color={theme.primary} style={{ marginRight: 6 }} />
+                <Text style={styles.premiumCardTitle}>Today's Snapshot</Text>
+              </View>
+              <View style={styles.trendPill}>
+                <View style={styles.liveIndicator} />
+                <Text style={styles.trendText}>Live Vault</Text>
+              </View>
+            </View>
+
+            <View style={styles.premiumStatsRow}>
+              <View style={styles.premiumStat}>
+                <Text style={[styles.premiumStatValue, { color: theme.text }]}>
+                  ₹{todaysSales.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Text>
-              </Animated.View>
-              
-              <Animated.View style={animatedText2}>
-                <Text style={[styles.premiumTitle2, { color: theme.text }]}>Smooth Business.</Text>
-              </Animated.View>
+                <Text style={styles.premiumStatLabel}>Today's Revenue</Text>
+              </View>
+              <View style={[styles.premiumStatDivider, { backgroundColor: theme.border }]} />
+              <View style={styles.premiumStat}>
+                <Text style={[styles.premiumStatValue, { color: theme.text }]}>{todaysCount}</Text>
+                <Text style={styles.premiumStatLabel}>Invoices Created</Text>
+              </View>
             </View>
 
-            <Animated.View style={[styles.premiumGlassCard, animatedCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-              <View style={styles.premiumCardHeader}>
-                <Text style={styles.premiumCardTitle}>Daily Overview</Text>
-                <View style={styles.trendPill}>
-                  <Ionicons name="trending-up" size={14} color={theme.primary} />
-                  <Text style={styles.trendText}>Active</Text>
-                </View>
-              </View>
-              <View style={styles.premiumStatsRow}>
-                <View style={styles.premiumStat}>
-                  <Text style={[styles.premiumStatValue, { color: theme.text }]}>₹{todaysSales.toFixed(2)}</Text>
-                  <Text style={[styles.premiumStatLabel, { color: theme.textSecondary }]}>Today's Revenue</Text>
-                </View>
-                <View style={[styles.premiumStatDivider, { backgroundColor: theme.border }]} />
-                <View style={styles.premiumStat}>
-                  <Text style={[styles.premiumStatValue, { color: theme.text }]}>{todaysCount}</Text>
-                  <Text style={[styles.premiumStatLabel, { color: theme.textSecondary }]}>Invoices Generated</Text>
-                </View>
-              </View>
-            </Animated.View>
-            
-            <View style={{flex: 1}} />
-
-            <Animated.View style={[animatedBtn, { width: '100%' }]}>
-              <TouchableOpacity
-                style={styles.premiumUnlockButton}
-                activeOpacity={0.9}
-                onPress={handleBiometricAuth}
-              >
-                <LinearGradient 
-                  colors={[theme.text, theme.text]} 
-                  start={{x: 0, y: 0}} end={{x: 1, y: 1}}
-                  style={styles.premiumUnlockGradient}
-                >
-                  <Text style={styles.premiumUnlockText}>Unlock Workspace</Text>
-                  <Ionicons name="lock-open-outline" size={22} color={theme.background} />
-                </LinearGradient>
-              </TouchableOpacity>
-            </Animated.View>
-
+            <View style={[styles.cardFooterNotice, { borderTopColor: theme.border }]}>
+              <Ionicons name="shield-checkmark-outline" size={14} color={theme.success} />
+              <Text style={styles.cardFooterNoticeText}>Offline First • Encrypted Storage</Text>
+            </View>
           </Animated.View>
+
+          <View style={{ flex: 1 }} />
+
+          <Animated.View style={[animatedBtn, { width: '100%' }]}>
+            <TouchableOpacity
+              style={styles.premiumUnlockButton}
+              activeOpacity={0.88}
+              onPress={handleBiometricAuth}
+            >
+              <LinearGradient 
+                colors={theme.primaryGradient} 
+                start={{ x: 0, y: 0 }} 
+                end={{ x: 1, y: 0 }}
+                style={styles.premiumUnlockGradient}
+              >
+                <Ionicons name="finger-print" size={24} color="#FFFFFF" style={{ marginRight: 10 }} />
+                <Text style={styles.premiumUnlockText}>Unlock Workspace</Text>
+                <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
+              </LinearGradient>
+            </TouchableOpacity>
+          </Animated.View>
+
+        </Animated.View>
       </LinearGradient>
     </SafeAreaView>
   );
@@ -371,107 +408,29 @@ export default function App() {
 }
 
 const getStyles = (theme, isDarkMode) => StyleSheet.create({
-  landingContainer: { flex: 1, backgroundColor: '#0c1622' },
-  landingGradient: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  glowOrb: {
-    position: 'absolute',
-    borderRadius: 999,
-  },
-  glowOrbLeft: {
-    width: 220,
-    height: 220,
-    left: -60,
-    top: 100,
-    backgroundColor: 'rgba(73, 168, 255, 0.18)',
-  },
-  glowOrbRight: {
-    width: 260,
-    height: 260,
-    right: -70,
-    bottom: 120,
-    backgroundColor: 'rgba(89, 255, 191, 0.12)',
-  },
-  particle: {
-    position: 'absolute',
-  },
-  heroContent: {
-    width: '100%',
-    maxWidth: 420,
-    paddingVertical: 44,
-    paddingHorizontal: 28,
-    alignItems: 'center',
-  },
-  logoCircle: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: 'rgba(52, 152, 219, 0.94)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.24)',
-    shadowColor: '#46b2ff',
-    shadowOpacity: 0.22,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 10,
-  },
-  heroTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#f7fbff',
-    letterSpacing: 0.4,
-    textShadowColor: 'rgba(0, 0, 0, 0.28)',
-    textShadowOffset: { width: 0, height: 4 },
-    textShadowRadius: 10,
-  },
-  heroSubtitle: {
-    fontSize: 15,
-    color: 'rgba(233, 243, 255, 0.82)',
-    textAlign: 'center',
-    marginTop: 12,
-    lineHeight: 22,
-    textShadowColor: 'rgba(0, 0, 0, 0.22)',
-    textShadowOffset: { width: 0, height: 3 },
-    textShadowRadius: 8,
-  },
-  launchButton: { width: '100%', maxWidth: 280, marginTop: 30 },
-  launchGradient: {
-    borderRadius: 18,
-    paddingVertical: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
-    shadowColor: '#2ecc71',
-    shadowOpacity: 0.28,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 8,
-  },
-  launchButtonText: { color: '#fff', fontSize: 17, fontWeight: 'bold' },
   floatingTabBarWrapper: {
     position: 'absolute',
-    bottom: 30,
-    left: 20,
-    right: 20,
+    bottom: Platform.OS === 'ios' ? 24 : 16,
+    left: 16,
+    right: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 99,
   },
   floatingTabBar: {
     flexDirection: 'row',
     backgroundColor: theme.tabBar,
-    borderRadius: 40,
-    paddingVertical: 10,
-    paddingHorizontal: 15,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: theme.border,
+    paddingVertical: 7,
+    paddingHorizontal: 8,
     width: '100%',
-    maxWidth: 400,
+    maxWidth: 440,
     justifyContent: 'space-between',
     shadowColor: theme.shadow,
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
+    shadowOpacity: isDarkMode ? 0.4 : 0.08,
     shadowRadius: 20,
     elevation: 10,
   },
@@ -480,21 +439,25 @@ const getStyles = (theme, isDarkMode) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
+  tabContent: {
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 6,
+    borderRadius: 16,
+    minWidth: 50,
   },
-  activeIconContainer: {
-    backgroundColor: theme.primary, // active circle
-    borderRadius: 22,
-    shadowColor: theme.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 5,
+  tabContentActive: {
+    backgroundColor: theme.primaryLight,
+  },
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 3,
+    letterSpacing: 0.2,
+  },
+  tabLabelActive: {
+    fontWeight: '700',
   },
   premiumContainer: { 
     flex: 1, 
@@ -506,128 +469,149 @@ const getStyles = (theme, isDarkMode) => StyleSheet.create({
   premiumGlowOrb: {
     position: 'absolute',
     borderRadius: 999,
-    opacity: 0.6,
   },
   premiumGlowOrbTop: {
-    width: 350,
-    height: 350,
-    top: -100,
+    width: 380,
+    height: 380,
+    top: -120,
     right: -100,
-    backgroundColor: 'rgba(255, 127, 80, 0.15)', // Light orange orb
-    shadowColor: theme.primary,
-    shadowRadius: 60,
+    backgroundColor: isDarkMode ? 'rgba(255, 106, 70, 0.12)' : 'rgba(255, 127, 80, 0.16)',
   },
   premiumGlowOrbBottom: {
-    width: 350,
-    height: 350,
-    bottom: -80,
-    left: -120,
-    backgroundColor: isDarkMode ? 'rgba(255, 127, 80, 0.05)' : 'rgba(255, 240, 234, 0.8)', // Peach orb
-    shadowColor: theme.card,
-    shadowRadius: 60,
+    width: 360,
+    height: 360,
+    bottom: -100,
+    left: -100,
+    backgroundColor: isDarkMode ? 'rgba(99, 102, 241, 0.10)' : 'rgba(255, 220, 205, 0.55)',
   },
   premiumHero: {
     flex: 1,
-    paddingHorizontal: 28,
-    paddingTop: 30,
-    paddingBottom: 40,
+    paddingHorizontal: 26,
+    paddingTop: 24,
+    paddingBottom: 36,
     zIndex: 10,
   },
   premiumHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 50,
+    marginBottom: 44,
   },
-  premiumIconWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: theme.inputBackground,
-    borderWidth: 1,
-    borderColor: theme.border,
+  brandBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: theme.primary,
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  premiumProfile: {
-    position: 'relative',
+  brandName: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: theme.text,
+    letterSpacing: -0.3,
   },
-  premiumNotificationDot: {
-    position: 'absolute',
-    top: 2,
-    right: 2,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#FF0000',
-    borderWidth: 2,
-    borderColor: theme.background,
+  brandTag: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: theme.primary,
+    letterSpacing: 1,
+    marginTop: 1,
+  },
+  securityStatusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.card,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  securityDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: theme.success,
+    marginRight: 6,
+  },
+  securityStatusText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.textSecondary,
   },
   premiumTextWrap: {
-    marginBottom: 45,
+    marginBottom: 36,
   },
   premiumGreeting: {
     color: theme.textSecondary,
-    fontSize: 18,
-    marginBottom: 12,
+    fontSize: 16,
+    marginBottom: 8,
     fontWeight: '600',
-    letterSpacing: 0.5,
+    letterSpacing: 0.2,
   },
   premiumTitle: {
-    color: '#111',
-    fontSize: 44,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-    lineHeight: 52,
-  },
-  premiumTitle2: {
-    color: '#111',
-    fontSize: 40,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    fontSize: 42,
+    fontWeight: '900',
+    letterSpacing: -0.8,
     lineHeight: 48,
   },
+  premiumTitle2: {
+    fontSize: 38,
+    fontWeight: '800',
+    letterSpacing: -0.6,
+    lineHeight: 44,
+  },
   premiumGlassCard: {
-    backgroundColor: theme.card,
-    borderRadius: 28,
-    padding: 28,
+    borderRadius: 26,
+    padding: 24,
     borderWidth: 1,
-    borderColor: theme.border,
     shadowColor: theme.shadow,
-    shadowOffset: { width: 0, height: 15 },
-    shadowOpacity: 0.05,
-    shadowRadius: 25,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: isDarkMode ? 0.3 : 0.06,
+    shadowRadius: 24,
+    elevation: 6,
   },
   premiumCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   premiumCardTitle: {
     color: theme.textSecondary,
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '800',
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 0.8,
   },
   trendPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.inputBackground,
+    backgroundColor: theme.primaryLight,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
   },
+  liveIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: theme.primary,
+    marginRight: 5,
+  },
   trendText: {
     color: theme.primary,
-    fontSize: 12,
-    fontWeight: '700',
-    marginLeft: 4,
+    fontSize: 11,
+    fontWeight: '800',
   },
   premiumStatsRow: {
     flexDirection: 'row',
@@ -638,43 +622,56 @@ const getStyles = (theme, isDarkMode) => StyleSheet.create({
     flex: 1,
   },
   premiumStatValue: {
-    color: '#111',
-    fontSize: 32,
-    fontWeight: '800',
-    marginBottom: 6,
+    fontSize: 28,
+    fontWeight: '900',
+    marginBottom: 4,
+    letterSpacing: -0.5,
   },
   premiumStatLabel: {
-    color: '#888',
-    fontSize: 13,
-    fontWeight: '500',
+    color: theme.textMuted,
+    fontSize: 12,
+    fontWeight: '600',
   },
   premiumStatDivider: {
     width: 1,
-    height: 50,
-    backgroundColor: theme.border,
-    marginHorizontal: 24,
+    height: 44,
+    marginHorizontal: 16,
+  },
+  cardFooterNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 18,
+    paddingTop: 14,
+    borderTopWidth: 1,
+  },
+  cardFooterNoticeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: theme.textSecondary,
+    marginLeft: 6,
   },
   premiumUnlockButton: {
     width: '100%',
     borderRadius: 20,
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: theme.primary,
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
     elevation: 8,
   },
   premiumUnlockGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 20,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
   },
   premiumUnlockText: {
-    color: theme.background,
-    fontSize: 18,
+    color: '#FFFFFF',
+    fontSize: 17,
     fontWeight: '800',
-    marginRight: 12,
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
+    marginRight: 6,
   },
 });
