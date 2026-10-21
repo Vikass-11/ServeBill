@@ -14,6 +14,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import CustomDatePicker from '../components/CustomDatePicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { MenuContext } from '../context/MenuContext';
 import { CustomerContext } from '../context/CustomerContext';
 import { InvoiceContext } from '../context/InvoiceContext';
@@ -22,7 +23,7 @@ import { ThemeContext } from '../context/ThemeContext';
 export default function PremiumCreateInvoiceScreen({ route, navigation }) {
   const { tiffinItems, mealDishes, updateTiffinItem } = useContext(MenuContext);
   const { addInvoice, updateInvoice } = useContext(InvoiceContext);
-  const editInvoice = route.params?.editInvoice;
+  const editInvoice = route?.params?.editInvoice;
 
   const sanitizeEvents = (rawEvents, fallbackDate) => {
     if (!rawEvents || !Array.isArray(rawEvents) || rawEvents.length === 0) {
@@ -477,7 +478,11 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
 
       {showPicker && Platform.OS !== 'web' && (
         <DateTimePicker
-          value={new Date(events.find((ev) => ev.id === activeEventId)?.date || new Date())}
+          value={(() => {
+            const evDate = events.find((ev) => ev.id === activeEventId)?.date;
+            const parsed = evDate ? new Date(evDate) : new Date();
+            return isNaN(parsed.getTime()) ? new Date() : parsed;
+          })()}
           mode="date"
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           onChange={onDateChange}
@@ -616,7 +621,7 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Choose Dishes</Text>
             <ScrollView style={styles.modalScroll}>
-              {mealDishes.map((dish) => (
+              {(mealDishes || []).map((dish) => (
                 <TouchableOpacity
                   key={dish.id}
                   style={styles.checkboxRow}
