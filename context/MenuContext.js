@@ -24,17 +24,52 @@ export const MenuProvider = ({ children }) => {
           console.log('Backend not available for menu, using local storage.');
         }
 
+        const normalizeTiffins = (items) => {
+          return (items || []).map(item => ({
+            ...item,
+            id: item.id || (item._id ? item._id.toString() : Date.now().toString()),
+            unit: item.unit && item.unit !== 'fixed' ? item.unit : 'nos',
+            price: parseFloat(item.price) || 0,
+          }));
+        };
+
+        const defaultTiffins = [
+          { id: 'def-1', name: 'Idly', price: 10, unit: 'nos', category: 'tiffin', stock: 100 },
+          { id: 'def-2', name: 'Dosa', price: 25, unit: 'nos', category: 'tiffin', stock: 80 },
+          { id: 'def-3', name: 'Poori', price: 40, unit: 'plate', category: 'tiffin', stock: 50 },
+          { id: 'def-4', name: 'Upma', price: 0, unit: 'plate', category: 'tiffin', stock: 10 },
+          { id: 'def-5', name: 'Filter Coffee', price: 15, unit: 'cup', category: 'tiffin', stock: 100 },
+        ];
+
+        const defaultMeals = [
+          { id: 'meal-1', name: 'White Rice', category: 'meal' },
+          { id: 'meal-2', name: 'Sambar', category: 'meal' },
+          { id: 'meal-3', name: 'Rasam', category: 'meal' },
+          { id: 'meal-4', name: 'Poriyal', category: 'meal' },
+          { id: 'meal-5', name: 'Appalam', category: 'meal' },
+          { id: 'meal-6', name: 'Payasam', category: 'meal' },
+        ];
+
         if (backendMenu && backendMenu.length > 0) {
           const tiffin = backendMenu.filter(m => m.category === 'tiffin');
           const meals = backendMenu.filter(m => m.category === 'meal');
-          setTiffinItems(tiffin);
-          setMealDishes(meals);
+          setTiffinItems(normalizeTiffins(tiffin.length > 0 ? tiffin : defaultTiffins));
+          setMealDishes(meals.length > 0 ? meals : defaultMeals);
         } else {
           const savedTiffin = await AsyncStorage.getItem('@tiffin_items');
           const savedMeals = await AsyncStorage.getItem('@meal_dishes');
           
-          if (savedTiffin) setTiffinItems(JSON.parse(savedTiffin));
-          if (savedMeals) setMealDishes(JSON.parse(savedMeals));
+          if (savedTiffin && JSON.parse(savedTiffin).length > 0) {
+            setTiffinItems(normalizeTiffins(JSON.parse(savedTiffin)));
+          } else {
+            setTiffinItems(defaultTiffins);
+          }
+
+          if (savedMeals && JSON.parse(savedMeals).length > 0) {
+            setMealDishes(JSON.parse(savedMeals));
+          } else {
+            setMealDishes(defaultMeals);
+          }
         }
         
         setIsDataLoaded(true); // Tell the app we finished loading
