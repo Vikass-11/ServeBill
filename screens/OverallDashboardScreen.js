@@ -170,7 +170,10 @@ export default function OverallDashboardScreen({ navigation }) {
             activeOpacity={0.8}
             onPress={() => {
               if (navigation && navigation.navigate) {
-                navigation.navigate('Catering', { screen: 'CreateCateringOrder' });
+                navigation.navigate('Catering', {
+                  screen: 'CreateCateringOrder',
+                  params: { editInvoice: null, newBill: true, timestamp: Date.now() },
+                });
               }
             }}
           >
