@@ -22,7 +22,7 @@ import { ThemeContext } from '../context/ThemeContext';
 
 export default function PremiumManageMenuScreen() {
   const { 
-    tiffinItems, addTiffinItem, deleteTiffinItem,
+    tiffinItems, addTiffinItem, updateTiffinItem, deleteTiffinItem,
     mealDishes, addMealDish, deleteMealDish 
   } = useContext(MenuContext);
   const { theme, isDarkMode } = useContext(ThemeContext);
@@ -31,6 +31,7 @@ export default function PremiumManageMenuScreen() {
   const [activeTab, setActiveTab] = useState('tiffin'); // 'tiffin' or 'meals'
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddModalVisible, setAddModalVisible] = useState(false);
+  const [editingTiffinItem, setEditingTiffinItem] = useState(null);
 
   // Form State: Tiffin
   const [tiffinName, setTiffinName] = useState('');
@@ -55,24 +56,64 @@ export default function PremiumManageMenuScreen() {
     );
   }, [mealDishes, searchQuery]);
 
-  const handleAddTiffin = () => {
-    if (!tiffinName.trim() || !tiffinPrice.trim()) {
-      Alert.alert('Missing Info', 'Please enter both item name and unit price.');
-      return;
-    }
-    const newItem = {
-      id: Date.now().toString(),
-      name: tiffinName.trim(),
-      price: parseFloat(tiffinPrice),
-      costPrice: tiffinCostPrice ? parseFloat(tiffinCostPrice) : 0,
-      stock: tiffinStock ? parseInt(tiffinStock, 10) : 0,
-      unit: tiffinUnit,
-    };
-    addTiffinItem(newItem);
+  const startEditTiffin = (item) => {
+    setEditingTiffinItem(item);
+    setTiffinName(item.name || '');
+    setTiffinPrice(item.price && parseFloat(item.price) > 0 ? String(item.price) : '');
+    setTiffinUnit(item.unit && item.unit !== 'fixed' ? item.unit : 'nos');
+    setTiffinCostPrice(item.costPrice ? String(item.costPrice) : '');
+    setTiffinStock(item.stock ? String(item.stock) : '');
+    setAddModalVisible(true);
+  };
+
+  const openAddModal = () => {
+    setEditingTiffinItem(null);
     setTiffinName('');
     setTiffinPrice('');
     setTiffinCostPrice('');
     setTiffinStock('');
+    setTiffinUnit('nos');
+    setAddModalVisible(true);
+  };
+
+  const handleSaveTiffin = () => {
+    if (!tiffinName.trim()) {
+      Alert.alert('Missing Info', 'Please enter an item name.');
+      return;
+    }
+
+    const priceVal = tiffinPrice.trim() !== '' ? parseFloat(tiffinPrice) : 0;
+    const costVal = tiffinCostPrice.trim() !== '' ? parseFloat(tiffinCostPrice) : 0;
+    const stockVal = tiffinStock.trim() !== '' ? parseInt(tiffinStock, 10) : 0;
+    const unitVal = tiffinUnit || 'nos';
+
+    if (editingTiffinItem) {
+      updateTiffinItem({
+        ...editingTiffinItem,
+        name: tiffinName.trim(),
+        price: isNaN(priceVal) ? 0 : priceVal,
+        unit: unitVal,
+        costPrice: isNaN(costVal) ? 0 : costVal,
+        stock: isNaN(stockVal) ? 0 : stockVal,
+      });
+    } else {
+      const newItem = {
+        id: Date.now().toString(),
+        name: tiffinName.trim(),
+        price: isNaN(priceVal) ? 0 : priceVal,
+        unit: unitVal,
+        costPrice: isNaN(costVal) ? 0 : costVal,
+        stock: isNaN(stockVal) ? 0 : stockVal,
+      };
+      addTiffinItem(newItem);
+    }
+
+    setEditingTiffinItem(null);
+    setTiffinName('');
+    setTiffinPrice('');
+    setTiffinCostPrice('');
+    setTiffinStock('');
+    setTiffinUnit('nos');
     setAddModalVisible(false);
     Keyboard.dismiss();
   };
@@ -177,34 +218,67 @@ export default function PremiumManageMenuScreen() {
 
   const renderItem = ({ item }) => {
     if (activeTab === 'tiffin') {
+      const hasPredefinedPrice = item.price !== undefined && parseFloat(item.price) > 0;
       return (
         <View style={styles.itemCard}>
-          <View style={styles.itemLeft}>
-            <View style={[styles.iconWrap, { backgroundColor: theme.primaryLight }]}>
-              <Ionicons name="cafe" size={20} color={theme.primary} />
+          <TouchableOpacity 
+            style={styles.itemLeft} 
+            activeOpacity={0.7} 
+            onPress={() => startEditTiffin(item)}
+          >
+            <View style={[styles.iconWrap, { backgroundColor: hasPredefinedPrice ? theme.primaryLight : (isDarkMode ? '#064E3B' : '#ECFDF5') }]}>
+              <Ionicons 
+                name={hasPredefinedPrice ? "cafe" : "pricetag"} 
+                size={20} 
+                color={hasPredefinedPrice ? theme.primary : '#10B981'} 
+              />
             </View>
             <View style={{ marginLeft: 12, flex: 1 }}>
-              <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
+                {!hasPredefinedPrice && (
+                  <View style={styles.openPriceBadge}>
+                    <Text style={styles.openPriceBadgeText}>Priced on Bill</Text>
+                  </View>
+                )}
+              </View>
               <View style={styles.itemMetaRow}>
-                <Text style={styles.itemPrice}>
-                  ₹{item.price} <Text style={styles.itemUnit}>/ {item.unit || 'nos'}</Text>
-                </Text>
-                {item.stock !== undefined && (
+                {hasPredefinedPrice ? (
+                  <Text style={styles.itemPrice}>
+                    ₹{parseFloat(item.price).toFixed(0)}{' '}
+                    <Text style={styles.itemUnit}>/ {item.unit || 'nos'}</Text>
+                  </Text>
+                ) : (
+                  <Text style={styles.itemUnit}>
+                    Custom total on bill • Unit: {item.unit || 'nos'}
+                  </Text>
+                )}
+                {item.stock !== undefined && item.stock > 0 && (
                   <View style={styles.stockBadge}>
                     <Text style={styles.stockBadgeText}>Stock: {item.stock}</Text>
                   </View>
                 )}
               </View>
             </View>
-          </View>
-
-          <TouchableOpacity 
-            onPress={() => confirmDelete(item, 'tiffin')} 
-            style={styles.deleteBtn}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="trash-outline" size={18} color={theme.textMuted} />
           </TouchableOpacity>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity 
+              onPress={() => startEditTiffin(item)} 
+              style={styles.editBtn}
+              hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+            >
+              <Ionicons name="pencil" size={17} color={theme.primary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              onPress={() => confirmDelete(item, 'tiffin')} 
+              style={styles.deleteBtn}
+              hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+            >
+              <Ionicons name="trash-outline" size={17} color={theme.error} />
+            </TouchableOpacity>
+          </View>
         </View>
       );
     } else {
@@ -250,7 +324,7 @@ export default function PremiumManageMenuScreen() {
         </View>
 
         <TouchableOpacity
-          onPress={() => setAddModalVisible(true)}
+          onPress={openAddModal}
           activeOpacity={0.85}
           style={styles.addBtnContainer}
         >
@@ -304,13 +378,15 @@ export default function PremiumManageMenuScreen() {
             <View style={styles.modalHandle} />
 
             <View style={styles.modalHeader}>
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.modalTitle}>
-                  Add {activeTab === 'tiffin' ? 'Tiffin Item' : 'Meal Dish'}
+                  {editingTiffinItem 
+                    ? 'Edit Food Item' 
+                    : (activeTab === 'tiffin' ? 'Add Food Item' : 'Add Meal Dish')}
                 </Text>
                 <Text style={styles.modalSubtitle}>
                   {activeTab === 'tiffin' 
-                    ? 'Enter item name, pricing, and stock details' 
+                    ? 'Enter item name, unit rate (optional), and measurement' 
                     : 'Add dish to your master meal checklist'}
                 </Text>
               </View>
@@ -328,7 +404,7 @@ export default function PremiumManageMenuScreen() {
                       <Ionicons name="fast-food-outline" size={18} color={theme.textMuted} style={styles.inputIcon} />
                       <TextInput
                         style={styles.input}
-                        placeholder="e.g. Masala Dosa, Ghee Idly"
+                        placeholder="e.g. Masala Dosa, Ghee Idly, Upma"
                         placeholderTextColor={theme.textMuted}
                         value={tiffinName}
                         onChangeText={setTiffinName}
@@ -337,39 +413,30 @@ export default function PremiumManageMenuScreen() {
                   </View>
 
                   <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>SELLING PRICE PER UNIT (₹) *</Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Text style={styles.inputLabel}>PRICE PER UNIT (₹) (OPTIONAL)</Text>
+                      <Text style={styles.optionalTag}>Optional</Text>
+                    </View>
                     <View style={styles.inputWrap}>
                       <Ionicons name="cash-outline" size={18} color={theme.textMuted} style={styles.inputIcon} />
                       <TextInput
                         style={styles.input}
-                        placeholder="e.g. 50"
+                        placeholder="e.g. 10 (Leave empty for foods like Upma)"
                         placeholderTextColor={theme.textMuted}
                         keyboardType="numeric"
                         value={tiffinPrice}
                         onChangeText={setTiffinPrice}
                       />
                     </View>
-                  </View>
-
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>COST PRICE (OPTIONAL)</Text>
-                    <View style={styles.inputWrap}>
-                      <Ionicons name="pricetag-outline" size={18} color={theme.textMuted} style={styles.inputIcon} />
-                      <TextInput
-                        style={styles.input}
-                        placeholder="e.g. 25"
-                        placeholderTextColor={theme.textMuted}
-                        keyboardType="numeric"
-                        value={tiffinCostPrice}
-                        onChangeText={setTiffinCostPrice}
-                      />
-                    </View>
+                    <Text style={styles.pricingHelperText}>
+                      💡 Leave empty for foods like Upma where you charge a direct total on the bill. If specified (e.g. ₹10), the bill calculates Qty × Rate automatically.
+                    </Text>
                   </View>
 
                   <View style={styles.inputGroup}>
                     <Text style={styles.inputLabel}>UNIT MEASUREMENT</Text>
                     <View style={styles.unitRow}>
-                      {['nos', 'plate', 'kg', 'cup'].map(u => (
+                      {['nos', 'plate', 'kg', 'cup', 'litre'].map(u => (
                         <TouchableOpacity
                           key={u}
                           style={[styles.unitChip, tiffinUnit === u && styles.unitChipActive]}
@@ -383,10 +450,40 @@ export default function PremiumManageMenuScreen() {
                     </View>
                   </View>
 
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>ESTIMATED COST PRICE (OPTIONAL)</Text>
+                    <View style={styles.inputWrap}>
+                      <Ionicons name="wallet-outline" size={18} color={theme.textMuted} style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="e.g. 250"
+                        placeholderTextColor={theme.textMuted}
+                        keyboardType="numeric"
+                        value={tiffinCostPrice}
+                        onChangeText={setTiffinCostPrice}
+                      />
+                    </View>
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>AVAILABLE STOCK (OPTIONAL)</Text>
+                    <View style={styles.inputWrap}>
+                      <Ionicons name="layers-outline" size={18} color={theme.textMuted} style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="e.g. 50"
+                        placeholderTextColor={theme.textMuted}
+                        keyboardType="numeric"
+                        value={tiffinStock}
+                        onChangeText={setTiffinStock}
+                      />
+                    </View>
+                  </View>
+
                   <TouchableOpacity
                     style={styles.saveBtn}
                     activeOpacity={0.88}
-                    onPress={handleAddTiffin}
+                    onPress={handleSaveTiffin}
                   >
                     <LinearGradient
                       colors={theme.primaryGradient}
@@ -394,8 +491,10 @@ export default function PremiumManageMenuScreen() {
                       end={{ x: 1, y: 0 }}
                       style={styles.saveBtnGradient}
                     >
-                      <Ionicons name="add-circle" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-                      <Text style={styles.saveBtnText}>Add Tiffin Item</Text>
+                      <Ionicons name={editingTiffinItem ? "checkmark-circle" : "add-circle"} size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+                      <Text style={styles.saveBtnText}>
+                        {editingTiffinItem ? 'Update Food Item' : 'Add Food Item'}
+                      </Text>
                     </LinearGradient>
                   </TouchableOpacity>
                 </>
@@ -653,8 +752,26 @@ const getStyles = (theme, isDarkMode) => StyleSheet.create({
     fontWeight: '500',
     marginTop: 2,
   },
+  editBtn: {
+    padding: 8,
+    marginRight: 4,
+  },
   deleteBtn: {
     padding: 8,
+  },
+  openPriceBadge: {
+    backgroundColor: isDarkMode ? '#064E3B' : '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: isDarkMode ? '#059669' : '#A7F3D0',
+  },
+  openPriceBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#10B981',
+    letterSpacing: 0.3,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -742,6 +859,16 @@ const getStyles = (theme, isDarkMode) => StyleSheet.create({
     marginBottom: 6,
     letterSpacing: 0.5,
   },
+  optionalTag: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: theme.textMuted,
+    backgroundColor: theme.inputBackground,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginBottom: 6,
+  },
   inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -785,6 +912,56 @@ const getStyles = (theme, isDarkMode) => StyleSheet.create({
   },
   unitChipTextActive: {
     color: theme.background,
+  },
+  pricingPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginLeft: 8,
+  },
+  pricingPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  pricingTypeSelector: {
+    flexDirection: 'row',
+    backgroundColor: theme.inputBackground,
+    borderRadius: 16,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  pricingTypeBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  pricingTypeBtnActive: {
+    backgroundColor: theme.text,
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  pricingTypeBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.textSecondary,
+  },
+  pricingTypeBtnTextActive: {
+    color: theme.background,
+  },
+  pricingHelperText: {
+    fontSize: 11,
+    color: theme.textSecondary,
+    marginTop: 6,
+    lineHeight: 16,
+    fontWeight: '500',
   },
   saveBtn: {
     borderRadius: 18,
