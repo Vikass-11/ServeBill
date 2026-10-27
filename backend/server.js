@@ -64,8 +64,10 @@ const MenuSchema = new mongoose.Schema({
   price: Number,
   costPrice: { type: Number, default: 0 },
   stock: { type: Number, default: 0 },
-  category: String
-});
+  category: String,
+  pricingType: { type: String, default: 'unit' },
+  unit: { type: String, default: 'nos' }
+}, { strict: false });
 const MenuItem = mongoose.model('MenuItem', MenuSchema);
 
 const CustomerSchema = new mongoose.Schema({
