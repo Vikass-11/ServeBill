@@ -48,7 +48,10 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.actionRow}>
           <TouchableOpacity 
             style={styles.actionCard} 
-            onPress={() => navigation.navigate('Catering', { screen: 'CreateCateringOrder' })}
+            onPress={() => navigation.navigate('Catering', {
+              screen: 'CreateCateringOrder',
+              params: { editInvoice: null, newBill: true, timestamp: Date.now() },
+            })}
           >
             <LinearGradient colors={['#27ae60', '#2ecc71']} style={styles.iconCircle}>
               <Ionicons name="document-text" size={28} color="#fff" />
