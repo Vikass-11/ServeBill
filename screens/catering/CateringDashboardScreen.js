@@ -160,7 +160,7 @@ export default function CateringDashboardScreen({ navigation }) {
           <TouchableOpacity 
             style={styles.actionBtnPrimary}
             activeOpacity={0.88}
-            onPress={() => navigation.navigate('CreateCateringOrder')}
+            onPress={() => navigation.navigate('CreateCateringOrder', { editInvoice: null, newBill: true, timestamp: Date.now() })}
           >
             <LinearGradient
               colors={theme.primaryGradient}
