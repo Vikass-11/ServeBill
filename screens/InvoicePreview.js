@@ -22,7 +22,19 @@ function escapeHtml(value) {
 }
 
 export default function InvoicePreviewScreen({ route, navigation }) {
-  const { clientName, clientPhone, events, subTotal: previousSubTotal, taxAmount, grandTotal, transportCharge = 0, advanceAmount = 0, extraItems = [], autoDownload = false } = route.params;
+  const {
+    clientName = '',
+    clientPhone = '',
+    events = [],
+    subTotal: previousSubTotal,
+    taxAmount = 0,
+    grandTotal = 0,
+    transportCharge = 0,
+    advanceAmount = 0,
+    extraItems = [],
+    autoDownload = false,
+  } = route.params || {};
+
   const { addInvoice } = useContext(InvoiceContext);
   const { tiffinItems } = useContext(MenuContext);
   const { businessProfile } = useContext(BusinessContext);
@@ -32,10 +44,19 @@ export default function InvoicePreviewScreen({ route, navigation }) {
 
   const invoiceDate = new Date().toLocaleDateString('en-IN');
   
-  const subTotal = parseFloat(grandTotal);
-  const transportAmount = parseFloat(transportCharge);
-  const advanceAmt = parseFloat(advanceAmount);
-  const finalTotal = subTotal + transportAmount;
+  const transportAmount = parseFloat(transportCharge) || 0;
+  const advanceAmt = parseFloat(advanceAmount) || 0;
+  const extraTotal = (extraItems || []).reduce((sum, item) => sum + (parseFloat(item?.amount) || 0), 0);
+
+  // Subtotal is the items total. If previousSubTotal was provided, use it; otherwise compute from grandTotal
+  const subTotal = previousSubTotal !== undefined
+    ? parseFloat(previousSubTotal) || 0
+    : Math.max(0, (parseFloat(grandTotal) || 0) - transportAmount - extraTotal);
+
+  const finalTotal = route.params?.grandTotal
+    ? parseFloat(route.params.grandTotal)
+    : (subTotal + transportAmount + extraTotal);
+
   const balanceDue = finalTotal - advanceAmt;
 
   React.useEffect(() => {
@@ -48,15 +69,66 @@ export default function InvoicePreviewScreen({ route, navigation }) {
 
   const orderedEvents = useMemo(
     () =>
-      events
+      (events || [])
         .map((ev, index) => {
-          const orderedTiffins = tiffinItems.filter((item) => (ev.tiffinQuantities[item.id] || 0) > 0);
+          if (!ev) return null;
+          const orderedTiffins = (tiffinItems || [])
+            .map((item) => {
+              if (!item) return null;
+              if (Array.isArray(ev.selectedTiffins) && !ev.selectedTiffins.includes(item.id)) {
+                return null;
+              }
+              const hasPredefinedPrice = item.price !== undefined && parseFloat(item.price) > 0;
+              const mode = (ev.pricingModes && ev.pricingModes[item.id])
+                || (hasPredefinedPrice ? 'unit' : 'fixed');
+              const isFixed = mode === 'fixed';
+
+              if (isFixed) {
+                const rawPrice = ev.fixedPrices && ev.fixedPrices[item.id] !== undefined
+                  ? ev.fixedPrices[item.id]
+                  : (hasPredefinedPrice ? item.price : 0);
+                const fixedPrice = parseFloat(rawPrice) || 0;
+                const isSelected = ev.fixedSelected && ev.fixedSelected[item.id] !== undefined
+                  ? Boolean(ev.fixedSelected[item.id])
+                  : fixedPrice > 0;
+
+                if (!isSelected || fixedPrice <= 0) return null;
+
+                return {
+                  ...item,
+                  isFixed: true,
+                  qty: 1,
+                  rate: fixedPrice,
+                  rowTotal: fixedPrice,
+                  unitDisplay: item.unit && item.unit !== 'fixed' ? item.unit : 'Total',
+                };
+              } else {
+                const qty = (ev.tiffinQuantities && ev.tiffinQuantities[item.id]) || 0;
+                const rate = parseFloat(item.price) || 0;
+                if (qty <= 0) return null;
+
+                return {
+                  ...item,
+                  isFixed: false,
+                  qty,
+                  rate,
+                  rowTotal: qty * rate,
+                  unitDisplay: item.unit || 'nos',
+                };
+              }
+            })
+            .filter(Boolean);
+
+          const addedMeals = Array.isArray(ev?.addedMeals) ? ev.addedMeals : [];
+
           return {
             ...ev,
             index,
             orderedTiffins,
+            addedMeals,
           };
         })
+        .filter(Boolean)
         .filter((ev) => ev.orderedTiffins.length > 0 || ev.addedMeals.length > 0),
     [events, tiffinItems]
   );
@@ -80,7 +152,7 @@ export default function InvoicePreviewScreen({ route, navigation }) {
       clientPhone,
       date: invoiceDate,
       events,
-      subTotal: previousSubTotal,
+      subTotal: typeof subTotal === 'number' ? subTotal.toFixed(2) : String(subTotal),
       taxAmount,
       grandTotal: finalTotal.toFixed(2),
       transportCharge: transportAmount,
@@ -152,16 +224,21 @@ export default function InvoicePreviewScreen({ route, navigation }) {
       .map((ev) => {
         const tiffinRows = ev.orderedTiffins
           .map((item) => {
-            const qty = ev.tiffinQuantities[item.id];
-            const rowTotal = parseFloat(item.price) * qty;
+            const isFixed = item.isFixed;
+            const qtyDisplay = isFixed ? '—' : item.qty;
+            const unitDisplay = isFixed 
+              ? (item.unit && item.unit !== 'fixed' ? escapeHtml(item.unit) : '—') 
+              : escapeHtml(item.unit || 'nos');
+            const rateDisplay = isFixed ? '—' : `₹${item.rate.toFixed(2)}`;
+            const rowTotalDisplay = `₹${item.rowTotal.toFixed(2)}`;
 
             return `
               <tr>
-                <td>${escapeHtml(item.name)}</td>
-                <td>${escapeHtml(item.unit)}</td>
-                <td style="text-align: center;">${qty}</td>
-                <td style="text-align: right;">₹${escapeHtml(item.price)}</td>
-                <td style="text-align: right;">₹${rowTotal.toFixed(2)}</td>
+                <td><strong>${escapeHtml(item.name)}</strong></td>
+                <td>${unitDisplay}</td>
+                <td style="text-align: center;">${qtyDisplay}</td>
+                <td style="text-align: right;">${rateDisplay}</td>
+                <td style="text-align: right; font-weight: 600;">${rowTotalDisplay}</td>
               </tr>
             `;
           })
@@ -587,18 +664,18 @@ export default function InvoicePreviewScreen({ route, navigation }) {
             </View>
 
             {ev.orderedTiffins.map((item) => {
-              const qty = ev.tiffinQuantities[item.id];
-              const rowTotal = parseFloat(item.price) * qty;
-
+              const isFixed = item.isFixed;
               return (
                 <View key={item.id} style={styles.itemRow}>
                   <View style={styles.itemMain}>
                     <Text style={[styles.itemNameText, dynamicStyles.itemName]}>{item.name}</Text>
                     <Text style={[styles.itemSubDetail, dynamicStyles.itemDetail]}>
-                      {qty} {item.unit} x ₹{item.price}
+                      {isFixed
+                        ? `Direct Total: ₹${item.rowTotal.toFixed(2)}`
+                        : `${item.qty} ${item.unit || 'nos'} x ₹${item.rate.toFixed(2)}`}
                     </Text>
                   </View>
-                  <Text style={[styles.priceText, dynamicStyles.price]}>₹{rowTotal.toFixed(2)}</Text>
+                  <Text style={[styles.priceText, dynamicStyles.price]}>₹{item.rowTotal.toFixed(2)}</Text>
                 </View>
               );
             })}
@@ -786,6 +863,20 @@ const getStyles = (theme, isDarkMode) => StyleSheet.create({
   itemSubDetail: { fontSize: 12, color: theme.textSecondary, marginTop: 3 },
   itemDetailSpacious: { fontSize: 13 },
   itemDetailCompact: { fontSize: 11 },
+  fixedBadge: {
+    backgroundColor: isDarkMode ? '#064E3B' : '#ECFDF5',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: isDarkMode ? '#059669' : '#A7F3D0',
+  },
+  fixedBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#10B981',
+    textTransform: 'uppercase',
+  },
   dishListText: { fontSize: 11, color: theme.textMuted, fontStyle: 'italic', marginVertical: 2 },
   priceText: { fontSize: 15, fontWeight: 'bold', color: theme.text },
   priceSpacious: { fontSize: 17 },
