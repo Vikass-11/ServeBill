@@ -1,15 +1,38 @@
-import React, { useContext, useMemo } from 'react';
+import React, { useContext, useMemo, useState, useCallback } from 'react';
 import { ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { InvoiceContext } from '../../context/InvoiceContext';
 import { ThemeContext } from '../../context/ThemeContext';
 
 export default function CateringDashboardScreen({ navigation }) {
-  const { invoices } = useContext(InvoiceContext);
+  const { invoices, getDraft } = useContext(InvoiceContext);
   const { theme, isDarkMode } = useContext(ThemeContext);
   const styles = getStyles(theme, isDarkMode);
+  const [activeDraft, setActiveDraft] = useState(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      let isCurrent = true;
+      if (getDraft) {
+        getDraft().then((d) => {
+          if (!isCurrent) return;
+          if (d && (d.clientName?.trim() || d.clientPhone?.trim() || (d.extraItems && d.extraItems.length > 0) || (d.events && d.events.some(e => (e.selectedTiffins && e.selectedTiffins.length > 0) || (e.addedMeals && e.addedMeals.length > 0))))) {
+            setActiveDraft(d);
+          } else {
+            setActiveDraft(null);
+          }
+        }).catch(() => {
+          if (isCurrent) setActiveDraft(null);
+        });
+      }
+      return () => {
+        isCurrent = false;
+      };
+    }, [getDraft])
+  );
 
   const stats = useMemo(() => {
     const currentMonth = new Date().getMonth();
@@ -153,6 +176,36 @@ export default function CateringDashboardScreen({ navigation }) {
             <Ionicons name="checkmark-circle" size={18} color={theme.success} style={{ marginRight: 8 }} />
             <Text style={styles.allPaidText}>All customer invoice payments are fully cleared!</Text>
           </View>
+        )}
+
+        {/* ACTIVE DRAFT RESUME CARD */}
+        {activeDraft && (
+          <TouchableOpacity
+            style={styles.draftCard}
+            activeOpacity={0.88}
+            onPress={() => navigation.navigate('CreateCateringOrder', { editInvoice: null, timestamp: Date.now() })}
+          >
+            <View style={styles.draftCardLeft}>
+              <View style={styles.draftBadge}>
+                <Ionicons name="document-text" size={18} color="#10B981" />
+              </View>
+              <View style={{ marginLeft: 12, flex: 1 }}>
+                <Text style={styles.draftTitle}>Unfinished Draft Order</Text>
+                <Text style={styles.draftSubtitle} numberOfLines={1}>
+                  {activeDraft.clientName?.trim() ? `Client: ${activeDraft.clientName.trim()}` : 'Order in progress'}
+                </Text>
+              </View>
+            </View>
+            <LinearGradient
+              colors={['#10B981', '#059669']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.resumePill}
+            >
+              <Text style={styles.resumePillText}>Resume</Text>
+              <Ionicons name="arrow-forward" size={13} color="#FFFFFF" style={{ marginLeft: 4 }} />
+            </LinearGradient>
+          </TouchableOpacity>
         )}
 
         {/* ACTION BUTTONS */}
@@ -438,6 +491,54 @@ const getStyles = (theme, isDarkMode) => StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: theme.success,
+  },
+  draftCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: isDarkMode ? '#064E3B33' : '#ECFDF5',
+    borderWidth: 1,
+    borderColor: isDarkMode ? '#059669' : '#A7F3D0',
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 16,
+  },
+  draftCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 10,
+  },
+  draftBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: isDarkMode ? 'rgba(16, 185, 129, 0.2)' : '#D1FAE5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  draftTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: theme.text,
+  },
+  draftSubtitle: {
+    fontSize: 12,
+    color: theme.textSecondary,
+    marginTop: 2,
+  },
+  resumePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+  },
+  resumePillText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
   },
   actionRow: {
     flexDirection: 'row',
