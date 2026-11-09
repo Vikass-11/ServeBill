@@ -41,6 +41,7 @@ export default function InvoicePreviewScreen({ route, navigation }) {
   const { theme, isDarkMode } = useContext(ThemeContext);
   const styles = getStyles(theme, isDarkMode);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isSharingWhatsApp, setIsSharingWhatsApp] = useState(false);
 
   const invoiceDate = new Date().toLocaleDateString('en-IN');
   
@@ -176,25 +177,7 @@ export default function InvoicePreviewScreen({ route, navigation }) {
     }
   };
 
-  const onWhatsAppShare = () => {
-    const appName = (businessProfile && businessProfile.name) ? businessProfile.name : 'our app';
-    const text = `*Invoice for ${clientName}*\n\n*Subtotal:* ₹${subTotal.toFixed(2)}\n*Transport Charge:* ₹${transportAmount.toFixed(2)}\n*Total Amount:* ₹${finalTotal.toFixed(2)}\n*Advance:* ₹${advanceAmt.toFixed(2)}\n*Balance Due:* ₹${balanceDue.toFixed(2)}\n\n_Generated via ${appName}_`;
-    
-    let phoneStr = clientPhone ? clientPhone.replace(/\D/g, '') : '';
-    if (phoneStr && phoneStr.length === 10) phoneStr = '91' + phoneStr;
-    
-    let url = Platform.OS === 'web' 
-      ? `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`
-      : `whatsapp://send?text=${encodeURIComponent(text)}`;
-      
-    if (phoneStr) {
-        url += `&phone=${phoneStr}`;
-    }
-    
-    Linking.openURL(url).catch(() => {
-        Alert.alert('Error', 'Make sure WhatsApp is installed on your device');
-    });
-  };
+
 
   const getLogoDataUri = async () => {
     try {
@@ -575,6 +558,57 @@ export default function InvoicePreviewScreen({ route, navigation }) {
     }
   };
 
+  const generatePdfFile = async () => {
+    const logoDataUri = await getLogoDataUri();
+    const html = buildInvoiceHtml(logoDataUri);
+    const { uri } = await Print.printToFileAsync({
+      html,
+      base64: false,
+    });
+
+    const safeClientName = (clientName || 'Customer').replace(/[^a-zA-Z0-9]/g, '_');
+    const targetFilename = `Invoice_${safeClientName}_${Date.now()}.pdf`;
+    const targetUri = `${FileSystem.cacheDirectory}${targetFilename}`;
+
+    await FileSystem.copyAsync({
+      from: uri,
+      to: targetUri,
+    });
+
+    return targetUri;
+  };
+
+  const onWhatsAppShare = async () => {
+    try {
+      setIsSharingWhatsApp(true);
+
+      if (Platform.OS === 'web') {
+        const logoDataUri = await getLogoDataUri();
+        const html = buildInvoiceHtml(logoDataUri);
+        await Print.printAsync({ html });
+        return;
+      }
+
+      const pdfUri = await generatePdfFile();
+      const canShare = await Sharing.isAvailableAsync();
+
+      if (canShare) {
+        await Sharing.shareAsync(pdfUri, {
+          mimeType: 'application/pdf',
+          dialogTitle: `Share Invoice PDF with ${clientName || 'Customer'} (Choose WhatsApp)`,
+          UTI: 'com.adobe.pdf',
+        });
+      } else {
+        Alert.alert('Share Error', 'Document sharing is not available on this device.');
+      }
+    } catch (error) {
+      console.log('WhatsApp PDF Share error:', error);
+      Alert.alert('Sharing Error', 'Unable to generate PDF for WhatsApp sharing.');
+    } finally {
+      setIsSharingWhatsApp(false);
+    }
+  };
+
   const dynamicStyles = useMemo(() => {
     if (isShortInvoice) {
       return {
@@ -627,6 +661,14 @@ export default function InvoicePreviewScreen({ route, navigation }) {
         <TouchableOpacity onPress={onShare} style={styles.iconButton}>
           <Ionicons name="share-social-outline" size={24} color={theme.primary} />
         </TouchableOpacity>
+      </View>
+
+      {/* SAVED TO HISTORY STATUS BADGE */}
+      <View style={styles.savedBanner}>
+        <Ionicons name="checkmark-circle" size={15} color="#10B981" />
+        <Text style={styles.savedBannerText}>
+          Saved to Records • Recorded in History
+        </Text>
       </View>
 
       <ScrollView
@@ -766,11 +808,14 @@ export default function InvoicePreviewScreen({ route, navigation }) {
         <TouchableOpacity
           style={styles.secondaryAction}
           onPress={onWhatsAppShare}
+          disabled={isExportingPdf || isSharingWhatsApp}
           activeOpacity={0.85}
         >
           <LinearGradient colors={['#25D366', '#128C7E']} style={styles.secondaryGradient}>
             <Ionicons name="logo-whatsapp" size={20} color="#fff" />
-            <Text style={styles.secondaryActionText}> SHARE VIA WHATSAPP</Text>
+            <Text style={styles.secondaryActionText}>
+              {isSharingWhatsApp ? ' PREPARING PDF...' : ' SHARE PDF VIA WHATSAPP'}
+            </Text>
           </LinearGradient>
         </TouchableOpacity>
 
@@ -798,6 +843,23 @@ const getStyles = (theme, isDarkMode) => StyleSheet.create({
   },
   iconButton: { padding: 6 },
   previewTitle: { fontSize: 18, fontWeight: 'bold', color: theme.text },
+  savedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: isDarkMode ? 'rgba(16, 185, 129, 0.15)' : '#ECFDF5',
+    borderBottomWidth: 1,
+    borderBottomColor: isDarkMode ? 'rgba(16, 185, 129, 0.3)' : '#A7F3D0',
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  savedBannerText: {
+    color: isDarkMode ? '#34D399' : '#065F46',
+    fontSize: 12,
+    fontWeight: '700',
+    marginLeft: 6,
+  },
   invoicePaper: {
     backgroundColor: theme.card,
     marginHorizontal: 16,
