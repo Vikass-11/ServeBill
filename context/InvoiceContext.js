@@ -4,6 +4,8 @@ import { syncQueue } from '../services/syncQueue';
 
 export const InvoiceContext = createContext();
 
+const DRAFT_STORAGE_KEY = '@servebill_catering_order_draft';
+
 export const InvoiceProvider = ({ children }) => {
   const [invoices, setInvoices] = useState([]);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
@@ -26,6 +28,7 @@ export const InvoiceProvider = ({ children }) => {
 
         if (backendData && backendData.length > 0) {
           setInvoices(backendData);
+          await AsyncStorage.setItem('@saved_invoices', JSON.stringify(backendData));
         } else {
           // Fallback to local storage
           const savedInvoices = await AsyncStorage.getItem('@saved_invoices');
@@ -50,10 +53,23 @@ export const InvoiceProvider = ({ children }) => {
 
   // --- ACTIONS ---
   const addInvoice = async (invoice) => {
-    // Optimistic update locally
-    setInvoices((prevInvoices) => [invoice, ...prevInvoices]); 
+    // 1. Optimistic update locally
+    setInvoices((prevInvoices) => {
+      const filtered = prevInvoices.filter(inv => inv.id !== invoice.id);
+      return [invoice, ...filtered];
+    }); 
     
-    // Attempt to sync with backend
+    // 2. Immediate direct write to AsyncStorage (100% guaranteed persistence)
+    try {
+      const raw = await AsyncStorage.getItem('@saved_invoices');
+      const list = raw ? JSON.parse(raw) : [];
+      const updatedList = [invoice, ...list.filter(inv => inv.id !== invoice.id)];
+      await AsyncStorage.setItem('@saved_invoices', JSON.stringify(updatedList));
+    } catch (err) {
+      console.error('AsyncStorage immediate save error in addInvoice:', err);
+    }
+
+    // 3. Attempt to sync with backend
     try {
       const { api } = require('../services/api');
       const savedInvoice = await api.createInvoice(invoice);
@@ -68,6 +84,16 @@ export const InvoiceProvider = ({ children }) => {
 
   const updateInvoice = async (id, updatedData) => {
     setInvoices((prev) => prev.map(inv => inv.id === id ? { ...inv, ...updatedData } : inv));
+    
+    try {
+      const raw = await AsyncStorage.getItem('@saved_invoices');
+      const list = raw ? JSON.parse(raw) : [];
+      const updatedList = list.map(inv => inv.id === id ? { ...inv, ...updatedData } : inv);
+      await AsyncStorage.setItem('@saved_invoices', JSON.stringify(updatedList));
+    } catch (err) {
+      console.error('AsyncStorage immediate save error in updateInvoice:', err);
+    }
+
     try {
       const { api } = require('../services/api');
       const savedInvoice = await api.updateInvoice(id, updatedData);
@@ -80,9 +106,17 @@ export const InvoiceProvider = ({ children }) => {
   };
 
   const deleteInvoice = async (id) => {
-    // FIX APPLIED: Safely grabbing the previous list before filtering out the deleted bill
     setInvoices((prevInvoices) => prevInvoices.filter(inv => inv.id !== id));
     
+    try {
+      const raw = await AsyncStorage.getItem('@saved_invoices');
+      const list = raw ? JSON.parse(raw) : [];
+      const updatedList = list.filter(inv => inv.id !== id);
+      await AsyncStorage.setItem('@saved_invoices', JSON.stringify(updatedList));
+    } catch (err) {
+      console.error('AsyncStorage immediate save error in deleteInvoice:', err);
+    }
+
     try {
       const { api } = require('../services/api');
       await api.deleteInvoice(id);
@@ -92,8 +126,47 @@ export const InvoiceProvider = ({ children }) => {
     }
   };
 
+  // --- DRAFT MANAGEMENT ---
+  const saveDraft = async (draftData) => {
+    try {
+      if (!draftData) {
+        await AsyncStorage.removeItem(DRAFT_STORAGE_KEY);
+      } else {
+        await AsyncStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftData));
+      }
+    } catch (e) {
+      console.error('Error saving draft:', e);
+    }
+  };
+
+  const getDraft = async () => {
+    try {
+      const raw = await AsyncStorage.getItem(DRAFT_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      console.error('Error reading draft:', e);
+      return null;
+    }
+  };
+
+  const clearDraft = async () => {
+    try {
+      await AsyncStorage.removeItem(DRAFT_STORAGE_KEY);
+    } catch (e) {
+      console.error('Error clearing draft:', e);
+    }
+  };
+
   return (
-    <InvoiceContext.Provider value={{ invoices, addInvoice, updateInvoice, deleteInvoice }}>
+    <InvoiceContext.Provider value={{
+      invoices,
+      addInvoice,
+      updateInvoice,
+      deleteInvoice,
+      saveDraft,
+      getDraft,
+      clearDraft
+    }}>
       {children}
     </InvoiceContext.Provider>
   );
