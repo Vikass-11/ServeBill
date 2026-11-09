@@ -20,7 +20,7 @@ import { ThemeContext } from '../context/ThemeContext';
 
 export default function PremiumCreateInvoiceScreen({ route, navigation }) {
   const { tiffinItems, mealDishes, updateTiffinItem } = useContext(MenuContext);
-  const { addInvoice, updateInvoice } = useContext(InvoiceContext);
+  const { addInvoice, updateInvoice, saveDraft, getDraft, clearDraft } = useContext(InvoiceContext);
   const editInvoice = route?.params?.editInvoice;
   const isNewBillParam = route?.params?.newBill;
   const lastLoadedInvoiceId = useRef(null);
@@ -110,40 +110,140 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
   const [tempExtraDesc, setTempExtraDesc] = useState('');
   const [tempExtraAmount, setTempExtraAmount] = useState('');
 
-  // Handle route params updates & ensure New Bill cleanly resets state
+  // Draft & Auto-Save States
+  const [hasRestoredDraft, setHasRestoredDraft] = useState(false);
+  const [isSavingBill, setIsSavingBill] = useState(false);
+  const autoSaveTimerRef = useRef(null);
+  const isInitialLoadRef = useRef(true);
+
+  const resetForm = () => {
+    setClientName('');
+    setClientPhone('');
+    setTransportCharge('');
+    setAdvanceAmount('');
+    setExtraItems([]);
+    setEvents([{
+      id: Date.now().toString(),
+      date: new Date().toISOString(),
+      selectedTiffins: [],
+      tiffinQuantities: {},
+      fixedPrices: {},
+      pricingModes: {},
+      fixedSelected: {},
+      addedMeals: [],
+    }]);
+  };
+
+  const checkHasContent = (
+    cName = clientName,
+    cPhone = clientPhone,
+    tCharge = transportCharge,
+    advAmt = advanceAmount,
+    xItems = extraItems,
+    evs = events
+  ) => {
+    return Boolean(
+      (cName && cName.trim().length > 0) ||
+      (cPhone && cPhone.trim().length > 0) ||
+      (tCharge && parseFloat(tCharge) > 0) ||
+      (advAmt && parseFloat(advAmt) > 0) ||
+      (Array.isArray(xItems) && xItems.length > 0) ||
+      (Array.isArray(evs) && evs.some(e => 
+        (Array.isArray(e.selectedTiffins) && e.selectedTiffins.length > 0) ||
+        (Array.isArray(e.addedMeals) && e.addedMeals.length > 0) ||
+        (e.fixedPrices && Object.values(e.fixedPrices).some(p => parseFloat(p) > 0)) ||
+        (e.tiffinQuantities && Object.values(e.tiffinQuantities).some(q => q > 0))
+      ))
+    );
+  };
+
+  // Handle route params updates, draft restoration & edit mode
   useEffect(() => {
-    if (isNewBillParam || (!editInvoice && lastLoadedInvoiceId.current !== null)) {
-      lastLoadedInvoiceId.current = null;
-      setClientName('');
-      setClientPhone('');
-      setTransportCharge('');
-      setAdvanceAmount('');
-      setExtraItems([]);
-      setEvents([{
-        id: Date.now().toString(),
-        date: new Date().toISOString(),
-        selectedTiffins: [],
-        tiffinQuantities: {},
-        fixedPrices: {},
-        pricingModes: {},
-        fixedSelected: {},
-        addedMeals: [],
-      }]);
+    let isMounted = true;
+
+    const init = async () => {
+      // Case 1: Editing existing recorded invoice
+      if (editInvoice && editInvoice.id !== lastLoadedInvoiceId.current) {
+        lastLoadedInvoiceId.current = editInvoice.id;
+        setClientName(editInvoice.clientName || editInvoice.customerName || '');
+        setClientPhone(editInvoice.clientPhone || editInvoice.customerPhone || '');
+        setTransportCharge(editInvoice.transportCharge != null ? editInvoice.transportCharge.toString() : '');
+        setAdvanceAmount(editInvoice.advanceAmount != null ? editInvoice.advanceAmount.toString() : '');
+        setEvents(sanitizeEvents(editInvoice.events, editInvoice.date));
+        if (Array.isArray(editInvoice.extraItems)) {
+          setExtraItems(editInvoice.extraItems);
+        }
+        setHasRestoredDraft(false);
+        isInitialLoadRef.current = false;
+        return;
+      }
+
+      // Case 2: New invoice - check for existing draft
+      if (!editInvoice) {
+        try {
+          const draft = await getDraft();
+          if (!isMounted) return;
+
+          if (draft && checkHasContent(draft.clientName, draft.clientPhone, draft.transportCharge, draft.advanceAmount, draft.extraItems, draft.events)) {
+            setClientName(draft.clientName || '');
+            setClientPhone(draft.clientPhone || '');
+            setTransportCharge(draft.transportCharge != null ? draft.transportCharge.toString() : '');
+            setAdvanceAmount(draft.advanceAmount != null ? draft.advanceAmount.toString() : '');
+            setExtraItems(Array.isArray(draft.extraItems) ? draft.extraItems : []);
+            setEvents(sanitizeEvents(draft.events, draft.updatedAt));
+            setHasRestoredDraft(true);
+          } else if (isNewBillParam && lastLoadedInvoiceId.current !== null) {
+            resetForm();
+            setHasRestoredDraft(false);
+          }
+        } catch (e) {
+          console.error('Error fetching draft:', e);
+        }
+        lastLoadedInvoiceId.current = null;
+        isInitialLoadRef.current = false;
+      }
+    };
+
+    init();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [editInvoice, route?.params?.timestamp]);
+
+  // Debounced Auto-Save Draft
+  useEffect(() => {
+    if (isInitialLoadRef.current || editInvoice) {
       return;
     }
 
-    if (editInvoice && editInvoice.id !== lastLoadedInvoiceId.current) {
-      lastLoadedInvoiceId.current = editInvoice.id;
-      setClientName(editInvoice.clientName || editInvoice.customerName || '');
-      setClientPhone(editInvoice.clientPhone || editInvoice.customerPhone || '');
-      setTransportCharge(editInvoice.transportCharge != null ? editInvoice.transportCharge.toString() : '');
-      setAdvanceAmount(editInvoice.advanceAmount != null ? editInvoice.advanceAmount.toString() : '');
-      setEvents(sanitizeEvents(editInvoice.events, editInvoice.date));
-      if (Array.isArray(editInvoice.extraItems)) {
-        setExtraItems(editInvoice.extraItems);
-      }
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
     }
-  }, [editInvoice, isNewBillParam, route?.params?.timestamp]);
+
+    autoSaveTimerRef.current = setTimeout(async () => {
+      if (checkHasContent()) {
+        await saveDraft({
+          clientName,
+          clientPhone,
+          transportCharge,
+          advanceAmount,
+          extraItems,
+          events,
+          updatedAt: new Date().toISOString(),
+        });
+      } else {
+        await clearDraft();
+        setHasRestoredDraft(false);
+      }
+    }, 400);
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, [clientName, clientPhone, transportCharge, advanceAmount, extraItems, events, editInvoice]);
 
   // CRM
   const { customers } = useContext(CustomerContext);
@@ -496,7 +596,22 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
     setExtraItems(extraItems.filter(item => item.id !== id));
   };
 
-  const handleBackNavigation = () => {
+  const handleBackNavigation = async () => {
+    if (!editInvoice && checkHasContent()) {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+      await saveDraft({
+        clientName,
+        clientPhone,
+        transportCharge,
+        advanceAmount,
+        extraItems,
+        events,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
     if (navigation.canGoBack && navigation.canGoBack()) {
       navigation.goBack();
     } else {
@@ -522,6 +637,45 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
             </Text>
           </View>
         </View>
+
+        {/* DRAFT RESTORED BANNER */}
+        {hasRestoredDraft && !editInvoice && (
+          <View style={styles.draftBanner}>
+            <View style={{ flex: 1, marginRight: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                <Ionicons name="bookmark" size={15} color="#10B981" style={{ marginRight: 6 }} />
+                <Text style={styles.draftBannerTitle}>Draft Restored</Text>
+              </View>
+              <Text style={styles.draftBannerSubtitle}>
+                Your unfinished bill was automatically saved and restored.
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.discardDraftBtn}
+              activeOpacity={0.8}
+              onPress={() => {
+                Alert.alert(
+                  'Start Fresh?',
+                  'This will discard your current draft and clear all fields for a fresh bill.',
+                  [
+                    { text: 'Keep Draft', style: 'cancel' },
+                    {
+                      text: 'Discard & Start Fresh',
+                      style: 'destructive',
+                      onPress: async () => {
+                        await clearDraft();
+                        setHasRestoredDraft(false);
+                        resetForm();
+                      },
+                    },
+                  ]
+                );
+              }}
+            >
+              <Text style={styles.discardDraftText}>Start Fresh</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* CUSTOMER CARD */}
         <View style={styles.clientCard}>
@@ -965,65 +1119,86 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
           </View>
           <TouchableOpacity
             style={styles.previewBtn}
+            disabled={isSavingBill}
             activeOpacity={0.88}
-            onPress={() => {
+            onPress={async () => {
+              if (isSavingBill) return;
               if (!clientName.trim()) {
                 Alert.alert('Required', 'Please enter a customer name.');
                 return;
               }
 
-              const subTotal = calculateGrandTotal();
-              const taxAmount = 0;
-              const grandTotal = subTotal + (parseFloat(transportCharge) || 0);
+              setIsSavingBill(true);
 
-              // Deduct stock levels safely
-              (events || []).forEach((ev) => {
-                if (!ev) return;
-                (tiffinItems || []).forEach((item) => {
-                  if (Array.isArray(ev.selectedTiffins) && !ev.selectedTiffins.includes(item.id)) {
-                    return;
-                  }
-                  const qty = (ev.tiffinQuantities && ev.tiffinQuantities[item.id]) || 0;
-                  if (qty > 0) {
-                    const newStock = Math.max(0, (item.stock || 0) - qty);
-                    updateTiffinItem({ ...item, stock: newStock });
-                  }
+              try {
+                const subTotal = calculateGrandTotal();
+                const taxAmount = 0;
+                const grandTotal = subTotal + (parseFloat(transportCharge) || 0);
+
+                // Deduct stock levels safely
+                (events || []).forEach((ev) => {
+                  if (!ev) return;
+                  (tiffinItems || []).forEach((item) => {
+                    if (Array.isArray(ev.selectedTiffins) && !ev.selectedTiffins.includes(item.id)) {
+                      return;
+                    }
+                    const qty = (ev.tiffinQuantities && ev.tiffinQuantities[item.id]) || 0;
+                    if (qty > 0) {
+                      const newStock = Math.max(0, (item.stock || 0) - qty);
+                      updateTiffinItem({ ...item, stock: newStock });
+                    }
+                  });
                 });
-              });
 
-              const newInvoice = {
-                id: editInvoice ? editInvoice.id : Date.now().toString(),
-                clientName: clientName.trim(),
-                clientPhone: clientPhone.trim(),
-                date: editInvoice ? editInvoice.date : new Date().toLocaleDateString('en-IN'),
-                events,
-                subTotal,
-                taxAmount,
-                grandTotal: grandTotal.toFixed(2),
-                transportCharge: transportCharge ? parseFloat(transportCharge) : 0,
-                advanceAmount: advanceAmount ? parseFloat(advanceAmount) : 0,
-                amountReceived: advanceAmount ? parseFloat(advanceAmount) : (editInvoice?.amountReceived || 0),
-                extraItems,
-              };
-              
-              if (editInvoice) {
-                updateInvoice(newInvoice.id, newInvoice);
-              } else {
-                addInvoice(newInvoice);
+                const newInvoice = {
+                  id: editInvoice ? editInvoice.id : Date.now().toString(),
+                  clientName: clientName.trim(),
+                  clientPhone: clientPhone.trim(),
+                  date: editInvoice ? editInvoice.date : new Date().toLocaleDateString('en-IN'),
+                  events,
+                  subTotal,
+                  taxAmount,
+                  grandTotal: grandTotal.toFixed(2),
+                  transportCharge: transportCharge ? parseFloat(transportCharge) : 0,
+                  advanceAmount: advanceAmount ? parseFloat(advanceAmount) : 0,
+                  amountReceived: advanceAmount ? parseFloat(advanceAmount) : (editInvoice?.amountReceived || 0),
+                  extraItems,
+                };
+                
+                if (editInvoice) {
+                  await updateInvoice(newInvoice.id, newInvoice);
+                } else {
+                  await addInvoice(newInvoice);
+                }
+
+                // Clear the auto-saved draft since bill is finalized and permanently saved
+                if (autoSaveTimerRef.current) {
+                  clearTimeout(autoSaveTimerRef.current);
+                }
+                await clearDraft();
+                setHasRestoredDraft(false);
+
+                navigation.navigate('InvoicePreview', {
+                  id: newInvoice.id,
+                  clientName: clientName.trim(),
+                  clientPhone: clientPhone.trim(),
+                  date: newInvoice.date,
+                  events,
+                  subTotal,
+                  taxAmount,
+                  grandTotal: grandTotal.toFixed(2),
+                  transportCharge: transportCharge ? parseFloat(transportCharge) : 0,
+                  advanceAmount: advanceAmount ? parseFloat(advanceAmount) : 0,
+                  extraItems,
+                  isPreviewOnly: true,
+                  isSaved: true,
+                });
+              } catch (e) {
+                console.error('Error generating and saving bill:', e);
+                Alert.alert('Save Error', 'Unable to record bill. Please try again.');
+              } finally {
+                setIsSavingBill(false);
               }
-
-              navigation.navigate('InvoicePreview', {
-                clientName: clientName.trim(),
-                clientPhone: clientPhone.trim(),
-                events,
-                subTotal,
-                taxAmount,
-                grandTotal: grandTotal.toFixed(2),
-                transportCharge: transportCharge ? parseFloat(transportCharge) : 0,
-                advanceAmount: advanceAmount ? parseFloat(advanceAmount) : 0,
-                extraItems,
-                isPreviewOnly: true,
-              });
             }}
           >
             <LinearGradient
@@ -1032,7 +1207,9 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
               end={{ x: 1, y: 0 }}
               style={styles.previewBtnGradient}
             >
-              <Text style={styles.previewBtnText}>Generate Bill</Text>
+              <Text style={styles.previewBtnText}>
+                {isSavingBill ? 'Saving Bill...' : 'Generate Bill'}
+              </Text>
               <Ionicons name="arrow-forward" size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />
             </LinearGradient>
           </TouchableOpacity>
@@ -1330,6 +1507,42 @@ const getStyles = (theme, isDarkMode) => StyleSheet.create({
   },
   mainTitle: { fontSize: 28, fontWeight: '900', color: theme.text, letterSpacing: -0.5 },
   subtitleHeader: { fontSize: 12, fontWeight: '600', color: theme.textSecondary, marginTop: 2 },
+  
+  draftBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: isDarkMode ? '#064E3B' : '#ECFDF5',
+    borderWidth: 1,
+    borderColor: isDarkMode ? '#059669' : '#A7F3D0',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginTop: 10,
+    marginBottom: 6,
+  },
+  draftBannerTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: isDarkMode ? '#34D399' : '#065F46',
+  },
+  draftBannerSubtitle: {
+    fontSize: 11,
+    color: isDarkMode ? '#A7F3D0' : '#047857',
+  },
+  discardDraftBtn: {
+    backgroundColor: isDarkMode ? 'rgba(239, 68, 68, 0.2)' : '#FEE2E2',
+    borderWidth: 1,
+    borderColor: isDarkMode ? '#EF4444' : '#FCA5A5',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  discardDraftText: {
+    color: '#EF4444',
+    fontSize: 11,
+    fontWeight: '700',
+  },
   
   scrollContent: { paddingBottom: 180, paddingHorizontal: 20 },
   
