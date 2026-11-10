@@ -7,6 +7,20 @@ export const CustomerContext = createContext();
 export const CustomerProvider = ({ children }) => {
   const [customers, setCustomers] = useState([]);
 
+  const refreshCustomers = async () => {
+    try {
+      const backendCustomers = await api.getCustomers();
+      if (backendCustomers && Array.isArray(backendCustomers)) {
+        setCustomers(backendCustomers);
+        await AsyncStorage.setItem('customers', JSON.stringify(backendCustomers));
+        return backendCustomers;
+      }
+    } catch (e) {
+      console.log('Error refreshing customers from cloud:', e);
+    }
+    return null;
+  };
+
   // --- 1. LOAD DATA ON STARTUP ---
   useEffect(() => {
     const loadCustomerData = async () => {
@@ -18,7 +32,7 @@ export const CustomerProvider = ({ children }) => {
           console.log('Backend not available for customers, using local storage.');
         }
 
-        if (backendCustomers && backendCustomers.length > 0) {
+        if (backendCustomers && Array.isArray(backendCustomers)) {
           setCustomers(backendCustomers);
         } else {
           const localCustomers = await AsyncStorage.getItem('customers');
@@ -78,6 +92,7 @@ export const CustomerProvider = ({ children }) => {
         customers,
         addCustomer,
         deleteCustomer,
+        refreshCustomers,
       }}
     >
       {children}
