@@ -1,6 +1,10 @@
 require('dotenv').config();
-const dns = require('dns');
-dns.setServers(['8.8.8.8', '8.8.4.4']);
+try {
+  const dns = require('dns');
+  dns.setServers(['8.8.8.8', '8.8.4.4']);
+} catch (e) {
+  // Ignore DNS override on environments that manage DNS
+}
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -25,16 +29,31 @@ const formatDoc = (doc) => {
   return obj;
 };
 
+// Monitor connection events
+mongoose.connection.on('connected', () => {
+  dbConnected = true;
+  console.log('✅ Connected to MongoDB Atlas successfully');
+});
+
+mongoose.connection.on('error', (err) => {
+  dbConnected = false;
+  console.error('❌ MongoDB Atlas connection error:', err);
+});
+
+mongoose.connection.on('disconnected', () => {
+  dbConnected = false;
+  console.warn('⚠️ MongoDB Atlas disconnected');
+});
+
 // Connect to MongoDB
 if (MONGO_URI) {
   mongoose.connect(MONGO_URI)
     .then(() => {
-      console.log('✅ Connected to MongoDB successfully');
       dbConnected = true;
     })
-    .catch((err) => console.error('❌ MongoDB connection error:', err));
+    .catch((err) => console.error('❌ Initial MongoDB connection error:', err));
 } else {
-  console.warn('⚠️ No MONGO_URI provided in .env. Running without database connection.');
+  console.warn('⚠️ No MONGO_URI provided in .env. Running in offline/memory mode.');
 }
 
 // Basic schemas and models for the billing app
@@ -96,9 +115,23 @@ const ShopExpenseSchema = new mongoose.Schema({
 });
 const ShopExpense = mongoose.model('ShopExpense', ShopExpenseSchema);
 
-// API Routes
+// Health check routes
+app.get('/', (req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'ServeBill Cloud API',
+    database: dbConnected ? 'connected' : 'connecting_or_offline',
+    timestamp: new Date().toISOString()
+  });
+});
+
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Backend is running' });
+  res.json({
+    status: 'ok',
+    message: 'Backend is running',
+    database: dbConnected ? 'connected' : 'connecting_or_offline',
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Invoices
