@@ -1,5 +1,5 @@
 import React, { useContext, useMemo, useState, useCallback } from 'react';
-import { ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,14 +8,24 @@ import { InvoiceContext } from '../../context/InvoiceContext';
 import { ThemeContext } from '../../context/ThemeContext';
 
 export default function CateringDashboardScreen({ navigation }) {
-  const { invoices, getDraft } = useContext(InvoiceContext);
+  const { invoices, getDraft, refreshInvoices } = useContext(InvoiceContext);
   const { theme, isDarkMode } = useContext(ThemeContext);
   const styles = getStyles(theme, isDarkMode);
   const [activeDraft, setActiveDraft] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    if (refreshInvoices) await refreshInvoices();
+    setIsRefreshing(false);
+  };
 
   useFocusEffect(
     useCallback(() => {
       let isCurrent = true;
+      if (refreshInvoices) {
+        refreshInvoices();
+      }
       if (getDraft) {
         getDraft().then((d) => {
           if (!isCurrent) return;
@@ -31,7 +41,7 @@ export default function CateringDashboardScreen({ navigation }) {
       return () => {
         isCurrent = false;
       };
-    }, [getDraft])
+    }, [getDraft, refreshInvoices])
   );
 
   const stats = useMemo(() => {
@@ -88,7 +98,18 @@ export default function CateringDashboardScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={theme.accentPurple}
+            colors={[theme.accentPurple]}
+          />
+        }
+      >
         
         {/* HEADER */}
         <View style={styles.header}>
