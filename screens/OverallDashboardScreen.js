@@ -1,6 +1,7 @@
-import React, { useContext, useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import React, { useContext, useMemo, useState, useCallback } from 'react';
+import { ScrollView, StyleSheet, Text, View, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BusinessContext } from '../context/BusinessContext';
@@ -8,10 +9,27 @@ import { InvoiceContext } from '../context/InvoiceContext';
 import { ThemeContext } from '../context/ThemeContext';
 
 export default function OverallDashboardScreen({ navigation }) {
-  const { shopSales, shopExpenses, businessProfile } = useContext(BusinessContext);
-  const { invoices } = useContext(InvoiceContext);
+  const { shopSales, shopExpenses, businessProfile, refreshBusinessData } = useContext(BusinessContext);
+  const { invoices, refreshInvoices } = useContext(InvoiceContext);
   const { theme, isDarkMode } = useContext(ThemeContext);
   const styles = getStyles(theme, isDarkMode);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await Promise.all([
+      refreshInvoices ? refreshInvoices() : Promise.resolve(),
+      refreshBusinessData ? refreshBusinessData() : Promise.resolve(),
+    ]);
+    setIsRefreshing(false);
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      if (refreshInvoices) refreshInvoices();
+      if (refreshBusinessData) refreshBusinessData();
+    }, [refreshInvoices, refreshBusinessData])
+  );
 
   const stats = useMemo(() => {
     const currentMonth = new Date().getMonth();
@@ -85,7 +103,18 @@ export default function OverallDashboardScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={theme.primary}
+            colors={[theme.primary]}
+          />
+        }
+      >
         
         {/* EXECUTIVE HEADER */}
         <View style={styles.header}>
