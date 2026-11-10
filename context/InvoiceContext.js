@@ -11,13 +11,26 @@ export const InvoiceProvider = ({ children }) => {
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   // --- 1. LOAD INVOICES ON STARTUP ---
+  const refreshInvoices = async () => {
+    try {
+      await syncQueue.process();
+      const { api } = require('../services/api');
+      const backendData = await api.getInvoices();
+      if (backendData && Array.isArray(backendData)) {
+        setInvoices(backendData);
+        await AsyncStorage.setItem('@saved_invoices', JSON.stringify(backendData));
+        return backendData;
+      }
+    } catch (e) {
+      console.log('Error refreshing invoices from cloud:', e);
+    }
+    return null;
+  };
+
   useEffect(() => {
     const loadInvoices = async () => {
       try {
-        // Attempt to process queue first
         await syncQueue.process();
-        
-        // Try to fetch from backend if available
         let backendData = null;
         try {
           const { api } = require('../services/api');
@@ -26,7 +39,7 @@ export const InvoiceProvider = ({ children }) => {
           console.log('Backend not available, using local storage.');
         }
 
-        if (backendData && backendData.length > 0) {
+        if (backendData && Array.isArray(backendData)) {
           setInvoices(backendData);
           await AsyncStorage.setItem('@saved_invoices', JSON.stringify(backendData));
         } else {
@@ -42,6 +55,13 @@ export const InvoiceProvider = ({ children }) => {
       }
     };
     loadInvoices();
+
+    // 30-second background live sync for multi-device family updates
+    const syncInterval = setInterval(() => {
+      refreshInvoices();
+    }, 30000);
+
+    return () => clearInterval(syncInterval);
   }, []);
 
   // --- 2. AUTO-SAVE INVOICES ---
@@ -165,7 +185,8 @@ export const InvoiceProvider = ({ children }) => {
       deleteInvoice,
       saveDraft,
       getDraft,
-      clearDraft
+      clearDraft,
+      refreshInvoices
     }}>
       {children}
     </InvoiceContext.Provider>
