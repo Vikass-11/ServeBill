@@ -16,6 +16,23 @@ export const BusinessProvider = ({ children }) => {
   });
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
+  const refreshBusinessData = async () => {
+    try {
+      const backendSales = await api.getShopSales();
+      const backendExpenses = await api.getShopExpenses();
+      if (backendSales && Array.isArray(backendSales)) {
+        setShopSales(backendSales);
+        await AsyncStorage.setItem('@shop_sales', JSON.stringify(backendSales));
+      }
+      if (backendExpenses && Array.isArray(backendExpenses)) {
+        setShopExpenses(backendExpenses);
+        await AsyncStorage.setItem('@shop_expenses', JSON.stringify(backendExpenses));
+      }
+    } catch (e) {
+      console.log('Error refreshing business data from cloud:', e);
+    }
+  };
+
   useEffect(() => {
     const loadBusinessData = async () => {
       try {
@@ -29,14 +46,14 @@ export const BusinessProvider = ({ children }) => {
           console.log('Backend not available, using local storage.');
         }
 
-        if (backendSales && backendSales.length > 0) {
+        if (backendSales && Array.isArray(backendSales)) {
           setShopSales(backendSales);
         } else {
           const savedSales = await AsyncStorage.getItem('@shop_sales');
           if (savedSales) setShopSales(JSON.parse(savedSales));
         }
 
-        if (backendExpenses && backendExpenses.length > 0) {
+        if (backendExpenses && Array.isArray(backendExpenses)) {
           setShopExpenses(backendExpenses);
         } else {
           const savedExpenses = await AsyncStorage.getItem('@shop_expenses');
@@ -112,7 +129,8 @@ export const BusinessProvider = ({ children }) => {
       addShopSale, 
       updateShopSale, 
       addShopExpense,
-      updateBusinessProfile 
+      updateBusinessProfile,
+      refreshBusinessData
     }}>
       {children}
     </BusinessContext.Provider>
