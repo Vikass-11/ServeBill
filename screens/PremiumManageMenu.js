@@ -1,4 +1,4 @@
-import React, { useState, useContext, useMemo } from 'react';
+import React, { useState, useContext, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,9 @@ import {
   Keyboard,
   Modal,
   ScrollView,
+  RefreshControl,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -23,7 +25,7 @@ import { ThemeContext } from '../context/ThemeContext';
 export default function PremiumManageMenuScreen() {
   const { 
     tiffinItems, addTiffinItem, updateTiffinItem, deleteTiffinItem,
-    mealDishes, addMealDish, deleteMealDish 
+    mealDishes, addMealDish, deleteMealDish, refreshMenu
   } = useContext(MenuContext);
   const { theme, isDarkMode } = useContext(ThemeContext);
   const styles = getStyles(theme, isDarkMode);
@@ -32,6 +34,21 @@ export default function PremiumManageMenuScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddModalVisible, setAddModalVisible] = useState(false);
   const [editingTiffinItem, setEditingTiffinItem] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    if (refreshMenu) await refreshMenu();
+    setIsRefreshing(false);
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      if (refreshMenu) {
+        refreshMenu();
+      }
+    }, [refreshMenu])
+  );
 
   // Form State: Tiffin
   const [tiffinName, setTiffinName] = useState('');
@@ -345,6 +362,8 @@ export default function PremiumManageMenuScreen() {
         keyExtractor={item => item.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
+        refreshing={isRefreshing}
+        onRefresh={handleRefresh}
         ListHeaderComponent={renderHeader()}
         renderItem={renderItem}
         ListEmptyComponent={
