@@ -1,15 +1,31 @@
-import React, { useContext, useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useContext, useMemo, useState, useCallback } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BusinessContext } from '../../context/BusinessContext';
 import { ThemeContext } from '../../context/ThemeContext';
 
 export default function ShopDashboardScreen({ navigation }) {
-  const { shopSales, shopExpenses } = useContext(BusinessContext);
+  const { shopSales, shopExpenses, refreshBusinessData } = useContext(BusinessContext);
   const { theme, isDarkMode } = useContext(ThemeContext);
   const styles = getStyles(theme, isDarkMode);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    if (refreshBusinessData) await refreshBusinessData();
+    setIsRefreshing(false);
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      if (refreshBusinessData) {
+        refreshBusinessData();
+      }
+    }, [refreshBusinessData])
+  );
 
   const stats = useMemo(() => {
     const todayStr = new Date().toLocaleDateString('en-GB');
@@ -70,7 +86,18 @@ export default function ShopDashboardScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={theme.primary}
+            colors={[theme.primary]}
+          />
+        }
+      >
         
         {/* HEADER */}
         <View style={styles.header}>
