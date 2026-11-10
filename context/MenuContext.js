@@ -11,6 +11,33 @@ export const MenuProvider = ({ children }) => {
   // This helps us avoid saving empty arrays before the old data loads
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
+  const normalizeTiffins = (items) => {
+    return (items || []).map(item => ({
+      ...item,
+      id: item.id || (item._id ? item._id.toString() : Date.now().toString()),
+      unit: item.unit && item.unit !== 'fixed' ? item.unit : 'nos',
+      price: parseFloat(item.price) || 0,
+    }));
+  };
+
+  const refreshMenu = async () => {
+    try {
+      await syncQueue.process();
+      const { api } = require('../services/api');
+      const backendMenu = await api.getMenu();
+      if (backendMenu && Array.isArray(backendMenu) && backendMenu.length > 0) {
+        const tiffin = backendMenu.filter(m => m.category === 'tiffin');
+        const meals = backendMenu.filter(m => m.category === 'meal');
+        if (tiffin.length > 0) setTiffinItems(normalizeTiffins(tiffin));
+        if (meals.length > 0) setMealDishes(meals);
+        return backendMenu;
+      }
+    } catch (e) {
+      console.log('Error refreshing menu from cloud:', e);
+    }
+    return null;
+  };
+
   // --- 1. LOAD DATA ON STARTUP ---
   useEffect(() => {
     const loadMenuData = async () => {
@@ -23,15 +50,6 @@ export const MenuProvider = ({ children }) => {
         } catch (e) {
           console.log('Backend not available for menu, using local storage.');
         }
-
-        const normalizeTiffins = (items) => {
-          return (items || []).map(item => ({
-            ...item,
-            id: item.id || (item._id ? item._id.toString() : Date.now().toString()),
-            unit: item.unit && item.unit !== 'fixed' ? item.unit : 'nos',
-            price: parseFloat(item.price) || 0,
-          }));
-        };
 
         const defaultTiffins = [
           { id: 'def-1', name: 'Idly', price: 10, unit: 'nos', category: 'tiffin', stock: 100 },
@@ -171,7 +189,8 @@ export const MenuProvider = ({ children }) => {
     <MenuContext.Provider 
       value={{ 
         tiffinItems, addTiffinItem, updateTiffinItem, deleteTiffinItem,
-        mealDishes, addMealDish, updateMealDish, deleteMealDish
+        mealDishes, addMealDish, updateMealDish, deleteMealDish,
+        refreshMenu
       }}
     >
       {children}
