@@ -1,4 +1,4 @@
-import React, { useContext, useState, useMemo } from 'react';
+import React, { useContext, useState, useMemo, useCallback } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -11,7 +11,9 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  RefreshControl,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -49,13 +51,28 @@ function getAvatarColor(name, isDarkMode) {
 }
 
 export default function PremiumCustomersScreen({ navigation }) {
-  const { customers, addCustomer, deleteCustomer } = useContext(CustomerContext);
+  const { customers, addCustomer, deleteCustomer, refreshCustomers } = useContext(CustomerContext);
   const { theme, isDarkMode } = useContext(ThemeContext);
   const styles = getStyles(theme, isDarkMode);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('ALL'); // 'ALL' or 'WITH_PHONE'
   const [isAddModalVisible, setAddModalVisible] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    if (refreshCustomers) await refreshCustomers();
+    setIsRefreshing(false);
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      if (refreshCustomers) {
+        refreshCustomers();
+      }
+    }, [refreshCustomers])
+  );
 
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
@@ -211,6 +228,14 @@ export default function PremiumCustomersScreen({ navigation }) {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={theme.primary}
+            colors={[theme.primary]}
+          />
+        }
       >
         {filteredCustomers.length === 0 ? (
           <View style={styles.emptyContainer}>
