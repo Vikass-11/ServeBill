@@ -4,7 +4,8 @@ import { Platform } from 'react-native';
 // If deploying, change this to your actual deployed backend URL.
 const getBaseUrl = () => {
   if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL;
+    const url = process.env.EXPO_PUBLIC_API_URL.replace(/\/+$/, '');
+    return url.endsWith('/api') ? url : `${url}/api`;
   }
   if (Platform.OS === 'android') {
     return 'http://10.0.2.2:5000/api';
@@ -12,9 +13,18 @@ const getBaseUrl = () => {
   return 'http://localhost:5000/api';
 };
 
-const BASE_URL = getBaseUrl();
+export const BASE_URL = getBaseUrl();
 
 export const api = {
+  checkHealth: async () => {
+    try {
+      const response = await fetch(`${BASE_URL}/health`, { signal: AbortSignal.timeout(4000) });
+      if (!response.ok) return null;
+      return await response.json();
+    } catch (e) {
+      return null;
+    }
+  },
   getInvoices: async () => {
     try {
       const response = await fetch(`${BASE_URL}/invoices`);
