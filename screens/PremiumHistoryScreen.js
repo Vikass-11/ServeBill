@@ -1,4 +1,4 @@
-import React, { useContext, useState, useMemo } from 'react';
+import React, { useContext, useState, useMemo, useCallback } from 'react';
 import {
   FlatList,
   StyleSheet,
@@ -8,6 +8,7 @@ import {
   View,
   Alert,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,10 +18,25 @@ import { InvoiceContext } from '../context/InvoiceContext';
 import { ThemeContext } from '../context/ThemeContext';
 
 export default function PremiumHistoryScreen({ navigation }) {
-  const { invoices, deleteInvoice } = useContext(InvoiceContext);
+  const { invoices, deleteInvoice, refreshInvoices } = useContext(InvoiceContext);
   const { theme, isDarkMode } = useContext(ThemeContext);
   const styles = getStyles(theme, isDarkMode);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    if (refreshInvoices) await refreshInvoices();
+    setIsRefreshing(false);
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      if (refreshInvoices) {
+        refreshInvoices();
+      }
+    }, [refreshInvoices])
+  );
 
   // Filter invoices based on search (Client Name)
   const filteredInvoices = useMemo(() => {
@@ -227,6 +243,8 @@ export default function PremiumHistoryScreen({ navigation }) {
         renderItem={renderInvoiceItem}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
+        refreshing={isRefreshing}
+        onRefresh={handleRefresh}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconCircle}>
