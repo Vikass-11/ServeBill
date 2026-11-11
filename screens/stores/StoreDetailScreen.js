@@ -734,9 +734,12 @@ const getStyles = (theme, isDarkMode) =>
     header: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 20,
+      paddingHorizontal: 16,
       paddingTop: 14,
       paddingBottom: 10,
+      width: '100%',
+      maxWidth: 580,
+      alignSelf: 'center',
     },
     backBtn: {
       padding: 8,
@@ -753,7 +756,7 @@ const getStyles = (theme, isDarkMode) =>
     searchBarWrapper: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginHorizontal: 20,
+      marginHorizontal: 16,
       marginBottom: 12,
       marginTop: 4,
       paddingHorizontal: 14,
@@ -762,9 +765,18 @@ const getStyles = (theme, isDarkMode) =>
       borderRadius: 14,
       borderWidth: 1,
       borderColor: theme.border,
+      maxWidth: 580,
+      alignSelf: 'center',
+      width: '92%',
     },
-    searchInput: { flex: 1, fontSize: 13, color: theme.text },
-    scrollContent: { paddingHorizontal: 20, paddingBottom: 100 },
+    searchInput: { flex: 1, minWidth: 0, fontSize: 13, color: theme.text },
+    scrollContent: { 
+      paddingHorizontal: 16, 
+      paddingBottom: 60,
+      width: '100%',
+      maxWidth: 580,
+      alignSelf: 'center',
+    },
 
     // Product Card
     productCard: {
