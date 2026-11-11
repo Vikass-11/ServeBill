@@ -35,6 +35,9 @@ import CateringDashboardScreen from './screens/catering/CateringDashboardScreen'
 import CateringOrderDetailsScreen from './screens/catering/CateringOrderDetailsScreen';
 import * as LocalAuthentication from 'expo-local-authentication';
 import AnalyticsScreen from './screens/AnalyticsScreen';
+import { StoreProvider } from './context/StoreContext';
+import StoreDirectoryScreen from './screens/stores/StoreDirectoryScreen';
+import StoreDetailScreen from './screens/stores/StoreDetailScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -47,6 +50,8 @@ function CateringStack() {
       <Stack.Screen name="CateringOrderDetails" component={CateringOrderDetailsScreen} />
       <Stack.Screen name="CreateCateringOrder" component={PremiumCreateInvoiceScreen} />
       <Stack.Screen name="InvoicePreview" component={InvoicePreviewScreen} />
+      <Stack.Screen name="StoreDirectory" component={StoreDirectoryScreen} />
+      <Stack.Screen name="StoreDetail" component={StoreDetailScreen} />
     </Stack.Navigator>
   );
 }
@@ -57,6 +62,8 @@ function ShopStack() {
       <Stack.Screen name="ShopDashboard" component={ShopDashboardScreen} />
       <Stack.Screen name="AddShopSale" component={AddShopSaleScreen} />
       <Stack.Screen name="AddShopExpense" component={AddShopExpenseScreen} />
+      <Stack.Screen name="StoreDirectory" component={StoreDirectoryScreen} />
+      <Stack.Screen name="StoreDetail" component={StoreDetailScreen} />
     </Stack.Navigator>
   );
 }
@@ -68,6 +75,8 @@ function OverviewStack({ onLogout }) {
       <Stack.Screen name="PremiumProfile">
         {props => <PremiumProfileScreen {...props} onLogout={onLogout} />}
       </Stack.Screen>
+      <Stack.Screen name="StoreDirectory" component={StoreDirectoryScreen} />
+      <Stack.Screen name="StoreDetail" component={StoreDetailScreen} />
     </Stack.Navigator>
   );
 }
@@ -397,7 +406,9 @@ export default function App() {
           <MenuProvider>
             <InvoiceProvider>
               <CustomerProvider>
-                {isUnlocked ? <PremiumMainApp onLogout={() => setIsUnlocked(false)} /> : <PremiumLandingGate onUnlock={() => setIsUnlocked(true)} />}
+                <StoreProvider>
+                  {isUnlocked ? <PremiumMainApp onLogout={() => setIsUnlocked(false)} /> : <PremiumLandingGate onUnlock={() => setIsUnlocked(true)} />}
+                </StoreProvider>
               </CustomerProvider>
             </InvoiceProvider>
           </MenuProvider>
