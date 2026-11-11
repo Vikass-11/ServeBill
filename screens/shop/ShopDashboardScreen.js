@@ -290,9 +290,12 @@ const getStyles = (theme, isDarkMode) => StyleSheet.create({
     backgroundColor: theme.background,
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingBottom: 110,
     paddingTop: 8,
+    width: '100%',
+    maxWidth: 580,
+    alignSelf: 'center',
   },
   header: {
     paddingTop: 12,
