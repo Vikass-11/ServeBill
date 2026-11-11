@@ -20,7 +20,7 @@ export const MenuProvider = ({ children }) => {
     }));
   };
 
-  const refreshMenu = async () => {
+  const refreshMenu = async (retries = 2) => {
     try {
       await syncQueue.process();
       const { api } = require('../services/api');
@@ -28,12 +28,26 @@ export const MenuProvider = ({ children }) => {
       if (backendMenu && Array.isArray(backendMenu) && backendMenu.length > 0) {
         const tiffin = backendMenu.filter(m => m.category === 'tiffin');
         const meals = backendMenu.filter(m => m.category === 'meal');
-        if (tiffin.length > 0) setTiffinItems(normalizeTiffins(tiffin));
-        if (meals.length > 0) setMealDishes(meals);
+        if (tiffin.length > 0) {
+          const normTiffins = normalizeTiffins(tiffin);
+          setTiffinItems(normTiffins);
+          await AsyncStorage.setItem('@tiffin_items', JSON.stringify(normTiffins));
+        }
+        if (meals.length > 0) {
+          setMealDishes(meals);
+          await AsyncStorage.setItem('@meal_dishes', JSON.stringify(meals));
+        }
         return backendMenu;
+      } else if (retries > 0) {
+        await new Promise(r => setTimeout(r, 1500));
+        return refreshMenu(retries - 1);
       }
     } catch (e) {
       console.log('Error refreshing menu from cloud:', e);
+      if (retries > 0) {
+        await new Promise(r => setTimeout(r, 1500));
+        return refreshMenu(retries - 1);
+      }
     }
     return null;
   };
@@ -48,7 +62,7 @@ export const MenuProvider = ({ children }) => {
           const { api } = require('../services/api');
           backendMenu = await api.getMenu();
         } catch (e) {
-          console.log('Backend not available for menu, using local storage.');
+          console.log('Backend not immediately available for menu, using local storage.');
         }
 
         const defaultTiffins = [
@@ -68,11 +82,15 @@ export const MenuProvider = ({ children }) => {
           { id: 'meal-6', name: 'Payasam', category: 'meal' },
         ];
 
-        if (backendMenu && backendMenu.length > 0) {
+        if (backendMenu && Array.isArray(backendMenu) && backendMenu.length > 0) {
           const tiffin = backendMenu.filter(m => m.category === 'tiffin');
           const meals = backendMenu.filter(m => m.category === 'meal');
-          setTiffinItems(normalizeTiffins(tiffin.length > 0 ? tiffin : defaultTiffins));
-          setMealDishes(meals.length > 0 ? meals : defaultMeals);
+          const loadedTiffins = tiffin.length > 0 ? normalizeTiffins(tiffin) : defaultTiffins;
+          const loadedMeals = meals.length > 0 ? meals : defaultMeals;
+          setTiffinItems(loadedTiffins);
+          setMealDishes(loadedMeals);
+          await AsyncStorage.setItem('@tiffin_items', JSON.stringify(loadedTiffins));
+          await AsyncStorage.setItem('@meal_dishes', JSON.stringify(loadedMeals));
         } else {
           const savedTiffin = await AsyncStorage.getItem('@tiffin_items');
           const savedMeals = await AsyncStorage.getItem('@meal_dishes');
@@ -88,6 +106,11 @@ export const MenuProvider = ({ children }) => {
           } else {
             setMealDishes(defaultMeals);
           }
+
+          // If cold starting, wake up Render backend and pull latest cloud menu
+          setTimeout(() => {
+            refreshMenu(2);
+          }, 2500);
         }
         
         setIsDataLoaded(true); // Tell the app we finished loading
