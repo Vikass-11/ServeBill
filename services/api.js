@@ -1,16 +1,14 @@
 import { Platform } from 'react-native';
 
-// Use localhost for web/iOS simulator, or 10.0.2.2 for Android emulator
-// If deploying, change this to your actual deployed backend URL.
+// Cloud Backend API URL connected to MongoDB Atlas
+const PRODUCTION_CLOUD_API = 'https://servebill.onrender.com/api';
+
 const getBaseUrl = () => {
-  if (process.env.EXPO_PUBLIC_API_URL) {
+  if (process.env.EXPO_PUBLIC_API_URL && !process.env.EXPO_PUBLIC_API_URL.includes('localhost')) {
     const url = process.env.EXPO_PUBLIC_API_URL.replace(/\/+$/, '');
     return url.endsWith('/api') ? url : `${url}/api`;
   }
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:5000/api';
-  }
-  return 'http://localhost:5000/api';
+  return PRODUCTION_CLOUD_API;
 };
 
 export const BASE_URL = getBaseUrl();
