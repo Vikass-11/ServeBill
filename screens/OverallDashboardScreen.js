@@ -258,6 +258,34 @@ export default function OverallDashboardScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
+        {/* STORE PRICE TRACKER QUICK CARD */}
+        <TouchableOpacity
+          style={styles.storeTrackerBanner}
+          activeOpacity={0.88}
+          onPress={() => navigation.navigate('StoreDirectory')}
+        >
+          <LinearGradient
+            colors={isDarkMode ? ['#1E1B4B', '#2D2766'] : ['#F0FDF4', '#DCFCE7']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.storeTrackerGradient}
+          >
+            <View style={[styles.storeTrackerIconWrap, { backgroundColor: isDarkMode ? '#312E81' : '#BBF7D0' }]}>
+              <Ionicons name="pricetags" size={20} color={isDarkMode ? '#818CF8' : '#15803D'} />
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={styles.storeTrackerTitle}>Store-Wise Price History</Text>
+                <View style={[styles.storeTrackerBadge, { backgroundColor: isDarkMode ? '#6366F1' : '#16A34A' }]}>
+                  <Text style={styles.storeTrackerBadgeText}>SMART</Text>
+                </View>
+              </View>
+              <Text style={styles.storeTrackerSub}>Check price history, photos & compare stores before buying</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={isDarkMode ? '#818CF8' : '#16A34A'} />
+          </LinearGradient>
+        </TouchableOpacity>
+
         {/* DIVISION COMPARISON SECTION */}
         <View style={styles.sectionTitleRow}>
           <Text style={styles.sectionTitle}>Business Divisions</Text>
@@ -727,5 +755,54 @@ const getStyles = (theme, isDarkMode) => StyleSheet.create({
     fontWeight: '700',
     color: theme.success,
     marginTop: 2,
+  },
+  storeTrackerBanner: {
+    marginHorizontal: 16,
+    marginBottom: 20,
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: isDarkMode ? '#4338CA' : '#86EFAC',
+    shadowColor: isDarkMode ? '#6366F1' : '#16A34A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: isDarkMode ? 0.25 : 0.08,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  storeTrackerGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  storeTrackerIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  storeTrackerTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: isDarkMode ? '#FFFFFF' : '#14532D',
+  },
+  storeTrackerBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginLeft: 8,
+  },
+  storeTrackerBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  storeTrackerSub: {
+    fontSize: 11,
+    color: isDarkMode ? '#A5B4FC' : '#15803D',
+    marginTop: 2,
+    fontWeight: '500',
   },
 });
