@@ -8,13 +8,15 @@ try {
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '25mb' }));
+app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
 let dbConnected = false;
 let memInvoices = [];
@@ -22,6 +24,43 @@ let memMenu = [];
 let memCustomers = [];
 let memShopSales = [];
 let memShopExpenses = [];
+let memStores = [];
+let memStoreItems = [];
+
+// Helper: Cloudinary Direct Upload
+async function uploadToCloudinary(base64Data, folder = 'servebill_products') {
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  const apiKey = process.env.CLOUDINARY_API_KEY;
+  const apiSecret = process.env.CLOUDINARY_API_SECRET;
+
+  if (!cloudName || !apiKey || !apiSecret) {
+    throw new Error('Cloudinary credentials missing in .env');
+  }
+
+  const timestamp = Math.round(new Date().getTime() / 1000);
+  const paramsToSign = `folder=${folder}&timestamp=${timestamp}${apiSecret}`;
+  const signature = crypto.createHash('sha1').update(paramsToSign).digest('hex');
+
+  const formData = new URLSearchParams();
+  formData.append('file', base64Data);
+  formData.append('api_key', apiKey);
+  formData.append('timestamp', timestamp.toString());
+  formData.append('signature', signature);
+  formData.append('folder', folder);
+
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Cloudinary error: ${errText}`);
+  }
+
+  const data = await res.json();
+  return data.secure_url;
+}
 
 const formatDoc = (doc) => {
   const obj = doc.toObject ? doc.toObject() : doc;
@@ -114,6 +153,40 @@ const ShopExpenseSchema = new mongoose.Schema({
   notes: String
 });
 const ShopExpense = mongoose.model('ShopExpense', ShopExpenseSchema);
+
+// Stores & Store-Wise Items
+const StoreSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  category: { type: String, default: 'Grocery' },
+  phone: { type: String, default: '' },
+  address: { type: String, default: '' },
+  createdAt: { type: Date, default: Date.now }
+});
+const Store = mongoose.model('Store', StoreSchema);
+
+const StoreItemSchema = new mongoose.Schema({
+  storeId: { type: String, required: true },
+  storeName: { type: String, default: '' },
+  name: { type: String, required: true },
+  category: { type: String, default: 'General' },
+  unit: { type: String, default: 'kg' },
+  imageUrl: { type: String, default: '' },
+  currentPrice: { type: Number, default: 0 },
+  previousPrice: { type: Number, default: 0 },
+  lastPurchasedDate: { type: Date, default: Date.now },
+  priceHistory: [{
+    id: String,
+    price: Number,
+    quantity: Number,
+    total: Number,
+    unit: String,
+    chargeTo: { type: String, default: 'SHOP' },
+    notes: String,
+    date: { type: Date, default: Date.now }
+  }],
+  createdAt: { type: Date, default: Date.now }
+});
+const StoreItem = mongoose.model('StoreItem', StoreItemSchema);
 
 // Health check routes
 app.get('/', (req, res) => {
@@ -352,6 +425,275 @@ app.post('/api/shopexpenses', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// ==========================================
+// STORE-WISE TRACKER & CLOUDINARY API ROUTES
+// ==========================================
+
+// 1. Cloudinary Direct Upload
+app.post('/api/upload', async (req, res) => {
+  try {
+    const { image, folder } = req.body;
+    if (!image) {
+      return res.status(400).json({ error: 'No image provided' });
+    }
+    const url = await uploadToCloudinary(image, folder || 'servebill_products');
+    res.json({ url });
+  } catch (err) {
+    console.error('Cloudinary upload error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 2. Stores List
+app.get('/api/stores', async (req, res) => {
+  if (!dbConnected) {
+    return res.json(memStores);
+  }
+  try {
+    const stores = await Store.find().sort({ name: 1 });
+    const items = await StoreItem.find({}, 'storeId');
+    const counts = {};
+    items.forEach(i => {
+      counts[i.storeId] = (counts[i.storeId] || 0) + 1;
+    });
+    const result = stores.map(s => {
+      const formatted = formatDoc(s);
+      formatted.itemCount = counts[formatted.id] || 0;
+      return formatted;
+    });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 3. Create Store
+app.post('/api/stores', async (req, res) => {
+  const { name, category, phone, address } = req.body;
+  if (!name || !name.trim()) {
+    return res.status(400).json({ error: 'Store name is required' });
+  }
+  if (!dbConnected) {
+    const newStore = { 
+      id: Date.now().toString(), 
+      name: name.trim(), 
+      category: category || 'Grocery', 
+      phone: phone || '', 
+      address: address || '', 
+      itemCount: 0, 
+      createdAt: new Date() 
+    };
+    memStores.push(newStore);
+    return res.status(201).json(newStore);
+  }
+  try {
+    const newStore = new Store({ 
+      name: name.trim(), 
+      category: category || 'Grocery', 
+      phone: phone || '', 
+      address: address || '' 
+    });
+    const saved = await newStore.save();
+    const formatted = formatDoc(saved);
+    formatted.itemCount = 0;
+    res.status(201).json(formatted);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 4. Delete Store & Its Items
+app.delete('/api/stores/:id', async (req, res) => {
+  if (!dbConnected) {
+    memStores = memStores.filter(s => s.id !== req.params.id);
+    memStoreItems = memStoreItems.filter(i => i.storeId !== req.params.id);
+    return res.json({ success: true });
+  }
+  try {
+    await Store.findByIdAndDelete(req.params.id);
+    await StoreItem.deleteMany({ storeId: req.params.id });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 5. Store Items List
+app.get('/api/stores/:id/items', async (req, res) => {
+  if (!dbConnected) {
+    return res.json(memStoreItems.filter(i => i.storeId === req.params.id));
+  }
+  try {
+    const items = await StoreItem.find({ storeId: req.params.id }).sort({ lastPurchasedDate: -1, name: 1 });
+    res.json(items.map(formatDoc));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 6. Log Purchase / Add Item in a Store
+app.post('/api/stores/:id/items', async (req, res) => {
+  const storeId = req.params.id;
+  const { name, category, unit, price, quantity, total, chargeTo, notes, imageUrl, date } = req.body;
+
+  if (!name || !name.trim() || price === undefined) {
+    return res.status(400).json({ error: 'Item name and price are required' });
+  }
+
+  const purchaseDate = date ? new Date(date) : new Date();
+  const parsedPrice = parseFloat(price) || 0;
+  const parsedQty = parseFloat(quantity) || 1;
+  const parsedTotal = total !== undefined ? parseFloat(total) : (parsedPrice * parsedQty);
+  const targetCharge = (chargeTo || 'SHOP').toUpperCase(); // 'CATERING' or 'SHOP'
+
+  const purchaseRecord = {
+    id: Date.now().toString(),
+    price: parsedPrice,
+    quantity: parsedQty,
+    total: parsedTotal,
+    unit: unit || 'kg',
+    chargeTo: targetCharge,
+    notes: notes || '',
+    date: purchaseDate
+  };
+
+  // Automatically record in Business Ledger
+  if (dbConnected) {
+    try {
+      if (targetCharge === 'SHOP') {
+        const exp = new ShopExpense({
+          type: 'PURCHASE',
+          item: `${name.trim()} (${parsedQty} ${unit || 'kg'} @ ₹${parsedPrice})`,
+          category: category || 'Store Inventory',
+          amount: parsedTotal,
+          date: purchaseDate,
+          notes: notes ? `${notes} (Store: ${req.body.storeName || 'Shop'})` : `Store: ${req.body.storeName || 'Shop'}`
+        });
+        await exp.save();
+      }
+    } catch (e) {
+      console.warn('Expense auto-sync warning:', e.message);
+    }
+  }
+
+  if (!dbConnected) {
+    let item = memStoreItems.find(i => i.storeId === storeId && i.name.toLowerCase() === name.trim().toLowerCase());
+    if (item) {
+      item.previousPrice = item.currentPrice;
+      item.currentPrice = parsedPrice;
+      item.lastPurchasedDate = purchaseDate;
+      if (imageUrl) item.imageUrl = imageUrl;
+      if (unit) item.unit = unit;
+      item.priceHistory.unshift(purchaseRecord);
+    } else {
+      item = {
+        id: Date.now().toString(),
+        storeId,
+        storeName: req.body.storeName || '',
+        name: name.trim(),
+        category: category || 'General',
+        unit: unit || 'kg',
+        imageUrl: imageUrl || '',
+        currentPrice: parsedPrice,
+        previousPrice: parsedPrice,
+        lastPurchasedDate: purchaseDate,
+        priceHistory: [purchaseRecord],
+        createdAt: new Date()
+      };
+      memStoreItems.push(item);
+    }
+    return res.status(201).json(item);
+  }
+
+  try {
+    let item = await StoreItem.findOne({ storeId, name: { $regex: new RegExp(`^${name.trim()}$`, 'i') } });
+    if (item) {
+      item.previousPrice = item.currentPrice;
+      item.currentPrice = parsedPrice;
+      item.lastPurchasedDate = purchaseDate;
+      if (imageUrl) item.imageUrl = imageUrl;
+      if (unit) item.unit = unit;
+      item.priceHistory.unshift(purchaseRecord);
+      await item.save();
+    } else {
+      item = new StoreItem({
+        storeId,
+        storeName: req.body.storeName || '',
+        name: name.trim(),
+        category: category || 'General',
+        unit: unit || 'kg',
+        imageUrl: imageUrl || '',
+        currentPrice: parsedPrice,
+        previousPrice: parsedPrice,
+        lastPurchasedDate: purchaseDate,
+        priceHistory: [purchaseRecord]
+      });
+      await item.save();
+    }
+    res.status(201).json(formatDoc(item));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 7. Delete Item
+app.delete('/api/store-items/:id', async (req, res) => {
+  if (!dbConnected) {
+    memStoreItems = memStoreItems.filter(i => i.id !== req.params.id);
+    return res.json({ success: true });
+  }
+  try {
+    await StoreItem.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 8. Cross-Store Price Comparison
+app.get('/api/stores-compare', async (req, res) => {
+  const q = (req.query.q || '').trim().toLowerCase();
+  let items = [];
+  if (!dbConnected) {
+    items = memStoreItems.filter(i => !q || i.name.toLowerCase().includes(q));
+  } else {
+    try {
+      const filter = q ? { name: { $regex: new RegExp(q, 'i') } } : {};
+      items = await StoreItem.find(filter).sort({ currentPrice: 1 });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  const groups = {};
+  items.forEach(doc => {
+    const item = formatDoc(doc);
+    const key = item.name.toLowerCase().trim();
+    if (!groups[key]) {
+      groups[key] = {
+        name: item.name,
+        unit: item.unit || 'kg',
+        imageUrl: item.imageUrl,
+        stores: []
+      };
+    }
+    groups[key].stores.push({
+      storeId: item.storeId,
+      storeName: item.storeName || 'Store',
+      currentPrice: item.currentPrice,
+      previousPrice: item.previousPrice,
+      lastPurchasedDate: item.lastPurchasedDate,
+    });
+  });
+
+  const result = Object.values(groups).map(g => {
+    g.stores.sort((a, b) => a.currentPrice - b.currentPrice);
+    return g;
+  });
+
+  res.json(result);
 });
 
 app.listen(PORT, () => {
