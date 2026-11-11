@@ -183,6 +183,34 @@ export default function ShopDashboardScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
+        {/* STORE PRICE TRACKER BANNER */}
+        <TouchableOpacity
+          style={styles.storeBanner}
+          activeOpacity={0.88}
+          onPress={() => navigation.navigate('StoreDirectory')}
+        >
+          <LinearGradient
+            colors={isDarkMode ? ['#1E1B4B', '#312E81'] : ['#EEF2FF', '#E0E7FF']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.storeBannerGradient}
+          >
+            <View style={styles.storeBannerIconWrap}>
+              <Ionicons name="pricetags" size={22} color="#6366F1" />
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={styles.storeBannerTitle}>Store-Wise Price History</Text>
+                <View style={styles.storeBannerBadge}>
+                  <Text style={styles.storeBannerBadgeText}>SMART</Text>
+                </View>
+              </View>
+              <Text style={styles.storeBannerSub}>Check store rates, photo memory & price changes</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#6366F1" />
+          </LinearGradient>
+        </TouchableOpacity>
+
         {/* MONTH PERFORMANCE CARD */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
@@ -547,5 +575,55 @@ const getStyles = (theme, isDarkMode) => StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     color: theme.text,
+  },
+  storeBanner: {
+    marginBottom: 14,
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: isDarkMode ? '#4338CA' : '#C7D2FE',
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: isDarkMode ? 0.25 : 0.08,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  storeBannerGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  storeBannerIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: isDarkMode ? 'rgba(99, 102, 241, 0.2)' : '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  storeBannerTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: isDarkMode ? '#FFFFFF' : '#1E1B4B',
+  },
+  storeBannerBadge: {
+    backgroundColor: '#6366F1',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginLeft: 8,
+  },
+  storeBannerBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  storeBannerSub: {
+    fontSize: 11,
+    color: isDarkMode ? '#A5B4FC' : '#4F46E5',
+    marginTop: 2,
+    fontWeight: '500',
   },
 });
