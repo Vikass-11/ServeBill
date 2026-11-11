@@ -231,5 +231,107 @@ export const api = {
       console.warn('API Error (createShopExpense):', error);
       return null;
     }
+  },
+
+  // --- STORES & PRICE TRACKER ---
+  uploadImage: async (base64Data, folder = 'servebill_products') => {
+    try {
+      const response = await fetch(`${BASE_URL}/upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64Data, folder })
+      });
+      if (!response.ok) throw new Error('Upload error');
+      const data = await response.json();
+      return data.url;
+    } catch (error) {
+      console.warn('API Error (uploadImage):', error);
+      return null;
+    }
+  },
+
+  getStores: async () => {
+    try {
+      const response = await fetch(`${BASE_URL}/stores`);
+      if (!response.ok) throw new Error('Network error');
+      return await response.json();
+    } catch (error) {
+      console.warn('API Error (getStores):', error);
+      return null;
+    }
+  },
+
+  createStore: async (storeData) => {
+    try {
+      const response = await fetch(`${BASE_URL}/stores`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(storeData)
+      });
+      if (!response.ok) throw new Error('Network error');
+      return await response.json();
+    } catch (error) {
+      console.warn('API Error (createStore):', error);
+      return null;
+    }
+  },
+
+  deleteStore: async (id) => {
+    try {
+      const response = await fetch(`${BASE_URL}/stores/${id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Network error');
+      return await response.json();
+    } catch (error) {
+      console.warn('API Error (deleteStore):', error);
+      return null;
+    }
+  },
+
+  getStoreItems: async (storeId) => {
+    try {
+      const response = await fetch(`${BASE_URL}/stores/${storeId}/items`);
+      if (!response.ok) throw new Error('Network error');
+      return await response.json();
+    } catch (error) {
+      console.warn('API Error (getStoreItems):', error);
+      return null;
+    }
+  },
+
+  logStorePurchase: async (storeId, purchaseData) => {
+    try {
+      const response = await fetch(`${BASE_URL}/stores/${storeId}/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(purchaseData)
+      });
+      if (!response.ok) throw new Error('Network error');
+      return await response.json();
+    } catch (error) {
+      console.warn('API Error (logStorePurchase):', error);
+      return null;
+    }
+  },
+
+  deleteStoreItem: async (id) => {
+    try {
+      const response = await fetch(`${BASE_URL}/store-items/${id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Network error');
+      return await response.json();
+    } catch (error) {
+      console.warn('API Error (deleteStoreItem):', error);
+      return null;
+    }
+  },
+
+  getStorePriceComparison: async (query = '') => {
+    try {
+      const response = await fetch(`${BASE_URL}/stores-compare?q=${encodeURIComponent(query)}`);
+      if (!response.ok) throw new Error('Network error');
+      return await response.json();
+    } catch (error) {
+      console.warn('API Error (getStorePriceComparison):', error);
+      return [];
+    }
   }
 };
