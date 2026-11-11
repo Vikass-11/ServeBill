@@ -239,10 +239,10 @@ export default function OverallDashboardScreen({ navigation }) {
             }}
           >
             <View style={[styles.actionIconCircle, { backgroundColor: isDarkMode ? '#3B1A1A' : '#FEF2F2' }]}>
-              <Ionicons name="cart" size={20} color={theme.error} />
+              <Ionicons name="receipt" size={20} color={theme.error} />
             </View>
-            <Text style={styles.actionTileTitle}>Expense</Text>
-            <Text style={styles.actionTileSub}>Log Cost</Text>
+            <Text style={styles.actionTileTitle}>Bills & Rent</Text>
+            <Text style={styles.actionTileSub}>Overheads</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
