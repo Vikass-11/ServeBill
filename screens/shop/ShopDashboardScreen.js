@@ -155,7 +155,7 @@ export default function ShopDashboardScreen({ navigation }) {
           </View>
         </View>
 
-        {/* ACTION BUTTONS ROW */}
+        {/* PRIMARY ACTION BUTTONS (Record Counter Sales & Store Purchases) */}
         <View style={styles.actionRow}>
           <TouchableOpacity 
             style={styles.actionBtnPrimary}
@@ -174,41 +174,41 @@ export default function ShopDashboardScreen({ navigation }) {
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={styles.actionBtnSecondary}
-            activeOpacity={0.85}
-            onPress={() => navigation.navigate('AddShopExpense')}
+            style={styles.actionBtnPrimary}
+            activeOpacity={0.88}
+            onPress={() => navigation.navigate('StoreDirectory')}
           >
-            <Ionicons name="cart-outline" size={18} color={theme.text} style={{ marginRight: 6 }} />
-            <Text style={styles.actionBtnSecondaryText}>Add Expense</Text>
+            <LinearGradient
+              colors={isDarkMode ? ['#312E81', '#1E1B4B'] : ['#4F46E5', '#6366F1']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.actionBtnGradient}
+            >
+              <Ionicons name="pricetags" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+              <Text style={styles.actionBtnPrimaryText}>Store Tracker</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
 
-        {/* STORE PRICE TRACKER BANNER */}
+        {/* OVERHEAD BILLS STRIP (Rent, Electricity, Wages) */}
         <TouchableOpacity
-          style={styles.storeBanner}
-          activeOpacity={0.88}
-          onPress={() => navigation.navigate('StoreDirectory')}
+          style={styles.overheadStrip}
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate('AddShopExpense')}
         >
-          <LinearGradient
-            colors={isDarkMode ? ['#1E1B4B', '#312E81'] : ['#EEF2FF', '#E0E7FF']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.storeBannerGradient}
-          >
-            <View style={styles.storeBannerIconWrap}>
-              <Ionicons name="pricetags" size={22} color="#6366F1" />
+          <View style={styles.overheadStripLeft}>
+            <View style={styles.overheadIconWrap}>
+              <Ionicons name="receipt-outline" size={16} color={theme.error} />
             </View>
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={styles.storeBannerTitle}>Store-Wise Price History</Text>
-                <View style={styles.storeBannerBadge}>
-                  <Text style={styles.storeBannerBadgeText}>SMART</Text>
-                </View>
-              </View>
-              <Text style={styles.storeBannerSub}>Check store rates, photo memory & price changes</Text>
+            <View style={{ marginLeft: 10 }}>
+              <Text style={styles.overheadStripTitle}>Shop Bills & Overheads</Text>
+              <Text style={styles.overheadStripSub}>Electricity, rent, daily wages & maintenance</Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color="#6366F1" />
-          </LinearGradient>
+          </View>
+          <View style={styles.overheadStripRight}>
+            <Text style={styles.overheadActionText}>Log Bill</Text>
+            <Ionicons name="chevron-forward" size={14} color={theme.primary} />
+          </View>
         </TouchableOpacity>
 
         {/* MONTH PERFORMANCE CARD */}
@@ -576,54 +576,55 @@ const getStyles = (theme, isDarkMode) => StyleSheet.create({
     fontWeight: '800',
     color: theme.text,
   },
-  storeBanner: {
-    marginBottom: 14,
-    borderRadius: 20,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: isDarkMode ? '#4338CA' : '#C7D2FE',
-    shadowColor: '#6366F1',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: isDarkMode ? 0.25 : 0.08,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  storeBannerGradient: {
+  overheadStrip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    justifyContent: 'space-between',
+    backgroundColor: theme.card,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: theme.border,
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: isDarkMode ? 0.15 : 0.03,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  storeBannerIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: isDarkMode ? 'rgba(99, 102, 241, 0.2)' : '#FFFFFF',
+  overheadStripLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  overheadIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: isDarkMode ? '#3B1A1A' : '#FEE2E2',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  storeBannerTitle: {
-    fontSize: 14,
+  overheadStripTitle: {
+    fontSize: 13,
     fontWeight: '800',
-    color: isDarkMode ? '#FFFFFF' : '#1E1B4B',
+    color: theme.text,
   },
-  storeBannerBadge: {
-    backgroundColor: '#6366F1',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    marginLeft: 8,
-  },
-  storeBannerBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-  storeBannerSub: {
+  overheadStripSub: {
     fontSize: 11,
-    color: isDarkMode ? '#A5B4FC' : '#4F46E5',
-    marginTop: 2,
-    fontWeight: '500',
+    color: theme.textSecondary,
+    marginTop: 1,
+  },
+  overheadStripRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 8,
+  },
+  overheadActionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.primary,
+    marginRight: 2,
   },
 });
