@@ -494,9 +494,12 @@ const getStyles = (theme, isDarkMode) =>
     header: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 20,
+      paddingHorizontal: 16,
       paddingTop: 14,
       paddingBottom: 10,
+      width: '100%',
+      maxWidth: 580,
+      alignSelf: 'center',
     },
     backBtn: {
       padding: 8,
@@ -510,12 +513,15 @@ const getStyles = (theme, isDarkMode) =>
 
     segmentContainer: {
       flexDirection: 'row',
-      marginHorizontal: 20,
+      marginHorizontal: 16,
       marginTop: 8,
       marginBottom: 12,
       backgroundColor: isDarkMode ? '#1E293B' : '#E2E8F0',
       borderRadius: 14,
       padding: 4,
+      maxWidth: 580,
+      alignSelf: 'center',
+      width: '92%',
     },
     segmentBtn: {
       flex: 1,
@@ -546,7 +552,7 @@ const getStyles = (theme, isDarkMode) =>
     searchBarWrapper: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginHorizontal: 20,
+      marginHorizontal: 16,
       marginBottom: 12,
       paddingHorizontal: 14,
       height: 44,
@@ -554,14 +560,24 @@ const getStyles = (theme, isDarkMode) =>
       borderRadius: 14,
       borderWidth: 1,
       borderColor: theme.border,
+      maxWidth: 580,
+      alignSelf: 'center',
+      width: '92%',
     },
     searchInput: {
       flex: 1,
+      minWidth: 0,
       fontSize: 13,
       color: theme.text,
     },
 
-    scrollContent: { paddingHorizontal: 20, paddingBottom: 120 },
+    scrollContent: { 
+      paddingHorizontal: 16, 
+      paddingBottom: 60,
+      width: '100%',
+      maxWidth: 580,
+      alignSelf: 'center',
+    },
 
     storeCard: {
       flexDirection: 'row',
