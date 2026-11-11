@@ -9,7 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme, getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { ThemeProvider, ThemeContext } from './context/ThemeContext';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -91,9 +91,28 @@ const TAB_CONFIG = {
   Analytics: { label: 'Insights', activeIcon: 'stats-chart', inactiveIcon: 'stats-chart-outline' },
 };
 
+const SUB_SCREENS_WITHOUT_TABBAR = [
+  'AddShopSale',
+  'AddShopExpense',
+  'StoreDirectory',
+  'StoreDetail',
+  'CreateCateringOrder',
+  'InvoicePreview',
+  'CateringOrderDetails',
+  'PremiumProfile',
+];
+
 function CustomTabBar({ state, descriptors, navigation }) {
   const { theme, isDarkMode } = useContext(ThemeContext);
   const styles = getStyles(theme, isDarkMode);
+
+  // Auto-hide floating tab bar on full-screen sub-flows to avoid overlapping action buttons
+  const currentRoute = state.routes[state.index];
+  const focusedChildName = getFocusedRouteNameFromRoute(currentRoute);
+
+  if (focusedChildName && SUB_SCREENS_WITHOUT_TABBAR.includes(focusedChildName)) {
+    return null;
+  }
 
   return (
     <View style={styles.floatingTabBarWrapper} pointerEvents="box-none">
