@@ -63,6 +63,7 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
       return {
         id: ev.id || `${Date.now()}-${index}`,
         date: ev.date || fallbackDate || new Date().toISOString(),
+        transportCharge: ev.transportCharge != null ? ev.transportCharge.toString() : '',
         selectedTiffins,
         tiffinQuantities: ev.tiffinQuantities && typeof ev.tiffinQuantities === 'object' ? ev.tiffinQuantities : {},
         fixedPrices: ev.fixedPrices && typeof ev.fixedPrices === 'object' ? ev.fixedPrices : {},
@@ -343,6 +344,7 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
       {
         id: Date.now().toString(),
         date: new Date().toISOString(),
+        transportCharge: '',
         selectedTiffins: [],
         tiffinQuantities: {},
         fixedPrices: {},
@@ -359,6 +361,23 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
       return;
     }
     setEvents(events.filter((ev) => ev.id !== eventId));
+  };
+
+  const setEventTransportCharge = (eventId, val) => {
+    const cleanVal = val.replace(/[^0-9.]/g, '');
+    setEvents((prevEvents) =>
+      prevEvents.map((ev) => {
+        if (ev.id !== eventId) return ev;
+        return {
+          ...ev,
+          transportCharge: cleanVal,
+        };
+      })
+    );
+  };
+
+  const calculateDaysTransport = () => {
+    return (events || []).reduce((acc, ev) => acc + (parseFloat(ev.transportCharge) || 0), 0);
   };
 
   // Helper to determine whether an item in an event is in 'fixed' (direct total) or 'unit' (quantity x rate) mode
@@ -746,6 +765,30 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
                 </View>
               </TouchableOpacity>
 
+              {/* SERVICE DAY TRANSPORTATION ROW */}
+              <View style={styles.eventTransportCard}>
+                <View style={styles.eventTransportLeft}>
+                  <View style={styles.eventTransportIcon}>
+                    <Ionicons name="car-outline" size={17} color={theme.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.eventTransportTitle}>Day {index + 1} Transport</Text>
+                    <Text style={styles.eventTransportSub}>Vehicle & delivery charge for this day</Text>
+                  </View>
+                </View>
+                <View style={styles.eventTransportInputWrap}>
+                  <Text style={styles.eventTransportCurrency}>₹</Text>
+                  <TextInput
+                    style={styles.eventTransportInput}
+                    placeholder="0"
+                    placeholderTextColor={theme.textMuted}
+                    keyboardType="numeric"
+                    value={ev.transportCharge !== undefined && ev.transportCharge !== null ? String(ev.transportCharge) : ''}
+                    onChangeText={(val) => setEventTransportCharge(ev.id, val)}
+                  />
+                </View>
+              </View>
+
               {/* TIFFIN & FOOD ITEMS SECTION */}
               <View style={styles.subHeaderRow}>
                 <Ionicons name="cafe-outline" size={18} color={theme.primary} />
@@ -1024,7 +1067,9 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
         <View style={styles.clientCard}>
           <View style={styles.iconHeading}>
             <Ionicons name="car-outline" size={20} color={theme.text} />
-            <Text style={styles.sectionTitle}>Transport Charge (+)</Text>
+            <Text style={styles.sectionTitle}>
+              {events.length > 1 ? 'Additional / General Transport (+)' : 'Transport Charge (+)'}
+            </Text>
           </View>
           <View style={[styles.inputWrapper, { flexDirection: 'row', alignItems: 'center' }]}>
             <Text style={{ fontSize: 16, fontWeight: '800', color: theme.primary, marginRight: 6 }}>₹</Text>
@@ -1037,6 +1082,12 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
               onChangeText={setTransportCharge}
             />
           </View>
+          {calculateDaysTransport() > 0 && (
+            <View style={{ marginTop: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: isDarkMode ? '#1E1B2E' : '#F5F3FF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 }}>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: isDarkMode ? '#A5B4FC' : '#6D28D9' }}>Day-wise Transport Total ({events.filter(e => parseFloat(e.transportCharge) > 0).length} Days):</Text>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: isDarkMode ? '#A5B4FC' : '#6D28D9' }}>+₹{calculateDaysTransport().toFixed(2)}</Text>
+            </View>
+          )}
         </View>
 
         {/* EXTRA ITEMS SECTION */}
@@ -1114,8 +1165,13 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
           <View style={styles.totalContainer}>
             <Text style={styles.totalLabel}>Grand Total</Text>
             <Text style={styles.totalValue}>
-              ₹{(calculateGrandTotal() + (parseFloat(transportCharge) || 0)).toFixed(2)}
+              ₹{(calculateGrandTotal() + (calculateDaysTransport() + (parseFloat(transportCharge) || 0))).toFixed(2)}
             </Text>
+            {(calculateDaysTransport() + (parseFloat(transportCharge) || 0)) > 0 && (
+              <Text style={{ fontSize: 10, color: '#94A3B8', marginTop: 1, fontWeight: '600' }}>
+                (incl. ₹{(calculateDaysTransport() + (parseFloat(transportCharge) || 0)).toFixed(0)} transport)
+              </Text>
+            )}
           </View>
           <TouchableOpacity
             style={styles.previewBtn}
@@ -1133,7 +1189,8 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
               try {
                 const subTotal = calculateGrandTotal();
                 const taxAmount = 0;
-                const grandTotal = subTotal + (parseFloat(transportCharge) || 0);
+                const totalTransport = calculateDaysTransport() + (parseFloat(transportCharge) || 0);
+                const grandTotal = subTotal + totalTransport;
 
                 // Deduct stock levels safely
                 (events || []).forEach((ev) => {
@@ -1150,16 +1207,21 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
                   });
                 });
 
+                const formattedEvents = (events || []).map((ev) => ({
+                  ...ev,
+                  transportCharge: parseFloat(ev.transportCharge) || 0,
+                }));
+
                 const newInvoice = {
                   id: editInvoice ? editInvoice.id : Date.now().toString(),
                   clientName: clientName.trim(),
                   clientPhone: clientPhone.trim(),
                   date: editInvoice ? editInvoice.date : new Date().toLocaleDateString('en-IN'),
-                  events,
+                  events: formattedEvents,
                   subTotal,
                   taxAmount,
                   grandTotal: grandTotal.toFixed(2),
-                  transportCharge: transportCharge ? parseFloat(transportCharge) : 0,
+                  transportCharge: totalTransport,
                   advanceAmount: advanceAmount ? parseFloat(advanceAmount) : 0,
                   amountReceived: advanceAmount ? parseFloat(advanceAmount) : (editInvoice?.amountReceived || 0),
                   extraItems,
@@ -1183,11 +1245,11 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
                   clientName: clientName.trim(),
                   clientPhone: clientPhone.trim(),
                   date: newInvoice.date,
-                  events,
+                  events: formattedEvents,
                   subTotal,
                   taxAmount,
                   grandTotal: grandTotal.toFixed(2),
-                  transportCharge: transportCharge ? parseFloat(transportCharge) : 0,
+                  transportCharge: totalTransport,
                   advanceAmount: advanceAmount ? parseFloat(advanceAmount) : 0,
                   extraItems,
                   isPreviewOnly: true,
@@ -1608,7 +1670,7 @@ const getStyles = (theme, isDarkMode) => StyleSheet.create({
   cardPadding: { padding: 18 },
   datePickerBtn: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    backgroundColor: theme.inputBackground, padding: 14, borderRadius: 14, marginBottom: 16,
+    backgroundColor: theme.inputBackground, padding: 14, borderRadius: 14, marginBottom: 12,
     borderWidth: 1, borderColor: theme.border,
   },
   datePickerText: { fontSize: 14, fontWeight: '700', color: theme.text, marginLeft: 6 },
@@ -1617,6 +1679,67 @@ const getStyles = (theme, isDarkMode) => StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8,
   },
   changeText: { color: theme.primary, fontSize: 11, fontWeight: '800' },
+  
+  eventTransportCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: isDarkMode ? '#1E1B2E' : '#F5F3FF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: isDarkMode ? '#4338CA' : '#DDD6FE',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 16,
+  },
+  eventTransportLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  eventTransportIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: isDarkMode ? '#312E81' : '#EDE9FE',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  eventTransportTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: isDarkMode ? '#E0E7FF' : '#4338CA',
+  },
+  eventTransportSub: {
+    fontSize: 10,
+    color: isDarkMode ? '#A5B4FC' : '#6D28D9',
+    marginTop: 1,
+  },
+  eventTransportInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.card,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: isDarkMode ? '#4338CA' : '#C4B5FD',
+    paddingHorizontal: 10,
+    height: 38,
+    minWidth: 90,
+  },
+  eventTransportCurrency: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: isDarkMode ? '#A5B4FC' : '#6D28D9',
+    marginRight: 4,
+  },
+  eventTransportInput: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: theme.text,
+    minWidth: 60,
+    paddingVertical: 2,
+  },
   
   subHeaderRow: {
     flexDirection: 'row', alignItems: 'center', marginTop: 8, marginBottom: 4,
