@@ -45,7 +45,18 @@ export default function InvoicePreviewScreen({ route, navigation }) {
 
   const invoiceDate = new Date().toLocaleDateString('en-IN');
   
-  const transportAmount = parseFloat(transportCharge) || 0;
+  const dayTransportList = (events || [])
+    .map((ev, i) => ({
+      day: i + 1,
+      date: ev.date,
+      amount: parseFloat(ev.transportCharge) || 0,
+    }))
+    .filter((d) => d.amount > 0);
+  const totalDaysTransport = dayTransportList.reduce((sum, d) => sum + d.amount, 0);
+  const transportAmount = totalDaysTransport > 0
+    ? totalDaysTransport + (parseFloat(transportCharge) > totalDaysTransport ? parseFloat(transportCharge) - totalDaysTransport : 0)
+    : (parseFloat(transportCharge) || 0);
+
   const advanceAmt = parseFloat(advanceAmount) || 0;
   const extraTotal = (extraItems || []).reduce((sum, item) => sum + (parseFloat(item?.amount) || 0), 0);
 
@@ -285,6 +296,16 @@ export default function InvoicePreviewScreen({ route, navigation }) {
                 `
                 : ''
             }
+            ${
+              parseFloat(ev.transportCharge) > 0
+                ? `
+                  <div style="display: flex; justify-content: space-between; align-items: center; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 12px; margin-top: 6px; font-size: 0.9em;">
+                    <span style="color: #475569;"><strong>Day ${ev.index + 1} Transport:</strong></span>
+                    <span style="color: #1e293b; font-weight: 700;">₹${parseFloat(ev.transportCharge).toFixed(2)}</span>
+                  </div>
+                `
+                : ''
+            }
           </section>
         `;
       })
@@ -480,8 +501,23 @@ export default function InvoicePreviewScreen({ route, navigation }) {
               <span>₹${subTotal.toFixed(2)}</span>
             </div>
 
+            ${
+              dayTransportList.length > 1
+                ? dayTransportList
+                    .map(
+                      (dt) => `
+                        <div class="total-row" style="font-size: 0.9em; color: #64748b;">
+                          <span>Day ${dt.day} Transport:</span>
+                          <span>₹${dt.amount.toFixed(2)}</span>
+                        </div>
+                      `
+                    )
+                    .join('')
+                : ''
+            }
+
             <div class="total-row">
-              <span>Transport Charge:</span>
+              <span>${dayTransportList.length > 1 ? 'Total Transport:' : 'Transport Charge:'}</span>
               <span>₹${transportAmount.toFixed(2)}</span>
             </div>
             
@@ -767,10 +803,27 @@ export default function InvoicePreviewScreen({ route, navigation }) {
             <Text style={styles.totalAmountSub}>₹{subTotal.toFixed(2)}</Text>
           </View>
 
-          <View style={styles.totalRowSub}>
-            <Text style={styles.totalLabelSub}>Transport Charge</Text>
-            <Text style={styles.totalAmountSub}>₹{transportAmount.toFixed(2)}</Text>
-          </View>
+          {dayTransportList.length > 1 ? (
+            <>
+              {dayTransportList.map((dt, idx) => (
+                <View key={idx} style={styles.totalRowSub}>
+                  <Text style={[styles.totalLabelSub, { color: theme.textSecondary, fontSize: 13 }]}>
+                    Day {dt.day} Transport
+                  </Text>
+                  <Text style={styles.totalAmountSub}>₹{dt.amount.toFixed(2)}</Text>
+                </View>
+              ))}
+              <View style={styles.totalRowSub}>
+                <Text style={[styles.totalLabelSub, { fontWeight: '700' }]}>Total Transport Charges</Text>
+                <Text style={[styles.totalAmountSub, { fontWeight: '700' }]}>₹{transportAmount.toFixed(2)}</Text>
+              </View>
+            </>
+          ) : (
+            <View style={styles.totalRowSub}>
+              <Text style={styles.totalLabelSub}>Transport Charge</Text>
+              <Text style={styles.totalAmountSub}>₹{transportAmount.toFixed(2)}</Text>
+            </View>
+          )}
           <View style={[styles.totalRow, { marginTop: 10, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: theme.border }]}>
             <Text style={styles.totalLabel}>Grand Total</Text>
             <Text style={[styles.totalAmount, dynamicStyles.totalAmount, { fontSize: 20 }]}>₹{finalTotal.toFixed(2)}</Text>
