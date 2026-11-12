@@ -155,6 +155,15 @@ export default function CateringOrderDetailsScreen({ route, navigation }) {
             <Text style={[styles.summaryValue, { color: theme.text }]}>₹{revenue.toFixed(2)}</Text>
           </View>
 
+          {parseFloat(invoice.transportCharge || 0) > 0 && (
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Total Transport Charges</Text>
+              <Text style={[styles.summaryValue, { color: theme.primary }]}>
+                ₹{parseFloat(invoice.transportCharge).toFixed(2)}
+              </Text>
+            </View>
+          )}
+
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Event Production Expenses</Text>
             <Text style={[styles.summaryValue, { color: theme.error }]}>-₹{totalExpenses.toFixed(2)}</Text>
