@@ -30,55 +30,67 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
       return [{
         id: Date.now().toString(),
         date: fallbackDate || new Date().toISOString(),
-        selectedTiffins: [],
-        tiffinQuantities: {},
-        fixedPrices: {},
-        pricingModes: {},
-        fixedSelected: {},
-        addedMeals: [],
+        transportCharge: '',
+        sessions: {
+          breakfast: { items: [], meals: [] },
+          lunch: { items: [], meals: [] },
+          dinner: { items: [], meals: [] },
+        },
       }];
     }
     return rawEvents.map((ev, index) => {
-      let selectedTiffins = Array.isArray(ev.selectedTiffins) ? [...ev.selectedTiffins] : null;
-      if (!selectedTiffins) {
-        selectedTiffins = [];
-        if (ev.tiffinQuantities && typeof ev.tiffinQuantities === 'object') {
-          Object.keys(ev.tiffinQuantities).forEach((k) => {
-            if (ev.tiffinQuantities[k] > 0 && !selectedTiffins.includes(k)) {
-              selectedTiffins.push(k);
-            }
+      let sessions = ev.sessions;
+      if (!sessions || typeof sessions !== 'object') {
+        sessions = {
+          breakfast: { items: [], meals: [] },
+          lunch: { items: [], meals: [] },
+          dinner: { items: [], meals: [] },
+        };
+
+        // Migrate legacy selectedTiffins -> breakfast.items
+        const legacyTiffins = Array.isArray(ev.selectedTiffins) ? ev.selectedTiffins : [];
+        legacyTiffins.forEach((itemId) => {
+          const tItem = (tiffinItems || []).find((t) => t.id === itemId) || { id: itemId, name: 'Food Item', price: 0, unit: 'nos' };
+          const mode = ev.pricingModes?.[itemId] || (parseFloat(tItem.price) > 0 ? 'unit' : 'fixed');
+          const qty = ev.tiffinQuantities?.[itemId] || (mode === 'unit' ? 1 : 0);
+          const fixedPrice = ev.fixedPrices?.[itemId] !== undefined ? String(ev.fixedPrices[itemId]) : (parseFloat(tItem.price) > 0 ? String(tItem.price) : '');
+          sessions.breakfast.items.push({
+            id: itemId,
+            name: tItem.name,
+            price: parseFloat(tItem.price) || 0,
+            unit: tItem.unit || 'nos',
+            pricingMode: mode,
+            quantity: qty,
+            fixedPrice,
+            fixedSelected: ev.fixedSelected?.[itemId] !== undefined ? Boolean(ev.fixedSelected[itemId]) : parseFloat(fixedPrice) > 0,
           });
-        }
-        if (ev.fixedPrices && typeof ev.fixedPrices === 'object') {
-          Object.keys(ev.fixedPrices).forEach((k) => {
-            const amt = parseFloat(ev.fixedPrices[k]) || 0;
-            const isSel = ev.fixedSelected ? ev.fixedSelected[k] : amt > 0;
-            if (isSel && amt > 0 && !selectedTiffins.includes(k)) {
-              selectedTiffins.push(k);
-            }
+        });
+
+        // Migrate legacy addedMeals -> lunch.meals
+        const legacyMeals = Array.isArray(ev.addedMeals) ? ev.addedMeals : [];
+        legacyMeals.forEach((m, mIdx) => {
+          sessions.lunch.meals.push({
+            id: m.id || `${Date.now()}-m-${mIdx}`,
+            name: m.name || 'Full Meals Package',
+            price: parseFloat(m.price) || 0,
+            quantity: parseInt(m.quantity, 10) || 1,
+            pricingMode: m.pricingMode === 'fixed' ? 'fixed' : 'unit',
+            dishes: Array.isArray(m.dishes) ? m.dishes : [],
           });
-        }
+        });
       }
+
+      ['breakfast', 'lunch', 'dinner'].forEach((key) => {
+        if (!sessions[key]) sessions[key] = { items: [], meals: [] };
+        if (!Array.isArray(sessions[key].items)) sessions[key].items = [];
+        if (!Array.isArray(sessions[key].meals)) sessions[key].meals = [];
+      });
 
       return {
         id: ev.id || `${Date.now()}-${index}`,
         date: ev.date || fallbackDate || new Date().toISOString(),
         transportCharge: ev.transportCharge != null ? ev.transportCharge.toString() : '',
-        selectedTiffins,
-        tiffinQuantities: ev.tiffinQuantities && typeof ev.tiffinQuantities === 'object' ? ev.tiffinQuantities : {},
-        fixedPrices: ev.fixedPrices && typeof ev.fixedPrices === 'object' ? ev.fixedPrices : {},
-        pricingModes: ev.pricingModes && typeof ev.pricingModes === 'object' ? ev.pricingModes : {},
-        fixedSelected: ev.fixedSelected && typeof ev.fixedSelected === 'object' ? ev.fixedSelected : {},
-        addedMeals: Array.isArray(ev.addedMeals)
-          ? ev.addedMeals.map((m, mIdx) => ({
-              id: m.id || `${Date.now()}-m-${mIdx}`,
-              name: m.name || 'Full Meals Package',
-              price: parseFloat(m.price) || 0,
-              quantity: parseInt(m.quantity, 10) || 1,
-              pricingMode: m.pricingMode === 'fixed' ? 'fixed' : 'unit',
-              dishes: Array.isArray(m.dishes) ? m.dishes : [],
-            }))
-          : [],
+        sessions,
       };
     });
   };
@@ -103,11 +115,17 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
   const [activeEventId, setActiveEventId] = useState(null);
   const [isModalVisible, setModalVisible] = useState(false);
   const [modalEventId, setModalEventId] = useState(null);
+  const [modalSessionKey, setModalSessionKey] = useState('lunch');
   const [tempMealName, setTempMealName] = useState('Full Meals Package');
   const [tempMealPrice, setTempMealPrice] = useState('');
   const [tempMealQty, setTempMealQty] = useState('');
   const [tempMealPricingMode, setTempMealPricingMode] = useState('unit');
   const [tempSelectedDishes, setTempSelectedDishes] = useState([]);
+
+  const [isFoodPickerVisible, setFoodPickerVisible] = useState(false);
+  const [foodPickerEventId, setFoodPickerEventId] = useState(null);
+  const [foodPickerSessionKey, setFoodPickerSessionKey] = useState('breakfast');
+  const [foodSearchQuery, setFoodSearchQuery] = useState('');
 
   const [isExtraModalVisible, setExtraModalVisible] = useState(false);
   const [tempExtraDesc, setTempExtraDesc] = useState('');
@@ -128,12 +146,12 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
     setEvents([{
       id: Date.now().toString(),
       date: new Date().toISOString(),
-      selectedTiffins: [],
-      tiffinQuantities: {},
-      fixedPrices: {},
-      pricingModes: {},
-      fixedSelected: {},
-      addedMeals: [],
+      transportCharge: '',
+      sessions: {
+        breakfast: { items: [], meals: [] },
+        lunch: { items: [], meals: [] },
+        dinner: { items: [], meals: [] },
+      },
     }]);
   };
 
@@ -151,12 +169,16 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
       (tCharge && parseFloat(tCharge) > 0) ||
       (advAmt && parseFloat(advAmt) > 0) ||
       (Array.isArray(xItems) && xItems.length > 0) ||
-      (Array.isArray(evs) && evs.some(e => 
-        (Array.isArray(e.selectedTiffins) && e.selectedTiffins.length > 0) ||
-        (Array.isArray(e.addedMeals) && e.addedMeals.length > 0) ||
-        (e.fixedPrices && Object.values(e.fixedPrices).some(p => parseFloat(p) > 0)) ||
-        (e.tiffinQuantities && Object.values(e.tiffinQuantities).some(q => q > 0))
-      ))
+      (Array.isArray(evs) && evs.some(e => {
+        if (e.transportCharge && parseFloat(e.transportCharge) > 0) return true;
+        if (e.sessions) {
+          return Object.values(e.sessions).some(sess =>
+            (Array.isArray(sess?.items) && sess.items.length > 0) ||
+            (Array.isArray(sess?.meals) && sess.meals.length > 0)
+          );
+        }
+        return false;
+      }))
     );
   };
 
@@ -252,13 +274,9 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
   const { customers } = useContext(CustomerContext);
   const [isCustomerModalVisible, setCustomerModalVisible] = useState(false);
 
-  // Food Item Picker State
-  const [isFoodPickerVisible, setFoodPickerVisible] = useState(false);
-  const [foodPickerEventId, setFoodPickerEventId] = useState(null);
-  const [foodSearchQuery, setFoodSearchQuery] = useState('');
-
-  const openFoodItemPicker = (eventId) => {
+  const openFoodItemPicker = (eventId, sessionKey = 'breakfast') => {
     setFoodPickerEventId(eventId);
+    setFoodPickerSessionKey(sessionKey);
     setFoodSearchQuery('');
     setFoodPickerVisible(true);
   };
@@ -274,69 +292,300 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
     });
   }, [tiffinItems, foodSearchQuery]);
 
-  const addTiffinToEvent = (eventId, item) => {
+  const addFoodItemToSession = (eventId, sessionKey, item) => {
     setEvents((prevEvents) =>
       prevEvents.map((ev) => {
         if (ev.id !== eventId) return ev;
-        const currentSelected = Array.isArray(ev.selectedTiffins) ? ev.selectedTiffins : [];
-        if (currentSelected.includes(item.id)) return ev; // Prevent duplicates
+        const currentSessions = ev.sessions || {
+          breakfast: { items: [], meals: [] },
+          lunch: { items: [], meals: [] },
+          dinner: { items: [], meals: [] },
+        };
+        const targetSession = currentSessions[sessionKey] || { items: [], meals: [] };
+        const existingItems = Array.isArray(targetSession.items) ? targetSession.items : [];
+        if (existingItems.some((i) => i.id === item.id)) return ev; // avoid duplicates
 
-        const mode = getItemPricingMode(ev, item);
-        const isFixed = mode === 'fixed';
         const hasMenuPrice = item.price !== undefined && parseFloat(item.price) > 0;
+        const defaultMode = hasMenuPrice ? 'unit' : 'fixed';
 
-        const updatedQuantities = { ...(ev.tiffinQuantities || {}) };
-        if (!isFixed && (!updatedQuantities[item.id] || updatedQuantities[item.id] === 0)) {
-          updatedQuantities[item.id] = 1; // Default to 1 on add
-        }
-
-        const updatedFixedPrices = { ...(ev.fixedPrices || {}) };
-        const updatedFixedSelected = { ...(ev.fixedSelected || {}) };
-        if (isFixed) {
-          if (updatedFixedPrices[item.id] === undefined) {
-            updatedFixedPrices[item.id] = hasMenuPrice ? String(item.price) : '';
-          }
-          updatedFixedSelected[item.id] = true;
-        }
+        const newItem = {
+          id: item.id,
+          name: item.name,
+          price: parseFloat(item.price) || 0,
+          unit: item.unit || 'nos',
+          pricingMode: defaultMode,
+          quantity: defaultMode === 'unit' ? 1 : 0,
+          fixedPrice: defaultMode === 'fixed' ? (hasMenuPrice ? String(item.price) : '') : '',
+          fixedSelected: true,
+        };
 
         return {
           ...ev,
-          selectedTiffins: [...currentSelected, item.id],
-          tiffinQuantities: updatedQuantities,
-          fixedPrices: updatedFixedPrices,
-          fixedSelected: updatedFixedSelected,
+          sessions: {
+            ...currentSessions,
+            [sessionKey]: {
+              ...targetSession,
+              items: [...existingItems, newItem],
+            },
+          },
         };
       })
     );
   };
 
-  const removeTiffinFromEvent = (eventId, itemId) => {
+  const removeFoodItemFromSession = (eventId, sessionKey, itemId) => {
     setEvents((prevEvents) =>
       prevEvents.map((ev) => {
         if (ev.id !== eventId) return ev;
-        const currentSelected = Array.isArray(ev.selectedTiffins) ? ev.selectedTiffins : [];
-        const updatedSelected = currentSelected.filter((id) => id !== itemId);
-
-        const updatedQuantities = { ...(ev.tiffinQuantities || {}) };
-        delete updatedQuantities[itemId];
-
-        const updatedFixedPrices = { ...(ev.fixedPrices || {}) };
-        delete updatedFixedPrices[itemId];
-
-        const updatedFixedSelected = { ...(ev.fixedSelected || {}) };
-        delete updatedFixedSelected[itemId];
-
+        const currentSessions = ev.sessions || {};
+        const targetSession = currentSessions[sessionKey] || { items: [], meals: [] };
         return {
           ...ev,
-          selectedTiffins: updatedSelected,
-          tiffinQuantities: updatedQuantities,
-          fixedPrices: updatedFixedPrices,
-          fixedSelected: updatedFixedSelected,
+          sessions: {
+            ...currentSessions,
+            [sessionKey]: {
+              ...targetSession,
+              items: (targetSession.items || []).filter((i) => i.id !== itemId),
+            },
+          },
         };
       })
     );
   };
-  
+
+  const toggleSessionItemPricingMode = (eventId, sessionKey, itemId) => {
+    setEvents((prevEvents) =>
+      prevEvents.map((ev) => {
+        if (ev.id !== eventId) return ev;
+        const currentSessions = ev.sessions || {};
+        const targetSession = currentSessions[sessionKey] || { items: [], meals: [] };
+        const updatedItems = (targetSession.items || []).map((it) => {
+          if (it.id !== itemId) return it;
+          const nextMode = it.pricingMode === 'fixed' ? 'unit' : 'fixed';
+          return {
+            ...it,
+            pricingMode: nextMode,
+            quantity: nextMode === 'unit' && (!it.quantity || it.quantity === 0) ? 1 : it.quantity,
+            fixedPrice: nextMode === 'fixed' && !it.fixedPrice ? (it.price > 0 ? String(it.price) : '') : it.fixedPrice,
+            fixedSelected: true,
+          };
+        });
+        return {
+          ...ev,
+          sessions: {
+            ...currentSessions,
+            [sessionKey]: {
+              ...targetSession,
+              items: updatedItems,
+            },
+          },
+        };
+      })
+    );
+  };
+
+  const updateSessionItemQuantity = (eventId, sessionKey, itemId, delta) => {
+    setEvents((prevEvents) =>
+      prevEvents.map((ev) => {
+        if (ev.id !== eventId) return ev;
+        const currentSessions = ev.sessions || {};
+        const targetSession = currentSessions[sessionKey] || { items: [], meals: [] };
+        const updatedItems = (targetSession.items || []).map((it) => {
+          if (it.id !== itemId) return it;
+          const currentQty = parseInt(it.quantity, 10) || 0;
+          return {
+            ...it,
+            quantity: Math.max(0, currentQty + delta),
+          };
+        });
+        return {
+          ...ev,
+          sessions: {
+            ...currentSessions,
+            [sessionKey]: {
+              ...targetSession,
+              items: updatedItems,
+            },
+          },
+        };
+      })
+    );
+  };
+
+  const setSessionItemQuantity = (eventId, sessionKey, itemId, val) => {
+    const parsed = parseInt(val.replace(/[^0-9]/g, ''), 10) || 0;
+    setEvents((prevEvents) =>
+      prevEvents.map((ev) => {
+        if (ev.id !== eventId) return ev;
+        const currentSessions = ev.sessions || {};
+        const targetSession = currentSessions[sessionKey] || { items: [], meals: [] };
+        const updatedItems = (targetSession.items || []).map((it) => {
+          if (it.id !== itemId) return it;
+          return {
+            ...it,
+            quantity: parsed,
+          };
+        });
+        return {
+          ...ev,
+          sessions: {
+            ...currentSessions,
+            [sessionKey]: {
+              ...targetSession,
+              items: updatedItems,
+            },
+          },
+        };
+      })
+    );
+  };
+
+  const setSessionItemFixedPrice = (eventId, sessionKey, itemId, val) => {
+    const sanitized = val.replace(/[^0-9.]/g, '');
+    setEvents((prevEvents) =>
+      prevEvents.map((ev) => {
+        if (ev.id !== eventId) return ev;
+        const currentSessions = ev.sessions || {};
+        const targetSession = currentSessions[sessionKey] || { items: [], meals: [] };
+        const updatedItems = (targetSession.items || []).map((it) => {
+          if (it.id !== itemId) return it;
+          return {
+            ...it,
+            fixedPrice: sanitized,
+            fixedSelected: sanitized !== '' && parseFloat(sanitized) > 0,
+          };
+        });
+        return {
+          ...ev,
+          sessions: {
+            ...currentSessions,
+            [sessionKey]: {
+              ...targetSession,
+              items: updatedItems,
+            },
+          },
+        };
+      })
+    );
+  };
+
+  const toggleSessionItemFixedSelection = (eventId, sessionKey, itemId) => {
+    setEvents((prevEvents) =>
+      prevEvents.map((ev) => {
+        if (ev.id !== eventId) return ev;
+        const currentSessions = ev.sessions || {};
+        const targetSession = currentSessions[sessionKey] || { items: [], meals: [] };
+        const updatedItems = (targetSession.items || []).map((it) => {
+          if (it.id !== itemId) return it;
+          const willBeOn = !it.fixedSelected;
+          let newFixedPrice = it.fixedPrice;
+          if (willBeOn && (!newFixedPrice || parseFloat(newFixedPrice) === 0)) {
+            newFixedPrice = it.price > 0 ? String(it.price) : '';
+          }
+          return {
+            ...it,
+            fixedSelected: willBeOn,
+            fixedPrice: newFixedPrice,
+          };
+        });
+        return {
+          ...ev,
+          sessions: {
+            ...currentSessions,
+            [sessionKey]: {
+              ...targetSession,
+              items: updatedItems,
+            },
+          },
+        };
+      })
+    );
+  };
+
+  const openMealModal = (eventId, sessionKey = 'lunch') => {
+    setModalEventId(eventId);
+    setModalSessionKey(sessionKey);
+    const defaultName = sessionKey === 'breakfast' ? 'Breakfast Feast Package' : sessionKey === 'dinner' ? 'Dinner Feast Package' : 'Full Meals Package';
+    setTempMealName(defaultName);
+    setTempMealPrice('');
+    setTempMealQty('');
+    setTempMealPricingMode('unit');
+    setTempSelectedDishes([]);
+    setModalVisible(true);
+  };
+
+  const saveCustomMeal = () => {
+    if (tempMealPricingMode === 'fixed') {
+      if (!tempMealPrice || parseFloat(tempMealPrice) <= 0) {
+        Alert.alert('Missing Price', 'Please enter the flat total package price.');
+        return;
+      }
+    } else {
+      if (!tempMealPrice || !tempMealQty) {
+        Alert.alert('Missing Info', 'Enter rate per plate and plate quantity for the meal.');
+        return;
+      }
+    }
+
+    const newMeal = {
+      id: Date.now().toString(),
+      name: tempMealName?.trim() || 'Meal Package',
+      price: parseFloat(tempMealPrice) || 0,
+      quantity: tempMealPricingMode === 'fixed' ? 1 : (parseInt(tempMealQty, 10) || 1),
+      pricingMode: tempMealPricingMode,
+      dishes: Array.isArray(tempSelectedDishes) ? tempSelectedDishes : [],
+    };
+
+    setEvents((prevEvents) =>
+      prevEvents.map((ev) => {
+        if (ev.id !== modalEventId) return ev;
+        const currentSessions = ev.sessions || {
+          breakfast: { items: [], meals: [] },
+          lunch: { items: [], meals: [] },
+          dinner: { items: [], meals: [] },
+        };
+        const targetSession = currentSessions[modalSessionKey] || { items: [], meals: [] };
+        return {
+          ...ev,
+          sessions: {
+            ...currentSessions,
+            [modalSessionKey]: {
+              ...targetSession,
+              meals: [...(targetSession.meals || []), newMeal],
+            },
+          },
+        };
+      })
+    );
+
+    setTempMealName('Full Meals Package');
+    setTempMealPrice('');
+    setTempMealQty('');
+    setTempMealPricingMode('unit');
+    setTempSelectedDishes([]);
+    setModalVisible(false);
+  };
+
+  const removeMealFromSession = (eventId, sessionKey, mealId) => {
+    setEvents((prevEvents) =>
+      prevEvents.map((ev) => {
+        if (ev.id !== eventId) return ev;
+        const currentSessions = ev.sessions || {};
+        const targetSession = currentSessions[sessionKey] || { items: [], meals: [] };
+        return {
+          ...ev,
+          sessions: {
+            ...currentSessions,
+            [sessionKey]: {
+              ...targetSession,
+              meals: (targetSession.meals || []).filter((m) => m.id !== mealId),
+            },
+          },
+        };
+      })
+    );
+  };
+
   const { theme, isDarkMode } = useContext(ThemeContext);
   const styles = getStyles(theme, isDarkMode);
 
@@ -347,12 +596,11 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
         id: Date.now().toString(),
         date: new Date().toISOString(),
         transportCharge: '',
-        selectedTiffins: [],
-        tiffinQuantities: {},
-        fixedPrices: {},
-        pricingModes: {},
-        fixedSelected: {},
-        addedMeals: [],
+        sessions: {
+          breakfast: { items: [], meals: [] },
+          lunch: { items: [], meals: [] },
+          dinner: { items: [], meals: [] },
+        },
       },
     ]);
   };
@@ -382,225 +630,39 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
     return (events || []).reduce((acc, ev) => acc + (parseFloat(ev.transportCharge) || 0), 0);
   };
 
-  // Helper to determine whether an item in an event is in 'fixed' (direct total) or 'unit' (quantity x rate) mode
-  const getItemPricingMode = (ev, item) => {
-    if (ev && ev.pricingModes && ev.pricingModes[item.id]) {
-      return ev.pricingModes[item.id];
-    }
-    // If item has a rate specified in menu (> 0), default to 'unit' (Quantity x Rate)
-    // If item has NO rate in menu (e.g. Upma with price 0), default to 'fixed' (Direct Total Price)
-    const hasPredefinedPrice = item && parseFloat(item.price) > 0;
-    return hasPredefinedPrice ? 'unit' : 'fixed';
-  };
-
-  // Toggle pricing mode (Unit <-> Fixed) directly on the billing screen
-  const toggleItemPricingMode = (eventId, itemId) => {
-    setEvents(prevEvents =>
-      prevEvents.map(ev => {
-        if (ev.id !== eventId) return ev;
-        const item = (tiffinItems || []).find(t => t.id === itemId) || { id: itemId };
-        const currentMode = getItemPricingMode(ev, item);
-        const nextMode = currentMode === 'fixed' ? 'unit' : 'fixed';
-        
-        const updatedFixedPrices = { ...(ev.fixedPrices || {}) };
-        const updatedFixedSelected = { ...(ev.fixedSelected || {}) };
-        
-        if (nextMode === 'fixed' && updatedFixedPrices[itemId] === undefined) {
-          updatedFixedPrices[itemId] = item?.price && parseFloat(item.price) > 0 ? String(item.price) : '';
-          updatedFixedSelected[itemId] = updatedFixedPrices[itemId] !== '';
-        }
-
-        return {
-          ...ev,
-          pricingModes: {
-            ...(ev.pricingModes || {}),
-            [itemId]: nextMode,
-          },
-          fixedPrices: updatedFixedPrices,
-          fixedSelected: updatedFixedSelected,
-        };
-      })
-    );
-  };
-
-  // Update quantity for unit-based items
-  const updateTiffinQuantity = (eventId, itemId, amount) => {
-    setEvents(
-      events.map((ev) => {
-        if (ev.id !== eventId) return ev;
-        const currentQty = (ev.tiffinQuantities && ev.tiffinQuantities[itemId]) || 0;
-        return {
-          ...ev,
-          tiffinQuantities: {
-            ...(ev.tiffinQuantities || {}),
-            [itemId]: Math.max(0, currentQty + amount),
-          },
-        };
-      })
-    );
-  };
-
-  const setTiffinQuantity = (eventId, itemId, value) => {
-    const sanitizedValue = value.replace(/[^0-9]/g, '');
-    const parsedQuantity = sanitizedValue === '' ? 0 : parseInt(sanitizedValue, 10);
-
-    setEvents(
-      events.map((ev) => {
-        if (ev.id !== eventId) return ev;
-        return {
-          ...ev,
-          tiffinQuantities: {
-            ...(ev.tiffinQuantities || {}),
-            [itemId]: Number.isNaN(parsedQuantity) ? 0 : parsedQuantity,
-          },
-        };
-      })
-    );
-  };
-
-  // Update total price for fixed-price items (e.g. Upma flat price)
-  const setFixedPrice = (eventId, itemId, value) => {
-    const sanitized = value.replace(/[^0-9.]/g, '');
-    setEvents(prevEvents =>
-      prevEvents.map(ev => {
-        if (ev.id !== eventId) return ev;
-        return {
-          ...ev,
-          fixedPrices: {
-            ...(ev.fixedPrices || {}),
-            [itemId]: sanitized,
-          },
-          fixedSelected: {
-            ...(ev.fixedSelected || {}),
-            [itemId]: sanitized !== '' && parseFloat(sanitized) > 0,
-          }
-        };
-      })
-    );
-  };
-
-  // Toggle whether a fixed-price item is included in the bill
-  const toggleFixedItemSelection = (eventId, itemId) => {
-    setEvents(prevEvents =>
-      prevEvents.map(ev => {
-        if (ev.id !== eventId) return ev;
-        const item = tiffinItems.find(t => t.id === itemId);
-        const currentSelected = ev.fixedSelected ? ev.fixedSelected[itemId] : undefined;
-        const isCurrentlyOn = currentSelected !== undefined ? currentSelected : (parseFloat(ev.fixedPrices?.[itemId] ?? item?.price ?? 0) > 0);
-        const willBeOn = !isCurrentlyOn;
-        
-        let newFixedPrice = ev.fixedPrices && ev.fixedPrices[itemId] !== undefined ? ev.fixedPrices[itemId] : '';
-        if (willBeOn && (!newFixedPrice || parseFloat(newFixedPrice) === 0)) {
-          newFixedPrice = item?.price ? String(item.price) : '';
-        }
-
-        return {
-          ...ev,
-          fixedSelected: {
-            ...(ev.fixedSelected || {}),
-            [itemId]: willBeOn,
-          },
-          fixedPrices: {
-            ...(ev.fixedPrices || {}),
-            [itemId]: newFixedPrice,
-          }
-        };
-      })
-    );
-  };
-
-  const toggleDishSelection = (dishName) => {
-    setTempSelectedDishes((prev) =>
-      prev.includes(dishName) ? prev.filter((dish) => dish !== dishName) : [...prev, dishName]
-    );
-  };
-
-  const saveCustomMeal = () => {
-    if (tempMealPricingMode === 'fixed') {
-      if (!tempMealPrice || parseFloat(tempMealPrice) <= 0) {
-        Alert.alert('Missing Price', 'Please enter the flat total package price.');
-        return;
+  const calculateSessionTotal = (session) => {
+    if (!session) return 0;
+    let sum = 0;
+    (session.items || []).forEach((item) => {
+      if (item.pricingMode === 'fixed') {
+        const amt = parseFloat(item.fixedPrice) || 0;
+        const isSel = item.fixedSelected !== undefined ? item.fixedSelected : amt > 0;
+        if (isSel && amt > 0) sum += amt;
+      } else {
+        const qty = parseInt(item.quantity, 10) || 0;
+        const rate = parseFloat(item.price) || 0;
+        if (qty > 0 && rate > 0) sum += qty * rate;
       }
-    } else {
-      if (!tempMealPrice || !tempMealQty) {
-        Alert.alert('Missing Info', 'Enter rate per plate and plate quantity for the meal.');
-        return;
+    });
+    (session.meals || []).forEach((meal) => {
+      const p = parseFloat(meal.price) || 0;
+      if (meal.pricingMode === 'fixed') {
+        sum += p;
+      } else {
+        const q = parseInt(meal.quantity, 10) || 1;
+        sum += p * q;
       }
-    }
-
-    const newMeal = {
-      id: Date.now().toString(),
-      name: tempMealName?.trim() || 'Full Meals Package',
-      price: parseFloat(tempMealPrice) || 0,
-      quantity: tempMealQty ? (parseInt(tempMealQty, 10) || 1) : 1,
-      pricingMode: tempMealPricingMode,
-      dishes: Array.isArray(tempSelectedDishes) ? tempSelectedDishes : [],
-    };
-
-    setEvents(
-      events.map((ev) =>
-        ev.id === modalEventId ? { ...ev, addedMeals: [...(ev.addedMeals || []), newMeal] } : ev
-      )
-    );
-
-    setTempMealName('Full Meals Package');
-    setTempMealPrice('');
-    setTempMealQty('');
-    setTempMealPricingMode('unit');
-    setTempSelectedDishes([]);
-    setModalVisible(false);
+    });
+    return sum;
   };
 
-  const removeMeal = (eventId, mealId) => {
-    setEvents(
-      events.map((ev) =>
-        ev.id === eventId
-          ? { ...ev, addedMeals: (ev.addedMeals || []).filter((meal) => meal.id !== mealId) }
-          : ev
-      )
-    );
-  };
-
-  // Grand Total calculation supporting both Unit-Based and Fixed Total Price items
   const calculateGrandTotal = () => {
     let total = 0;
     (events || []).forEach((ev) => {
       if (!ev) return;
-      if (tiffinItems && Array.isArray(tiffinItems)) {
-        tiffinItems.forEach((item) => {
-          if (Array.isArray(ev.selectedTiffins) && !ev.selectedTiffins.includes(item.id)) {
-            return;
-          }
-          const mode = getItemPricingMode(ev, item);
-          if (mode === 'fixed') {
-            const rawVal = ev.fixedPrices && ev.fixedPrices[item.id] !== undefined
-              ? ev.fixedPrices[item.id]
-              : item.price;
-            const amt = parseFloat(rawVal) || 0;
-            const isSelected = ev.fixedSelected && ev.fixedSelected[item.id] !== undefined
-              ? ev.fixedSelected[item.id]
-              : amt > 0;
-            if (isSelected && amt > 0) {
-              total += amt;
-            }
-          } else {
-            const qty = (ev.tiffinQuantities && ev.tiffinQuantities[item.id]) || 0;
-            const rate = parseFloat(item.price) || 0;
-            if (qty > 0 && !isNaN(rate)) {
-              total += rate * (Number(qty) || 0);
-            }
-          }
-        });
-      }
-      if (ev && Array.isArray(ev.addedMeals)) {
-        ev.addedMeals.forEach((meal) => {
-          const price = parseFloat(meal.price) || 0;
-          if (meal.pricingMode === 'fixed') {
-            total += price;
-          } else {
-            const qty = parseInt(meal.quantity, 10) || 0;
-            total += price * qty;
-          }
+      if (ev.sessions) {
+        ['breakfast', 'lunch', 'dinner'].forEach((sKey) => {
+          total += calculateSessionTotal(ev.sessions[sKey]);
         });
       }
     });
@@ -610,6 +672,16 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
       });
     }
     return isNaN(total) ? 0 : total;
+  };
+
+  // Backwards compatibility wrappers
+  const addTiffinToEvent = (eventId, item) => addFoodItemToSession(eventId, 'breakfast', item);
+  const removeTiffinFromEvent = (eventId, itemId) => removeFoodItemFromSession(eventId, 'breakfast', itemId);
+  const removeMeal = (eventId, mealId) => removeMealFromSession(eventId, 'lunch', mealId);
+  const toggleDishSelection = (dishName) => {
+    setTempSelectedDishes((prev) =>
+      prev.includes(dishName) ? prev.filter((dish) => dish !== dishName) : [...prev, dishName]
+    );
   };
 
   const saveExtraItem = () => {
@@ -742,8 +814,44 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
           </View>
         </View>
 
+        {/* 3 SESSION CONFIGS */}
+        {(() => {
+          return null;
+        })()}
+
         {/* EVENT DAYS SECTION */}
-        {(events || []).map((ev, index) => (
+        {(events || []).map((ev, index) => {
+          const SESSION_DEFS = [
+            {
+              key: 'breakfast',
+              title: 'Breakfast',
+              icon: 'sunny-outline',
+              accentColor: '#FF6B55',
+              bgTint: isDarkMode ? '#3B1F1B' : '#FFE2D5',
+              textColor: isDarkMode ? '#FFAAA0' : '#B84724',
+              subtext: 'Morning tiffins, coffee & breakfast packages',
+            },
+            {
+              key: 'lunch',
+              title: 'Lunch',
+              icon: 'restaurant-outline',
+              accentColor: '#D97706',
+              bgTint: isDarkMode ? '#3A2E12' : '#FFF0BD',
+              textColor: isDarkMode ? '#FDE047' : '#92610A',
+              subtext: 'Thali meals, lunch specials, sweets & curries',
+            },
+            {
+              key: 'dinner',
+              title: 'Dinner',
+              icon: 'moon-outline',
+              accentColor: '#7C3AED',
+              bgTint: isDarkMode ? '#2D1B4E' : '#E9DFFF',
+              textColor: isDarkMode ? '#C4B5FD' : '#5E4B8B',
+              subtext: 'Evening tiffins, dinner feasts & dessert packages',
+            },
+          ];
+
+          return (
           <View key={ev.id || index} style={styles.eventCard}>
             <View style={styles.eventHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -804,294 +912,223 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
                 </View>
               </View>
 
-              {/* TIFFIN & FOOD ITEMS SECTION */}
-              <View style={styles.subHeaderRow}>
-                <Ionicons name="cafe-outline" size={18} color={theme.primary} />
-                <Text style={styles.subTitle}>Tiffin & Food Items</Text>
-                <View style={{ flex: 1 }} />
-                {(ev.selectedTiffins && ev.selectedTiffins.length > 0) && (
-                  <TouchableOpacity
-                    style={styles.headerAddBtn}
-                    onPress={() => openFoodItemPicker(ev.id)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="add" size={15} color={theme.primary} />
-                    <Text style={styles.headerAddBtnText}>Add Item</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-              <Text style={styles.sectionHelperText}>
-                Select items from your menu below to enter quantities or direct prices.
-              </Text>
+              {/* 3 SESSIONS: BREAKFAST, LUNCH, DINNER */}
+              {SESSION_DEFS.map((sDef) => {
+                const session = ev.sessions?.[sDef.key] || { items: [], meals: [] };
+                const sessionTotal = calculateSessionTotal(session);
+                const items = session.items || [];
+                const meals = session.meals || [];
+                const isEmpty = items.length === 0 && meals.length === 0;
 
-              {(!ev.selectedTiffins || ev.selectedTiffins.length === 0) ? (
-                <View style={styles.emptyFoodCard}>
-                  <View style={styles.emptyFoodIconWrap}>
-                    <Ionicons name="restaurant-outline" size={24} color={theme.primary} />
-                  </View>
-                  <Text style={styles.emptyFoodTitle}>No Food Items Selected</Text>
-                  <Text style={styles.emptyFoodSub}>
-                    Tap below to pick items from your menu for Day {index + 1}.
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.addFoodPrimaryBtn}
-                    activeOpacity={0.85}
-                    onPress={() => openFoodItemPicker(ev.id)}
-                  >
-                    <Ionicons name="add-circle" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-                    <Text style={styles.addFoodPrimaryBtnText}>+ Add Food Item</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <>
-                  {(ev.selectedTiffins || []).map((selectedId) => {
-                    const item = (tiffinItems || []).find((t) => t.id === selectedId) || {
-                      id: selectedId,
-                      name: 'Custom Food Item',
-                      price: 0,
-                      unit: 'nos',
-                    };
-                    const mode = getItemPricingMode(ev, item);
-                    const isFixed = mode === 'fixed';
-                    const hasMenuPrice = item.price !== undefined && parseFloat(item.price) > 0;
-                    const currentQty = (ev.tiffinQuantities && ev.tiffinQuantities[item.id]) || 0;
-
-                    const fixedVal =
-                      ev.fixedPrices && ev.fixedPrices[item.id] !== undefined
-                        ? ev.fixedPrices[item.id]
-                        : hasMenuPrice
-                        ? String(item.price)
-                        : '';
-                    const fixedAmt = parseFloat(fixedVal) || 0;
-                    const isFixedSelected =
-                      ev.fixedSelected && ev.fixedSelected[item.id] !== undefined
-                        ? ev.fixedSelected[item.id]
-                        : fixedAmt > 0;
-
-                    const itemRowTotal = isFixed
-                      ? isFixedSelected
-                        ? fixedAmt
-                        : 0
-                      : currentQty * (parseFloat(item.price) || 0);
-
-                    return (
-                      <View
-                        key={item.id}
-                        style={[
-                          styles.foodItemCard,
-                          itemRowTotal > 0 && styles.foodItemCardActive,
-                        ]}
-                      >
-                        {/* Top Row: Item Name, Price Info & Action Chips */}
-                        <View style={styles.foodItemHeader}>
-                          <View style={{ flex: 1, paddingRight: 8 }}>
-                            <Text style={styles.itemName}>{item.name}</Text>
-                            <Text style={styles.itemSubText}>
-                              {isFixed
-                                ? fixedAmt > 0
-                                  ? `Total: ₹${fixedAmt}`
-                                  : hasMenuPrice
-                                  ? `Flat Total (Menu Rate: ₹${item.price})`
-                                  : 'Direct Total (e.g. ₹500)'
-                                : hasMenuPrice
-                                ? `Rate: ₹${item.price} per ${item.unit || 'nos'}`
-                                : `Rate: ₹0 (Flexible)`}
-                            </Text>
-                          </View>
-
-                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            {/* Pricing Mode Toggle Pill */}
-                            <TouchableOpacity
-                              style={[
-                                styles.modeToggleChip,
-                                isFixed ? styles.modeToggleChipFixed : styles.modeToggleChipUnit,
-                              ]}
-                              activeOpacity={0.75}
-                              onPress={() => toggleItemPricingMode(ev.id, item.id)}
-                            >
-                              <Ionicons
-                                name={isFixed ? 'cash-outline' : 'calculator-outline'}
-                                size={13}
-                                color={isFixed ? theme.accentPurple : theme.primary}
-                                style={{ marginRight: 4 }}
-                              />
-                              <Text
-                                style={[
-                                  styles.modeToggleText,
-                                  { color: isFixed ? theme.accentPurple : theme.primary },
-                                ]}
-                              >
-                                {isFixed ? 'Direct Total' : 'By Qty'}
+                return (
+                  <View key={sDef.key} style={styles.sessionCard}>
+                    {/* SESSION HEADER */}
+                    <View style={styles.sessionHeaderRow}>
+                      <View style={[styles.sessionIconBox, { backgroundColor: sDef.bgTint }]}>
+                        <Ionicons name={sDef.icon} size={18} color={sDef.accentColor} />
+                      </View>
+                      <View style={{ flex: 1, marginLeft: 10 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Text style={styles.sessionTitle}>{sDef.title}</Text>
+                          {sessionTotal > 0 ? (
+                            <View style={[styles.sessionTotalPill, { backgroundColor: sDef.bgTint }]}>
+                              <Text style={[styles.sessionTotalPillText, { color: sDef.textColor }]}>
+                                ₹{sessionTotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                               </Text>
-                            </TouchableOpacity>
-
-                            {/* Remove Item Button */}
-                            <TouchableOpacity
-                              style={styles.removeItemBtn}
-                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                              onPress={() => removeTiffinFromEvent(ev.id, item.id)}
-                            >
-                              <Ionicons name="trash-outline" size={17} color={theme.error} />
-                            </TouchableOpacity>
-                          </View>
+                            </View>
+                          ) : null}
                         </View>
+                        <Text style={styles.sessionSubtext}>{sDef.subtext}</Text>
+                      </View>
+                    </View>
 
-                        {/* Bottom Row: Flexible Entry Inputs */}
-                        <View style={styles.foodInputRow}>
-                          {isFixed ? (
-                            // FIXED TOTAL PRICE ENTRY
-                            <View style={styles.fixedInputWrap}>
+                    {/* ITEMS IN THIS SESSION */}
+                    {items.map((item) => {
+                      const isFixed = item.pricingMode === 'fixed';
+                      const hasMenuPrice = item.price !== undefined && parseFloat(item.price) > 0;
+                      const currentQty = parseInt(item.quantity, 10) || 0;
+                      const fixedVal = item.fixedPrice !== undefined && item.fixedPrice !== null ? String(item.fixedPrice) : '';
+                      const fixedAmt = parseFloat(fixedVal) || 0;
+                      const isFixedSelected = item.fixedSelected !== undefined ? item.fixedSelected : fixedAmt > 0;
+                      const itemRowTotal = isFixed
+                        ? (isFixedSelected ? fixedAmt : 0)
+                        : currentQty * (parseFloat(item.price) || 0);
+
+                      return (
+                        <View key={item.id} style={[styles.foodItemCard, itemRowTotal > 0 && styles.foodItemCardActive]}>
+                          <View style={styles.foodItemHeader}>
+                            <View style={{ flex: 1, paddingRight: 8 }}>
+                              <Text style={styles.itemName}>{item.name}</Text>
+                              <Text style={styles.itemSubText}>
+                                {isFixed
+                                  ? fixedAmt > 0
+                                    ? `Total: ₹${fixedAmt}`
+                                    : hasMenuPrice
+                                    ? `Flat Total (Menu Rate: ₹${item.price})`
+                                    : 'Direct Total (e.g. ₹500)'
+                                  : hasMenuPrice
+                                  ? `Rate: ₹${item.price} per ${item.unit || 'nos'}`
+                                  : 'Rate: ₹0 (Flexible)'}
+                              </Text>
+                            </View>
+
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                               <TouchableOpacity
-                                style={[
-                                  styles.fixedCheckbox,
-                                  isFixedSelected && styles.fixedCheckboxChecked,
-                                ]}
-                                activeOpacity={0.8}
-                                onPress={() => toggleFixedItemSelection(ev.id, item.id)}
+                                style={[styles.modeToggleChip, isFixed ? styles.modeToggleChipFixed : styles.modeToggleChipUnit]}
+                                activeOpacity={0.75}
+                                onPress={() => toggleSessionItemPricingMode(ev.id, sDef.key, item.id)}
                               >
                                 <Ionicons
-                                  name={isFixedSelected ? 'checkmark' : 'add'}
-                                  size={16}
-                                  color={isFixedSelected ? '#FFFFFF' : theme.textSecondary}
+                                  name={isFixed ? 'cash-outline' : 'calculator-outline'}
+                                  size={13}
+                                  color={isFixed ? theme.accentPurple : theme.primary}
+                                  style={{ marginRight: 4 }}
                                 />
-                                <Text
-                                  style={[
-                                    styles.fixedCheckboxLabel,
-                                    isFixedSelected && styles.fixedCheckboxLabelChecked,
-                                  ]}
-                                >
-                                  {isFixedSelected ? 'In Bill' : 'Include'}
+                                <Text style={[styles.modeToggleText, { color: isFixed ? theme.accentPurple : theme.primary }]}>
+                                  {isFixed ? 'Direct Total' : 'By Qty'}
                                 </Text>
                               </TouchableOpacity>
 
-                              <View
-                                style={[
-                                  styles.fixedAmountInputBox,
-                                  isFixedSelected && styles.fixedAmountInputBoxActive,
-                                ]}
+                              <TouchableOpacity
+                                style={styles.removeItemBtn}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                onPress={() => removeFoodItemFromSession(ev.id, sDef.key, item.id)}
                               >
-                                <Text style={styles.currencySymbol}>₹</Text>
-                                <TextInput
-                                  style={styles.fixedPriceInput}
-                                  keyboardType="numeric"
-                                  placeholder="Total ₹ (e.g. 500)"
-                                  placeholderTextColor={theme.textMuted}
-                                  value={String(fixedVal)}
-                                  onChangeText={(val) => setFixedPrice(ev.id, item.id, val)}
-                                  selectTextOnFocus
-                                />
-                              </View>
+                                <Ionicons name="trash-outline" size={17} color={theme.error} />
+                              </TouchableOpacity>
                             </View>
-                          ) : (
-                            // UNIT-BASED QUANTITY ENTRY
-                            <View style={styles.unitInputWrap}>
-                              <View style={styles.counter}>
-                                <TouchableOpacity
-                                  style={styles.counterBtn}
-                                  onPress={() => updateTiffinQuantity(ev.id, item.id, -1)}
-                                >
-                                  <Ionicons name="remove" size={18} color={theme.text} />
-                                </TouchableOpacity>
-                                <TextInput
-                                  style={styles.qtyInput}
-                                  keyboardType="number-pad"
-                                  value={String(currentQty)}
-                                  onChangeText={(value) => setTiffinQuantity(ev.id, item.id, value)}
-                                  selectTextOnFocus
-                                  maxLength={4}
-                                />
-                                <TouchableOpacity
-                                  style={styles.counterBtn}
-                                  onPress={() => updateTiffinQuantity(ev.id, item.id, 1)}
-                                >
-                                  <Ionicons name="add" size={18} color={theme.text} />
-                                </TouchableOpacity>
-                              </View>
+                          </View>
 
-                              {currentQty > 0 && (
-                                <View style={styles.itemTotalTag}>
-                                  <Text style={styles.itemTotalTagText}>
-                                    ₹{(currentQty * (parseFloat(item.price) || 0)).toFixed(0)}
+                          <View style={styles.foodInputRow}>
+                            {isFixed ? (
+                              <View style={styles.fixedInputWrap}>
+                                <TouchableOpacity
+                                  style={[styles.fixedCheckbox, isFixedSelected && styles.fixedCheckboxChecked]}
+                                  activeOpacity={0.8}
+                                  onPress={() => toggleSessionItemFixedSelection(ev.id, sDef.key, item.id)}
+                                >
+                                  <Ionicons
+                                    name={isFixedSelected ? 'checkmark' : 'add'}
+                                    size={16}
+                                    color={isFixedSelected ? '#FFFFFF' : theme.textSecondary}
+                                  />
+                                  <Text style={[styles.fixedCheckboxLabel, isFixedSelected && styles.fixedCheckboxLabelChecked]}>
+                                    {isFixedSelected ? 'In Bill' : 'Include'}
                                   </Text>
+                                </TouchableOpacity>
+
+                                <View style={[styles.fixedAmountInputBox, isFixedSelected && styles.fixedAmountInputBoxActive]}>
+                                  <Text style={styles.currencySymbol}>₹</Text>
+                                  <TextInput
+                                    style={styles.fixedPriceInput}
+                                    keyboardType="numeric"
+                                    placeholder="Total ₹ (e.g. 500)"
+                                    placeholderTextColor={theme.textMuted}
+                                    value={String(fixedVal)}
+                                    onChangeText={(val) => setSessionItemFixedPrice(ev.id, sDef.key, item.id, val)}
+                                    selectTextOnFocus
+                                  />
+                                </View>
+                              </View>
+                            ) : (
+                              <View style={styles.unitInputWrap}>
+                                <View style={styles.counter}>
+                                  <TouchableOpacity
+                                    style={styles.counterBtn}
+                                    onPress={() => updateSessionItemQuantity(ev.id, sDef.key, item.id, -1)}
+                                  >
+                                    <Ionicons name="remove" size={18} color={theme.text} />
+                                  </TouchableOpacity>
+                                  <TextInput
+                                    style={styles.qtyInput}
+                                    keyboardType="number-pad"
+                                    value={String(currentQty)}
+                                    onChangeText={(value) => setSessionItemQuantity(ev.id, sDef.key, item.id, value)}
+                                    selectTextOnFocus
+                                    maxLength={4}
+                                  />
+                                  <TouchableOpacity
+                                    style={styles.counterBtn}
+                                    onPress={() => updateSessionItemQuantity(ev.id, sDef.key, item.id, 1)}
+                                  >
+                                    <Ionicons name="add" size={18} color={theme.text} />
+                                  </TouchableOpacity>
+                                </View>
+
+                                {currentQty > 0 && (
+                                  <View style={styles.itemTotalTag}>
+                                    <Text style={styles.itemTotalTagText}>
+                                      ₹{(currentQty * (parseFloat(item.price) || 0)).toFixed(0)}
+                                    </Text>
+                                  </View>
+                                )}
+                              </View>
+                            )}
+                          </View>
+                        </View>
+                      );
+                    })}
+
+                    {/* MEAL PACKAGES IN THIS SESSION */}
+                    {meals.map((meal) => {
+                      const isFixed = meal.pricingMode === 'fixed';
+                      const mealTotal = isFixed
+                        ? (parseFloat(meal.price) || 0)
+                        : (parseFloat(meal.price) || 0) * (parseInt(meal.quantity, 10) || 1);
+
+                      return (
+                        <View key={meal.id} style={styles.addedMealCard}>
+                          <View style={styles.mealInfo}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <Text style={styles.mealNameText}>{meal.name}</Text>
+                              {isFixed && (
+                                <View style={{ backgroundColor: isDarkMode ? '#312E81' : '#EEF2FF', paddingHorizontal: 6, paddingVertical: 1.5, borderRadius: 4 }}>
+                                  <Text style={{ fontSize: 9, fontWeight: '700', color: isDarkMode ? '#A5B4FC' : '#4F46E5' }}>LUMP SUM</Text>
                                 </View>
                               )}
                             </View>
-                          )}
-                        </View>
-                      </View>
-                    );
-                  })}
-
-                  {/* Add Another Food Item to this day */}
-                  <TouchableOpacity
-                    style={styles.addMoreFoodBtn}
-                    activeOpacity={0.85}
-                    onPress={() => openFoodItemPicker(ev.id)}
-                  >
-                    <Ionicons name="add-circle-outline" size={17} color={theme.primary} />
-                    <Text style={styles.addMoreFoodBtnText}>+ Add Another Food Item</Text>
-                  </TouchableOpacity>
-                </>
-              )}
-
-              {/* MEAL PACKAGES SECTION */}
-              <View style={[styles.subHeaderRow, styles.mealHeaderSpacing]}>
-                <Ionicons name="restaurant-outline" size={18} color={theme.accentPurple} />
-                <Text style={styles.subTitle}>Meal Packages</Text>
-              </View>
-
-              {(ev.addedMeals || []).map((meal) => {
-                const isFixed = meal.pricingMode === 'fixed';
-                const mealTotal = isFixed
-                  ? (parseFloat(meal.price) || 0)
-                  : ((parseFloat(meal.price) || 0) * (parseInt(meal.quantity, 10) || 1));
-
-                return (
-                  <View key={meal.id} style={styles.addedMealCard}>
-                    <View style={styles.mealInfo}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Text style={styles.mealNameText}>{meal.name}</Text>
-                        {isFixed && (
-                          <View style={{ backgroundColor: isDarkMode ? '#312E81' : '#EEF2FF', paddingHorizontal: 6, paddingVertical: 1.5, borderRadius: 4 }}>
-                            <Text style={{ fontSize: 9, fontWeight: '700', color: isDarkMode ? '#A5B4FC' : '#4F46E5' }}>LUMP SUM</Text>
+                            <Text style={styles.mealDetailText}>
+                              {isFixed
+                                ? `Flat Package Total: ₹${mealTotal.toFixed(2)}${meal.quantity > 1 ? ` (~${meal.quantity} guests)` : ''}`
+                                : `${meal.quantity} plates × ₹${meal.price} = ₹${mealTotal.toFixed(2)}`}
+                            </Text>
+                            {Array.isArray(meal.dishes) && meal.dishes.length > 0 && (
+                              <Text style={styles.dishListText}>Dishes: {meal.dishes.join(', ')}</Text>
+                            )}
                           </View>
-                        )}
-                      </View>
-                      <Text style={styles.mealDetailText}>
-                        {isFixed
-                          ? `Flat Package Total: ₹${mealTotal.toFixed(2)}${meal.quantity > 1 ? ` (~${meal.quantity} guests)` : ''}`
-                          : `${meal.quantity} plates x ₹${meal.price} = ₹${mealTotal.toFixed(2)}`}
-                      </Text>
-                      {Array.isArray(meal.dishes) && meal.dishes.length > 0 && (
-                        <Text style={styles.dishListText}>Dishes: {meal.dishes.join(', ')}</Text>
-                      )}
+                          <TouchableOpacity onPress={() => removeMealFromSession(ev.id, sDef.key, meal.id)} style={{ padding: 6 }}>
+                            <Ionicons name="trash-outline" size={20} color={theme.error} />
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    })}
+
+                    {/* ACTION BUTTONS FOR THIS SESSION */}
+                    <View style={styles.sessionActionsRow}>
+                      <TouchableOpacity
+                        style={styles.sessionAddBtn}
+                        activeOpacity={0.8}
+                        onPress={() => openFoodItemPicker(ev.id, sDef.key)}
+                      >
+                        <Ionicons name="cafe-outline" size={15} color={theme.primary} style={{ marginRight: 5 }} />
+                        <Text style={styles.sessionAddBtnText}>+ Food Item</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[styles.sessionAddBtn, styles.sessionAddMealBtn]}
+                        activeOpacity={0.8}
+                        onPress={() => openMealModal(ev.id, sDef.key)}
+                      >
+                        <Ionicons name="restaurant-outline" size={15} color={theme.accentPurple} style={{ marginRight: 5 }} />
+                        <Text style={[styles.sessionAddBtnText, { color: theme.accentPurple }]}>+ Thali / Package</Text>
+                      </TouchableOpacity>
                     </View>
-                    <TouchableOpacity onPress={() => removeMeal(ev.id, meal.id)} style={{ padding: 6 }}>
-                      <Ionicons name="trash-outline" size={20} color={theme.error} />
-                    </TouchableOpacity>
                   </View>
                 );
               })}
-
-              <TouchableOpacity
-                style={styles.buildMealBtn}
-                activeOpacity={0.85}
-                onPress={() => {
-                  setModalEventId(ev.id);
-                  setTempMealName('Full Meals Package');
-                  setTempMealPrice('');
-                  setTempMealQty('');
-                  setTempMealPricingMode('unit');
-                  setTempSelectedDishes([]);
-                  setModalVisible(true);
-                }}
-              >
-                <Ionicons name="add-circle-outline" size={18} color={theme.primary} />
-                <Text style={styles.buildMealBtnText}> Build Thali / Meal Package</Text>
-              </TouchableOpacity>
             </View>
           </View>
-        ))}
+        ); })}
 
         {/* ADD ANOTHER DATE BUTTON */}
         <TouchableOpacity style={styles.addDateBtn} onPress={addNewDateEvent} activeOpacity={0.85}>
@@ -1228,25 +1265,60 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
                 const totalTransport = calculateDaysTransport() + (parseFloat(transportCharge) || 0);
                 const grandTotal = subTotal + totalTransport;
 
-                // Deduct stock levels safely
+                // Deduct stock levels safely across all sessions
                 (events || []).forEach((ev) => {
-                  if (!ev) return;
-                  (tiffinItems || []).forEach((item) => {
-                    if (Array.isArray(ev.selectedTiffins) && !ev.selectedTiffins.includes(item.id)) {
-                      return;
-                    }
-                    const qty = (ev.tiffinQuantities && ev.tiffinQuantities[item.id]) || 0;
-                    if (qty > 0) {
-                      const newStock = Math.max(0, (item.stock || 0) - qty);
-                      updateTiffinItem({ ...item, stock: newStock });
-                    }
+                  if (!ev || !ev.sessions) return;
+                  ['breakfast', 'lunch', 'dinner'].forEach((sKey) => {
+                    const sess = ev.sessions[sKey];
+                    if (!sess) return;
+                    (sess.items || []).forEach((it) => {
+                      const qty = parseInt(it.quantity, 10) || 0;
+                      if (qty > 0) {
+                        const mItem = (tiffinItems || []).find((t) => t.id === it.id);
+                        if (mItem) {
+                          const newStock = Math.max(0, (mItem.stock || 0) - qty);
+                          updateTiffinItem({ ...mItem, stock: newStock });
+                        }
+                      }
+                    });
                   });
                 });
 
-                const formattedEvents = (events || []).map((ev) => ({
-                  ...ev,
-                  transportCharge: parseFloat(ev.transportCharge) || 0,
-                }));
+                const formattedEvents = (events || []).map((ev) => {
+                  const selectedTiffins = [];
+                  const tiffinQuantities = {};
+                  const fixedPrices = {};
+                  const pricingModes = {};
+                  const fixedSelected = {};
+                  const addedMeals = [];
+
+                  ['breakfast', 'lunch', 'dinner'].forEach((sKey) => {
+                    const sess = ev.sessions?.[sKey];
+                    if (sess) {
+                      (sess.items || []).forEach((it) => {
+                        selectedTiffins.push(it.id);
+                        tiffinQuantities[it.id] = it.quantity || 0;
+                        fixedPrices[it.id] = it.fixedPrice || '';
+                        pricingModes[it.id] = it.pricingMode || 'unit';
+                        fixedSelected[it.id] = it.fixedSelected !== undefined ? it.fixedSelected : true;
+                      });
+                      (sess.meals || []).forEach((m) => {
+                        addedMeals.push(m);
+                      });
+                    }
+                  });
+
+                  return {
+                    ...ev,
+                    transportCharge: parseFloat(ev.transportCharge) || 0,
+                    selectedTiffins,
+                    tiffinQuantities,
+                    fixedPrices,
+                    pricingModes,
+                    fixedSelected,
+                    addedMeals,
+                  };
+                });
 
                 const newInvoice = {
                   id: editInvoice ? editInvoice.id : Date.now().toString(),
@@ -1551,7 +1623,7 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
               <View style={{ flex: 1 }}>
                 <Text style={styles.modalTitle}>Select Food Item</Text>
                 <Text style={styles.pickerSubTitle}>
-                  Service Day {events.findIndex((e) => e.id === foodPickerEventId) + 1}
+                  Service Day {events.findIndex((e) => e.id === foodPickerEventId) + 1} • {foodPickerSessionKey ? foodPickerSessionKey.toUpperCase() : 'BREAKFAST'}
                 </Text>
               </View>
               <TouchableOpacity
@@ -1594,10 +1666,11 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
               ) : (
                 filteredFoodItems.map((item) => {
                   const activeEvent = events.find((e) => e.id === foodPickerEventId);
+                  const targetSession = activeEvent?.sessions?.[foodPickerSessionKey];
                   const isAlreadyAdded =
-                    activeEvent &&
-                    Array.isArray(activeEvent.selectedTiffins) &&
-                    activeEvent.selectedTiffins.includes(item.id);
+                    targetSession &&
+                    Array.isArray(targetSession.items) &&
+                    targetSession.items.some((i) => i.id === item.id);
                   const hasMenuPrice = item.price !== undefined && parseFloat(item.price) > 0;
 
                   return (
@@ -1610,9 +1683,9 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
                       activeOpacity={0.7}
                       onPress={() => {
                         if (isAlreadyAdded) {
-                          removeTiffinFromEvent(foodPickerEventId, item.id);
+                          removeFoodItemFromSession(foodPickerEventId, foodPickerSessionKey, item.id);
                         } else {
-                          addTiffinToEvent(foodPickerEventId, item);
+                          addFoodItemToSession(foodPickerEventId, foodPickerSessionKey, item);
                         }
                       }}
                     >
@@ -1861,6 +1934,69 @@ const getStyles = (theme, isDarkMode) => StyleSheet.create({
     color: theme.text,
     minWidth: 60,
     paddingVertical: 2,
+  },
+
+  sessionCard: {
+    backgroundColor: isDarkMode ? '#171B26' : '#F9F8FD',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: isDarkMode ? '#282F40' : '#EAE7F2',
+    padding: 14,
+    marginBottom: 14,
+  },
+  sessionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sessionIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sessionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: theme.text,
+  },
+  sessionTotalPill: {
+    marginLeft: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
+    borderRadius: 10,
+  },
+  sessionTotalPillText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  sessionSubtext: {
+    fontSize: 11,
+    color: theme.textSecondary,
+    marginTop: 1,
+  },
+  sessionActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 10,
+  },
+  sessionAddBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.primaryLight,
+    paddingVertical: 9,
+    borderRadius: 12,
+  },
+  sessionAddMealBtn: {
+    backgroundColor: isDarkMode ? '#2E1065' : '#F5F3FF',
+  },
+  sessionAddBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.primary,
   },
   
   subHeaderRow: {

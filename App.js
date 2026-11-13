@@ -38,9 +38,50 @@ import AnalyticsScreen from './screens/AnalyticsScreen';
 import { StoreProvider } from './context/StoreContext';
 import StoreDirectoryScreen from './screens/stores/StoreDirectoryScreen';
 import StoreDetailScreen from './screens/stores/StoreDetailScreen';
+import StorePriceCompareScreen from './screens/stores/StorePriceCompareScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
+
+function OverviewStack({ onLogout }) {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="OverallDashboard" component={OverallDashboardScreen} />
+      <Stack.Screen name="PremiumAnalytics" component={PremiumAnalyticsScreen} />
+      <Stack.Screen name="CreateCateringOrder" component={PremiumCreateInvoiceScreen} />
+      <Stack.Screen name="InvoicePreview" component={InvoicePreviewScreen} />
+      <Stack.Screen name="CateringOrderDetails" component={CateringOrderDetailsScreen} />
+      <Stack.Screen name="StorePriceCompare" component={StorePriceCompareScreen} />
+      <Stack.Screen name="StoreDetail" component={StoreDetailScreen} />
+      <Stack.Screen name="StoreDirectory" component={StoreDirectoryScreen} />
+      <Stack.Screen name="PremiumProfile">
+        {props => <PremiumProfileScreen {...props} onLogout={onLogout} />}
+      </Stack.Screen>
+    </Stack.Navigator>
+  );
+}
+
+function BillsStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="BillsList" component={PremiumHistoryScreen} />
+      <Stack.Screen name="CateringOrders" component={PremiumHistoryScreen} />
+      <Stack.Screen name="CateringOrderDetails" component={CateringOrderDetailsScreen} />
+      <Stack.Screen name="CreateCateringOrder" component={PremiumCreateInvoiceScreen} />
+      <Stack.Screen name="InvoicePreview" component={InvoicePreviewScreen} />
+    </Stack.Navigator>
+  );
+}
+
+function StoresStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="StoreDirectory" component={StoreDirectoryScreen} />
+      <Stack.Screen name="StoreDetail" component={StoreDetailScreen} />
+      <Stack.Screen name="StorePriceCompare" component={StorePriceCompareScreen} />
+    </Stack.Navigator>
+  );
+}
 
 function CateringStack() {
   return (
@@ -52,6 +93,7 @@ function CateringStack() {
       <Stack.Screen name="InvoicePreview" component={InvoicePreviewScreen} />
       <Stack.Screen name="StoreDirectory" component={StoreDirectoryScreen} />
       <Stack.Screen name="StoreDetail" component={StoreDetailScreen} />
+      <Stack.Screen name="StorePriceCompare" component={StorePriceCompareScreen} />
     </Stack.Navigator>
   );
 }
@@ -68,38 +110,25 @@ function ShopStack() {
   );
 }
 
-function OverviewStack({ onLogout }) {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="OverallDashboard" component={OverallDashboardScreen} />
-      <Stack.Screen name="PremiumProfile">
-        {props => <PremiumProfileScreen {...props} onLogout={onLogout} />}
-      </Stack.Screen>
-      <Stack.Screen name="StoreDirectory" component={StoreDirectoryScreen} />
-      <Stack.Screen name="StoreDetail" component={StoreDetailScreen} />
-    </Stack.Navigator>
-  );
-}
-
-// --- NEW EXECUTIVE TAB BAR ---
+// --- REFERENCE-INSPIRED 5-MODULE CATERING PRO TAB BAR ---
 const TAB_CONFIG = {
-  Overview: { label: 'Home', activeIcon: 'grid', inactiveIcon: 'grid-outline' },
-  Shop: { label: 'Shop', activeIcon: 'storefront', inactiveIcon: 'storefront-outline' },
-  Catering: { label: 'Catering', activeIcon: 'restaurant', inactiveIcon: 'restaurant-outline' },
-  Menu: { label: 'Menu', activeIcon: 'fast-food', inactiveIcon: 'fast-food-outline' },
-  Clients: { label: 'Clients', activeIcon: 'people', inactiveIcon: 'people-outline' },
-  Analytics: { label: 'Insights', activeIcon: 'stats-chart', inactiveIcon: 'stats-chart-outline' },
+  Overview: { label: 'Home', activeIcon: 'home', inactiveIcon: 'home-outline' },
+  Bills: { label: 'Bills', activeIcon: 'bar-chart', inactiveIcon: 'bar-chart-outline' },
+  Stores: { label: 'Stores', activeIcon: 'storefront', inactiveIcon: 'storefront-outline' },
+  Menu: { label: 'Menu', activeIcon: 'restaurant', inactiveIcon: 'restaurant-outline' },
+  Clients: { label: 'Clients', activeIcon: 'person', inactiveIcon: 'person-outline' },
 };
 
 const SUB_SCREENS_WITHOUT_TABBAR = [
-  'AddShopSale',
-  'AddShopExpense',
-  'StoreDirectory',
-  'StoreDetail',
   'CreateCateringOrder',
   'InvoicePreview',
   'CateringOrderDetails',
+  'StoreDetail',
+  'StorePriceCompare',
   'PremiumProfile',
+  'PremiumAnalytics',
+  'AddShopSale',
+  'AddShopExpense',
 ];
 
 function CustomTabBar({ state, descriptors, navigation }) {
@@ -143,26 +172,18 @@ function CustomTabBar({ state, descriptors, navigation }) {
               accessibilityRole="button"
               accessibilityState={isFocused ? { selected: true } : {}}
               onPress={onPress}
-              activeOpacity={0.7}
+              activeOpacity={0.75}
               style={styles.tabItem}
             >
-              <View style={[styles.tabContent, isFocused && styles.tabContentActive]}>
-                <Ionicons
-                  name={isFocused ? config.activeIcon : config.inactiveIcon}
-                  size={19}
-                  color={isFocused ? theme.primary : theme.tabBarInactive}
-                />
-                <Text
-                  style={[
-                    styles.tabLabel,
-                    { color: isFocused ? theme.primary : theme.tabBarInactive },
-                    isFocused && styles.tabLabelActive,
-                  ]}
-                  numberOfLines={1}
-                >
-                  {config.label}
-                </Text>
-              </View>
+              {isFocused ? (
+                <View style={styles.tabActiveSquircle}>
+                  <Ionicons name={config.activeIcon} size={20} color="#FFFFFF" />
+                </View>
+              ) : (
+                <View style={styles.tabInactiveContent}>
+                  <Ionicons name={config.inactiveIcon} size={22} color={isDarkMode ? '#8A879D' : '#767389'} />
+                </View>
+              )}
             </TouchableOpacity>
           );
         })}
@@ -182,11 +203,10 @@ function PremiumMainApp({ onLogout }) {
         <Tab.Screen name="Overview">
           {props => <OverviewStack {...props} onLogout={onLogout} />}
         </Tab.Screen>
-        <Tab.Screen name="Shop" component={ShopStack} />
-        <Tab.Screen name="Catering" component={CateringStack} />
+        <Tab.Screen name="Bills" component={BillsStack} />
+        <Tab.Screen name="Stores" component={StoresStack} />
         <Tab.Screen name="Menu" component={PremiumManageMenuScreen} />
         <Tab.Screen name="Clients" component={PremiumCustomersScreen} />
-        <Tab.Screen name="Analytics" component={AnalyticsScreen} />
       </Tab.Navigator>
     </NavigationContainer>
   );
@@ -449,18 +469,19 @@ const getStyles = (theme, isDarkMode) => StyleSheet.create({
   },
   floatingTabBar: {
     flexDirection: 'row',
-    backgroundColor: theme.tabBar,
-    borderRadius: 30,
+    backgroundColor: isDarkMode ? '#1E1D2E' : '#FFFFFF',
+    borderRadius: 36,
     borderWidth: 1,
-    borderColor: theme.border,
-    paddingVertical: 7,
+    borderColor: isDarkMode ? '#2E2D42' : 'rgba(0,0,0,0.06)',
+    paddingVertical: 6,
     paddingHorizontal: 8,
     width: '100%',
-    maxWidth: 440,
+    maxWidth: 380,
     justifyContent: 'space-between',
-    shadowColor: theme.shadow,
+    alignItems: 'center',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: isDarkMode ? 0.4 : 0.08,
+    shadowOpacity: isDarkMode ? 0.35 : 0.08,
     shadowRadius: 20,
     elevation: 10,
   },
@@ -469,25 +490,25 @@ const getStyles = (theme, isDarkMode) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tabContent: {
+  tabActiveSquircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    backgroundColor: isDarkMode ? '#FF7E69' : '#1E1D2E',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 6,
+    shadowColor: isDarkMode ? '#FF7E69' : '#1E1D2E',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  tabInactiveContent: {
+    width: 44,
+    height: 44,
     borderRadius: 16,
-    minWidth: 50,
-  },
-  tabContentActive: {
-    backgroundColor: theme.primaryLight,
-  },
-  tabLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    marginTop: 3,
-    letterSpacing: 0.2,
-  },
-  tabLabelActive: {
-    fontWeight: '700',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   premiumContainer: { 
     flex: 1, 

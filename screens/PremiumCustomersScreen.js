@@ -21,12 +21,12 @@ import { CustomerContext } from '../context/CustomerContext';
 import { ThemeContext } from '../context/ThemeContext';
 
 const AVATAR_PALETTES = [
-  { bg: '#EFF6FF', text: '#2563EB', darkBg: '#1E293B', darkText: '#60A5FA' },
-  { bg: '#F5F3FF', text: '#7C3AED', darkBg: '#2E1065', darkText: '#A78BFA' },
-  { bg: '#ECFDF5', text: '#059669', darkBg: '#064E3B', darkText: '#34D399' },
-  { bg: '#FFF7ED', text: '#EA580C', darkBg: '#431407', darkText: '#FB923C' },
-  { bg: '#FFF1F2', text: '#E11D48', darkBg: '#4C0519', darkText: '#FB7185' },
-  { bg: '#F0FDF4', text: '#15803D', darkBg: '#14532D', darkText: '#4ADE80' },
+  { bg: '#E9DFFF', text: '#5E4B8B', darkBg: '#2E1065', darkText: '#A78BFA' }, // Pastel lavender
+  { bg: '#FFE2D5', text: '#B84724', darkBg: '#431407', darkText: '#FB923C' }, // Pastel peach
+  { bg: '#D8F3E5', text: '#15803D', darkBg: '#064E3B', darkText: '#34D399' }, // Pastel mint
+  { bg: '#FFF0BD', text: '#92610A', darkBg: '#3F2C04', darkText: '#FDE047' }, // Pastel yellow
+  { bg: '#DCEBFF', text: '#1E40AF', darkBg: '#172554', darkText: '#93C5FD' }, // Pastel blue
+  { bg: '#FFD5D2', text: '#C2352B', darkBg: '#4C0519', darkText: '#FB7185' }, // Pastel coral
 ];
 
 function getInitials(name) {
@@ -50,7 +50,7 @@ function getAvatarColor(name, isDarkMode) {
   };
 }
 
-export default function PremiumCustomersScreen({ navigation }) {
+export default function PremiumCustomersScreen({ navigation, route }) {
   const { customers, addCustomer, deleteCustomer, refreshCustomers } = useContext(CustomerContext);
   const { theme, isDarkMode } = useContext(ThemeContext);
   const styles = getStyles(theme, isDarkMode);
@@ -59,6 +59,16 @@ export default function PremiumCustomersScreen({ navigation }) {
   const [filterType, setFilterType] = useState('ALL'); // 'ALL' or 'WITH_PHONE'
   const [isAddModalVisible, setAddModalVisible] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Auto-open modal when launched from Global Quick Add FAB
+  React.useEffect(() => {
+    if (route?.params?.autoOpenAddClient) {
+      setAddModalVisible(true);
+      if (navigation?.setParams) {
+        navigation.setParams({ autoOpenAddClient: false });
+      }
+    }
+  }, [route?.params?.autoOpenAddClient]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -339,9 +349,17 @@ export default function PremiumCustomersScreen({ navigation }) {
                     style={styles.billNowChip}
                     onPress={() => {
                       if (navigation && navigation.navigate) {
-                        navigation.navigate('Catering', {
+                        navigation.navigate('Overview', {
                           screen: 'CreateCateringOrder',
-                          params: { editInvoice: { clientName: c.name, clientPhone: c.phone !== 'N/A' ? c.phone : '' } }
+                          params: {
+                            editInvoice: {
+                              clientName: c.name,
+                              clientPhone: c.phone !== 'N/A' ? c.phone : '',
+                              clientAddress: c.address !== 'N/A' ? c.address : '',
+                            },
+                            newBill: true,
+                            timestamp: Date.now(),
+                          },
                         });
                       }
                     }}

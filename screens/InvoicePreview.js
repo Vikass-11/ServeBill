@@ -79,78 +79,164 @@ export default function InvoicePreviewScreen({ route, navigation }) {
     }
   }, []);
 
-  const orderedEvents = useMemo(
-    () =>
-      (events || [])
-        .map((ev, index) => {
-          if (!ev) return null;
-          const orderedTiffins = (tiffinItems || [])
-            .map((item) => {
-              if (!item) return null;
-              if (Array.isArray(ev.selectedTiffins) && !ev.selectedTiffins.includes(item.id)) {
-                return null;
-              }
-              const hasPredefinedPrice = item.price !== undefined && parseFloat(item.price) > 0;
-              const mode = (ev.pricingModes && ev.pricingModes[item.id])
-                || (hasPredefinedPrice ? 'unit' : 'fixed');
-              const isFixed = mode === 'fixed';
+  const orderedEvents = useMemo(() => {
+    const SESSION_META = [
+      { key: 'breakfast', label: 'Breakfast', icon: '🌅', color: '#FFE2D5', textColor: '#B84724' },
+      { key: 'lunch', label: 'Lunch', icon: '☀️', color: '#FFF0BD', textColor: '#92610A' },
+      { key: 'dinner', label: 'Dinner', icon: '🌙', color: '#E9DFFF', textColor: '#5E4B8B' },
+    ];
 
+    return (events || [])
+      .map((ev, index) => {
+        if (!ev) return null;
+        const daySessions = [];
+
+        if (ev.sessions && typeof ev.sessions === 'object') {
+          SESSION_META.forEach((meta) => {
+            const sess = ev.sessions[meta.key];
+            if (!sess) return;
+            const items = [];
+            const meals = [];
+
+            (sess.items || []).forEach((it) => {
+              const isFixed = it.pricingMode === 'fixed';
               if (isFixed) {
-                const rawPrice = ev.fixedPrices && ev.fixedPrices[item.id] !== undefined
-                  ? ev.fixedPrices[item.id]
-                  : (hasPredefinedPrice ? item.price : 0);
-                const fixedPrice = parseFloat(rawPrice) || 0;
-                const isSelected = ev.fixedSelected && ev.fixedSelected[item.id] !== undefined
-                  ? Boolean(ev.fixedSelected[item.id])
-                  : fixedPrice > 0;
+                const amt = parseFloat(it.fixedPrice) || 0;
+                const isSel = it.fixedSelected !== undefined ? it.fixedSelected : amt > 0;
+                if (isSel && amt > 0) {
+                  items.push({
+                    ...it,
+                    isFixed: true,
+                    qty: 1,
+                    rate: amt,
+                    rowTotal: amt,
+                    unitDisplay: 'Total',
+                  });
+                }
+              } else {
+                const qty = parseInt(it.quantity, 10) || 0;
+                const rate = parseFloat(it.price) || 0;
+                if (qty > 0 && rate > 0) {
+                  items.push({
+                    ...it,
+                    isFixed: false,
+                    qty,
+                    rate,
+                    rowTotal: qty * rate,
+                    unitDisplay: it.unit || 'nos',
+                  });
+                }
+              }
+            });
 
-                if (!isSelected || fixedPrice <= 0) return null;
+            (sess.meals || []).forEach((m) => {
+              const isFixed = m.pricingMode === 'fixed';
+              const price = parseFloat(m.price) || 0;
+              const qty = isFixed ? 1 : (parseInt(m.quantity, 10) || 1);
+              const rowTotal = isFixed ? price : price * qty;
+              if (rowTotal > 0) {
+                meals.push({
+                  ...m,
+                  isFixed,
+                  quantity: qty,
+                  price,
+                  rowTotal,
+                });
+              }
+            });
 
-                return {
-                  ...item,
-                  isFixed: true,
-                  qty: 1,
-                  rate: fixedPrice,
-                  rowTotal: fixedPrice,
-                  unitDisplay: item.unit && item.unit !== 'fixed' ? item.unit : 'Total',
-                };
+            if (items.length > 0 || meals.length > 0) {
+              const hasUnitRows = items.some((i) => !i.isFixed) || meals.some((m) => !m.isFixed);
+              const sessionTotal = items.reduce((s, i) => s + i.rowTotal, 0) + meals.reduce((s, m) => s + m.rowTotal, 0);
+              daySessions.push({
+                ...meta,
+                items,
+                meals,
+                hasUnitRows,
+                sessionTotal,
+              });
+            }
+          });
+        }
+
+        // Backward compatibility fallback for legacy bills without sessions
+        if (daySessions.length === 0) {
+          const legacyTiffins = (tiffinItems || [])
+            .map((item) => {
+              if (!item || !Array.isArray(ev.selectedTiffins) || !ev.selectedTiffins.includes(item.id)) return null;
+              const mode = (ev.pricingModes && ev.pricingModes[item.id]) || (parseFloat(item.price) > 0 ? 'unit' : 'fixed');
+              const isFixed = mode === 'fixed';
+              if (isFixed) {
+                const fixedPrice = parseFloat(ev.fixedPrices?.[item.id] ?? item.price ?? 0) || 0;
+                if (fixedPrice <= 0) return null;
+                return { ...item, isFixed: true, qty: 1, rate: fixedPrice, rowTotal: fixedPrice, unitDisplay: 'Total' };
               } else {
                 const qty = (ev.tiffinQuantities && ev.tiffinQuantities[item.id]) || 0;
                 const rate = parseFloat(item.price) || 0;
                 if (qty <= 0) return null;
-
-                return {
-                  ...item,
-                  isFixed: false,
-                  qty,
-                  rate,
-                  rowTotal: qty * rate,
-                  unitDisplay: item.unit || 'nos',
-                };
+                return { ...item, isFixed: false, qty, rate, rowTotal: qty * rate, unitDisplay: item.unit || 'nos' };
               }
             })
             .filter(Boolean);
 
-          const addedMeals = Array.isArray(ev?.addedMeals) ? ev.addedMeals : [];
+          const legacyMeals = (Array.isArray(ev.addedMeals) ? ev.addedMeals : []).map((m) => {
+            const isFixed = m.pricingMode === 'fixed';
+            const price = parseFloat(m.price) || 0;
+            const qty = isFixed ? 1 : (parseInt(m.quantity, 10) || 1);
+            return { ...m, isFixed, quantity: qty, price, rowTotal: isFixed ? price : price * qty };
+          });
 
-          return {
-            ...ev,
-            index,
-            orderedTiffins,
-            addedMeals,
-          };
-        })
-        .filter(Boolean)
-        .filter((ev) => ev.orderedTiffins.length > 0 || ev.addedMeals.length > 0),
-    [events, tiffinItems]
-  );
+          if (legacyTiffins.length > 0) {
+            daySessions.push({
+              key: 'breakfast',
+              label: 'Breakfast / Tiffins',
+              icon: '🌅',
+              color: '#FFE2D5',
+              textColor: '#B84724',
+              items: legacyTiffins,
+              meals: [],
+              hasUnitRows: legacyTiffins.some((i) => !i.isFixed),
+              sessionTotal: legacyTiffins.reduce((s, i) => s + i.rowTotal, 0),
+            });
+          }
+
+          if (legacyMeals.length > 0) {
+            daySessions.push({
+              key: 'lunch',
+              label: 'Lunch / Meal Packages',
+              icon: '☀️',
+              color: '#FFF0BD',
+              textColor: '#92610A',
+              items: [],
+              meals: legacyMeals,
+              hasUnitRows: legacyMeals.some((m) => !m.isFixed),
+              sessionTotal: legacyMeals.reduce((s, m) => s + m.rowTotal, 0),
+            });
+          }
+        }
+
+        const dayTransport = parseFloat(ev.transportCharge) || 0;
+
+        return {
+          ...ev,
+          index,
+          daySessions,
+          dayTransport,
+        };
+      })
+      .filter(Boolean)
+      .filter((ev) => ev.daySessions.length > 0 || ev.dayTransport > 0);
+  }, [events, tiffinItems]);
 
   const totalVisibleRows = useMemo(
     () =>
-      orderedEvents.reduce(
-        (sum, ev) => sum + ev.orderedTiffins.length + ev.addedMeals.length,
-        0
-      ),
+      orderedEvents.reduce((sum, ev) => {
+        let count = 0;
+        ev.daySessions.forEach((s) => {
+          count += s.items.length + s.meals.length;
+        });
+        return sum + count;
+      }, 0),
     [orderedEvents]
   );
 
@@ -216,95 +302,127 @@ export default function InvoicePreviewScreen({ route, navigation }) {
 
     const eventBlocks = orderedEvents
       .map((ev) => {
-        const hasUnitTiffins = ev.orderedTiffins.some((item) => !item.isFixed);
+        const sessionsHtml = ev.daySessions
+          .map((session) => {
+            const hasUnitRows = session.hasUnitRows;
 
-        const tiffinRows = ev.orderedTiffins
-          .map((item) => {
-            const rowTotalDisplay = `₹${item.rowTotal.toFixed(2)}`;
+            const itemsRows = session.items
+              .map((item) => {
+                const rowTotalDisplay = `₹${item.rowTotal.toFixed(2)}`;
 
-            if (!hasUnitTiffins) {
-              // ALL items in this table are Total Value - display only Item Description & Amount
-              return `
-                <tr>
-                  <td><strong>${escapeHtml(item.name)}</strong></td>
-                  <td style="text-align: right; font-weight: 600;">${rowTotalDisplay}</td>
-                </tr>
-              `;
-            }
+                if (!hasUnitRows) {
+                  // ALL items in this session are Flat Total Value: NO Unit, NO Qty, NO Rate!
+                  return `
+                    <tr>
+                      <td><strong>${escapeHtml(item.name)}</strong></td>
+                      <td style="text-align: right; font-weight: 700;">${rowTotalDisplay}</td>
+                    </tr>
+                  `;
+                }
 
-            // Mixed table (contains both unit-based and fixed items)
-            if (item.isFixed) {
-              return `
-                <tr>
-                  <td><strong>${escapeHtml(item.name)}</strong></td>
-                  <td colspan="3" style="text-align: center; color: #64748b; font-size: 0.88em; font-style: italic;">Total Amount</td>
-                  <td style="text-align: right; font-weight: 600;">${rowTotalDisplay}</td>
-                </tr>
-              `;
-            }
+                if (item.isFixed) {
+                  return `
+                    <tr>
+                      <td><strong>${escapeHtml(item.name)}</strong></td>
+                      <td colspan="3" style="text-align: center; color: #64748b; font-size: 0.88em; font-style: italic;">Total Amount</td>
+                      <td style="text-align: right; font-weight: 700;">${rowTotalDisplay}</td>
+                    </tr>
+                  `;
+                }
+
+                return `
+                  <tr>
+                    <td><strong>${escapeHtml(item.name)}</strong></td>
+                    <td>${escapeHtml(item.unit || 'nos')}</td>
+                    <td style="text-align: center;">${item.qty}</td>
+                    <td style="text-align: right;">₹${item.rate.toFixed(2)}</td>
+                    <td style="text-align: right; font-weight: 700;">${rowTotalDisplay}</td>
+                  </tr>
+                `;
+              })
+              .join('');
+
+            const mealsRows = session.meals
+              .map((meal) => {
+                const rowTotalDisplay = `₹${meal.rowTotal.toFixed(2)}`;
+                const dishesHtml = Array.isArray(meal.dishes) && meal.dishes.length > 0
+                  ? `<div style="font-size: 0.85em; color: #555; margin-top: 3px;">${escapeHtml(meal.dishes.join(', '))}</div>`
+                  : '';
+
+                if (!hasUnitRows) {
+                  // ALL items in this session are Flat Total Value: NO Unit, NO Qty, NO Rate!
+                  return `
+                    <tr>
+                      <td>
+                        <strong>${escapeHtml(meal.name)}</strong>
+                        ${dishesHtml}
+                      </td>
+                      <td style="text-align: right; font-weight: 700;">${rowTotalDisplay}</td>
+                    </tr>
+                  `;
+                }
+
+                if (meal.isFixed) {
+                  return `
+                    <tr>
+                      <td>
+                        <strong>${escapeHtml(meal.name)}</strong>
+                        ${dishesHtml}
+                      </td>
+                      <td colspan="3" style="text-align: center; color: #64748b; font-size: 0.88em; font-style: italic;">Flat Package Total</td>
+                      <td style="text-align: right; font-weight: 700;">${rowTotalDisplay}</td>
+                    </tr>
+                  `;
+                }
+
+                return `
+                  <tr>
+                    <td>
+                      <strong>${escapeHtml(meal.name)}</strong>
+                      ${dishesHtml}
+                    </td>
+                    <td>plates</td>
+                    <td style="text-align: center;">${meal.quantity}</td>
+                    <td style="text-align: right;">₹${parseFloat(meal.price || 0).toFixed(2)}</td>
+                    <td style="text-align: right; font-weight: 700;">${rowTotalDisplay}</td>
+                  </tr>
+                `;
+              })
+              .join('');
 
             return `
-              <tr>
-                <td><strong>${escapeHtml(item.name)}</strong></td>
-                <td>${escapeHtml(item.unit || 'nos')}</td>
-                <td style="text-align: center;">${item.qty}</td>
-                <td style="text-align: right;">₹${item.rate.toFixed(2)}</td>
-                <td style="text-align: right; font-weight: 600;">${rowTotalDisplay}</td>
-              </tr>
-            `;
-          })
-          .join('');
-
-        const hasUnitMeals = ev.addedMeals.some((m) => m.pricingMode !== 'fixed');
-
-        const mealRows = ev.addedMeals
-          .map((meal) => {
-            const isFixed = meal.pricingMode === 'fixed';
-            const rowTotal = isFixed
-              ? (parseFloat(meal.price) || 0)
-              : ((parseFloat(meal.price) || 0) * (parseInt(meal.quantity, 10) || 1));
-            const rowTotalDisplay = `₹${rowTotal.toFixed(2)}`;
-            const dishesHtml = Array.isArray(meal.dishes) && meal.dishes.length > 0
-              ? `<div style="font-size: 0.85em; color: #555; margin-top: 3px;">${escapeHtml(meal.dishes.join(', '))}</div>`
-              : '';
-
-            if (!hasUnitMeals) {
-              // ALL meal packages in this table are Flat Total Value
-              return `
-                <tr>
-                  <td>
-                    <strong>${escapeHtml(meal.name)}</strong>
-                    ${dishesHtml}
-                  </td>
-                  <td style="text-align: right; font-weight: 600;">${rowTotalDisplay}</td>
-                </tr>
-              `;
-            }
-
-            // Mixed meal packages table
-            if (isFixed) {
-              return `
-                <tr>
-                  <td>
-                    <strong>${escapeHtml(meal.name)}</strong>
-                    ${dishesHtml}
-                  </td>
-                  <td colspan="2" style="text-align: center; color: #64748b; font-size: 0.88em; font-style: italic;">Flat Package Total</td>
-                  <td style="text-align: right; font-weight: 600;">${rowTotalDisplay}</td>
-                </tr>
-              `;
-            }
-
-            return `
-              <tr>
-                <td>
-                  <strong>${escapeHtml(meal.name)}</strong>
-                  ${dishesHtml}
-                </td>
-                <td style="text-align: center;">${meal.quantity}</td>
-                <td style="text-align: right;">₹${parseFloat(meal.price || 0).toFixed(2)}</td>
-                <td style="text-align: right; font-weight: 600;">${rowTotalDisplay}</td>
-              </tr>
+              <div style="margin-top: 8px; margin-bottom: 8px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                  <span style="font-weight: 800; font-size: 0.95em; color: ${session.textColor};">
+                    ${session.icon} ${escapeHtml(session.label)}
+                  </span>
+                  <span style="font-size: 0.88em; font-weight: 700; color: #64748b;">
+                    Session Total: ₹${session.sessionTotal.toFixed(2)}
+                  </span>
+                </div>
+                <table>
+                  <thead>
+                    ${!hasUnitRows ? `
+                      <tr>
+                        <th style="width: 70%;">Item / Package Description</th>
+                        <th style="width: 30%; text-align: right;">Amount</th>
+                      </tr>
+                    ` : `
+                      <tr>
+                        <th style="width: 42%;">Item / Package</th>
+                        <th style="width: 14%;">Unit</th>
+                        <th style="width: 14%; text-align: center;">Qty</th>
+                        <th style="width: 15%; text-align: right;">Rate</th>
+                        <th style="width: 15%; text-align: right;">Total</th>
+                      </tr>
+                    `}
+                  </thead>
+                  <tbody>
+                    ${itemsRows}
+                    ${mealsRows}
+                  </tbody>
+                </table>
+              </div>
             `;
           })
           .join('');
@@ -312,71 +430,13 @@ export default function InvoicePreviewScreen({ route, navigation }) {
         return `
           <section class="event-block">
             <h2>Day ${ev.index + 1} - ${escapeHtml(new Date(ev.date).toLocaleDateString('en-GB'))}</h2>
+            ${sessionsHtml}
             ${
-              tiffinRows
-                ? `
-                  <h3>Tiffin Items</h3>
-                  <table>
-                    <thead>
-                      ${
-                        hasUnitTiffins
-                          ? `
-                            <tr>
-                              <th style="width: 42%;">Item</th>
-                              <th style="width: 14%;">Unit</th>
-                              <th style="width: 14%; text-align: center;">Qty</th>
-                              <th style="width: 15%; text-align: right;">Rate</th>
-                              <th style="width: 15%; text-align: right;">Total</th>
-                            </tr>
-                          `
-                          : `
-                            <tr>
-                              <th style="width: 70%;">Item Description</th>
-                              <th style="width: 30%; text-align: right;">Amount</th>
-                            </tr>
-                          `
-                      }
-                    </thead>
-                    <tbody>${tiffinRows}</tbody>
-                  </table>
-                `
-                : ''
-            }
-            ${
-              mealRows
-                ? `
-                  <h3>Meal Packages</h3>
-                  <table>
-                    <thead>
-                      ${
-                        hasUnitMeals
-                          ? `
-                            <tr>
-                              <th style="width: 50%;">Package & Dishes</th>
-                              <th style="width: 15%; text-align: center;">Qty</th>
-                              <th style="width: 15%; text-align: right;">Rate</th>
-                              <th style="width: 20%; text-align: right;">Total</th>
-                            </tr>
-                          `
-                          : `
-                            <tr>
-                              <th style="width: 70%;">Package & Dishes</th>
-                              <th style="width: 30%; text-align: right;">Amount</th>
-                            </tr>
-                          `
-                      }
-                    </thead>
-                    <tbody>${mealRows}</tbody>
-                  </table>
-                `
-                : ''
-            }
-            ${
-              parseFloat(ev.transportCharge) > 0
+              ev.dayTransport > 0
                 ? `
                   <div style="display: flex; justify-content: space-between; align-items: center; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 5px 12px; margin-top: 5px; font-size: 0.88em;">
                     <span style="color: #475569;"><strong>Day ${ev.index + 1} Transport:</strong></span>
-                    <span style="color: #1e293b; font-weight: 700;">₹${parseFloat(ev.transportCharge).toFixed(2)}</span>
+                    <span style="color: #1e293b; font-weight: 700;">₹${ev.dayTransport.toFixed(2)}</span>
                   </div>
                 `
                 : ''
@@ -818,62 +878,81 @@ export default function InvoicePreviewScreen({ route, navigation }) {
               </Text>
             </View>
 
-            {ev.orderedTiffins.map((item) => {
-              const isFixed = item.isFixed;
-              return (
-                <View key={item.id} style={styles.itemRow}>
-                  <View style={styles.itemMain}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={[styles.itemNameText, dynamicStyles.itemName]}>{item.name}</Text>
-                      {isFixed && (
-                        <View style={{ backgroundColor: isDarkMode ? '#1E293B' : '#F1F5F9', paddingHorizontal: 6, paddingVertical: 1.5, borderRadius: 4 }}>
-                          <Text style={{ fontSize: 9, fontWeight: '700', color: isDarkMode ? '#94A3B8' : '#64748B' }}>TOTAL AMOUNT</Text>
-                        </View>
-                      )}
-                    </View>
-                    {!isFixed && (
-                      <Text style={[styles.itemSubDetail, dynamicStyles.itemDetail]}>
-                        {item.qty} {item.unit || 'nos'} x ₹{item.rate.toFixed(2)}
-                      </Text>
-                    )}
-                  </View>
-                  <Text style={[styles.priceText, dynamicStyles.price]}>₹{item.rowTotal.toFixed(2)}</Text>
+            {ev.daySessions.map((session) => (
+              <View key={session.key} style={styles.previewSessionCard}>
+                <View style={[styles.previewSessionHeader, { backgroundColor: session.color }]}>
+                  <Text style={[styles.previewSessionTitle, { color: session.textColor }]}>
+                    {session.icon} {session.label}
+                  </Text>
+                  <Text style={[styles.previewSessionTotal, { color: session.textColor }]}>
+                    ₹{session.sessionTotal.toFixed(2)}
+                  </Text>
                 </View>
-              );
-            })}
 
-            {ev.addedMeals.map((meal) => {
-              const isFixed = meal.pricingMode === 'fixed';
-              const rowTotal = isFixed
-                ? (parseFloat(meal.price) || 0)
-                : ((parseFloat(meal.price) || 0) * (parseInt(meal.quantity, 10) || 1));
-
-              return (
-                <View key={meal.id} style={styles.itemRow}>
-                  <View style={styles.itemMain}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={[styles.itemNameText, dynamicStyles.itemName]}>{meal.name}</Text>
-                      {isFixed && (
-                        <View style={{ backgroundColor: isDarkMode ? '#312E81' : '#EEF2FF', paddingHorizontal: 6, paddingVertical: 1.5, borderRadius: 4 }}>
-                          <Text style={{ fontSize: 9, fontWeight: '700', color: isDarkMode ? '#A5B4FC' : '#4F46E5' }}>LUMP SUM</Text>
+                {session.items.map((item) => {
+                  const isFixed = item.isFixed;
+                  return (
+                    <View key={item.id} style={styles.itemRow}>
+                      <View style={styles.itemMain}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={[styles.itemNameText, dynamicStyles.itemName]}>{item.name}</Text>
+                          {isFixed && (
+                            <View style={{ backgroundColor: isDarkMode ? '#1E293B' : '#F1F5F9', paddingHorizontal: 6, paddingVertical: 1.5, borderRadius: 4 }}>
+                              <Text style={{ fontSize: 9, fontWeight: '700', color: isDarkMode ? '#94A3B8' : '#64748B' }}>TOTAL</Text>
+                            </View>
+                          )}
                         </View>
-                      )}
+                        {!isFixed && (
+                          <Text style={[styles.itemSubDetail, dynamicStyles.itemDetail]}>
+                            {item.qty} {item.unit || 'nos'} × ₹{item.rate.toFixed(2)}
+                          </Text>
+                        )}
+                      </View>
+                      <Text style={[styles.priceText, dynamicStyles.price]}>₹{item.rowTotal.toFixed(2)}</Text>
                     </View>
-                    {Array.isArray(meal.dishes) && meal.dishes.length > 0 && (
-                      <Text style={[styles.dishListText, dynamicStyles.itemDetail]}>
-                        {meal.dishes.join(' | ')}
-                      </Text>
-                    )}
-                    <Text style={[styles.itemSubDetail, dynamicStyles.itemDetail]}>
-                      {isFixed
-                        ? (meal.quantity > 1 ? `Flat Package (~${meal.quantity} guests)` : 'Flat Package Total')
-                        : `${meal.quantity} plates x ₹${meal.price}`}
-                    </Text>
-                  </View>
-                  <Text style={[styles.priceText, dynamicStyles.price]}>₹{rowTotal.toFixed(2)}</Text>
+                  );
+                })}
+
+                {session.meals.map((meal) => {
+                  const isFixed = meal.pricingMode === 'fixed';
+                  return (
+                    <View key={meal.id} style={styles.itemRow}>
+                      <View style={styles.itemMain}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={[styles.itemNameText, dynamicStyles.itemName]}>{meal.name}</Text>
+                          {isFixed && (
+                            <View style={{ backgroundColor: isDarkMode ? '#312E81' : '#EEF2FF', paddingHorizontal: 6, paddingVertical: 1.5, borderRadius: 4 }}>
+                              <Text style={{ fontSize: 9, fontWeight: '700', color: isDarkMode ? '#A5B4FC' : '#4F46E5' }}>LUMP SUM</Text>
+                            </View>
+                          )}
+                        </View>
+                        {Array.isArray(meal.dishes) && meal.dishes.length > 0 && (
+                          <Text style={[styles.dishListText, dynamicStyles.itemDetail]}>
+                            {meal.dishes.join(' | ')}
+                          </Text>
+                        )}
+                        <Text style={[styles.itemSubDetail, dynamicStyles.itemDetail]}>
+                          {isFixed
+                            ? (meal.quantity > 1 ? `Flat Package (~${meal.quantity} guests)` : 'Flat Package Total')
+                            : `${meal.quantity} plates × ₹${meal.price}`}
+                        </Text>
+                      </View>
+                      <Text style={[styles.priceText, dynamicStyles.price]}>₹{meal.rowTotal.toFixed(2)}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            ))}
+
+            {ev.dayTransport > 0 && (
+              <View style={styles.previewDayTransportRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Ionicons name="car-outline" size={16} color={theme.primary} style={{ marginRight: 6 }} />
+                  <Text style={styles.previewDayTransportLabel}>Day {ev.index + 1} Transport</Text>
                 </View>
-              );
-            })}
+                <Text style={styles.previewDayTransportVal}>₹{ev.dayTransport.toFixed(2)}</Text>
+              </View>
+            )}
           </View>
         ))}
 
@@ -1049,6 +1128,53 @@ const getStyles = (theme, isDarkMode) => StyleSheet.create({
   dateText: { fontSize: 13, color: theme.textSecondary, marginTop: 2, fontWeight: '500' },
   divider: { height: 1, backgroundColor: theme.border, marginBottom: 20 },
   eventSection: { marginBottom: 25 },
+  previewSessionCard: {
+    backgroundColor: isDarkMode ? '#171B26' : '#F9F8FD',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: isDarkMode ? '#282F40' : '#EAE7F2',
+    padding: 12,
+    marginBottom: 14,
+  },
+  previewSessionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  previewSessionTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  previewSessionTotal: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  previewDayTransportRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: isDarkMode ? '#1E1B2E' : '#F5F3FF',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: isDarkMode ? '#312E81' : '#DDD6FE',
+  },
+  previewDayTransportLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: isDarkMode ? '#A5B4FC' : '#6D28D9',
+  },
+  previewDayTransportVal: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: isDarkMode ? '#A5B4FC' : '#6D28D9',
+  },
   dayHeader: {
     backgroundColor: theme.inputBackground,
     borderLeftWidth: 4,

@@ -1,19 +1,64 @@
 import React, { useContext, useMemo, useState, useCallback } from 'react';
-import { ScrollView, StyleSheet, Text, View, TouchableOpacity, RefreshControl } from 'react-native';
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  TouchableOpacity,
+  RefreshControl,
+  Platform,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Path } from 'react-native-svg';
 import { BusinessContext } from '../context/BusinessContext';
 import { InvoiceContext } from '../context/InvoiceContext';
 import { ThemeContext } from '../context/ThemeContext';
+import QuickAddModal from '../components/QuickAddModal';
+
+// Mini Sparkline SVG Wave matching Screen 2
+function MiniWave({ color = '#FF6B55', width = 64, height = 22 }) {
+  return (
+    <Svg width={width} height={height} viewBox="0 0 64 22">
+      <Path
+        d="M 2 16 C 14 20, 22 4, 34 12 C 44 18, 52 4, 62 8"
+        fill="none"
+        stroke={color}
+        strokeWidth="2.2"
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
+// Circular Progress Gauge Ring matching Screen 2
+function CircularGauge({ progress = 0.95, valueText = '1350', labelText = 'Calories' }) {
+  return (
+    <View style={styles.gaugeContainer}>
+      <View style={styles.gaugeOuterRing}>
+        <View style={styles.gaugeInnerCircle}>
+          <View style={styles.gaugeFlameBadge}>
+            <Ionicons name="flame" size={13} color="#FF6B55" />
+          </View>
+          <Text style={styles.gaugeValue}>{valueText}</Text>
+          <Text style={styles.gaugeLabel}>{labelText}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
 
 export default function OverallDashboardScreen({ navigation }) {
-  const { shopSales, shopExpenses, businessProfile, refreshBusinessData } = useContext(BusinessContext);
+  const { businessProfile, refreshBusinessData } = useContext(BusinessContext);
   const { invoices, refreshInvoices } = useContext(InvoiceContext);
   const { theme, isDarkMode } = useContext(ThemeContext);
   const styles = getStyles(theme, isDarkMode);
+
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [heroView, setHeroView] = useState('coral'); // 'coral' (Screen 1) or 'progress' (Screen 2)
+  const [timeFilter, setTimeFilter] = useState('today'); // 'today' or 'month'
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -32,74 +77,82 @@ export default function OverallDashboardScreen({ navigation }) {
   );
 
   const stats = useMemo(() => {
+    const todayStr = new Date().toLocaleDateString('en-IN');
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
 
-    // SHOP STATS
-    let shopMonthRevenue = 0;
-    let shopMonthExpenses = 0;
+    let todayRevenue = 0;
+    let todayCollected = 0;
+    let todayOrdersCount = 0;
 
-    shopSales.forEach(sale => {
-      const d = new Date(sale.date);
-      if (!isNaN(d.getTime()) && d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
-        shopMonthRevenue += (sale.morningSales || 0) + (sale.nightSales || 0);
-      }
-    });
+    let monthRevenue = 0;
+    let monthCollected = 0;
+    let monthOrdersCount = 0;
+    let totalPending = 0;
 
-    shopExpenses.forEach(exp => {
-      const d = new Date(exp.date);
-      if (!isNaN(d.getTime()) && d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
-        shopMonthExpenses += (exp.amount || 0);
-      }
-    });
-
-    const shopProfit = shopMonthRevenue - shopMonthExpenses;
-
-    // CATERING STATS
-    let cateringMonthRevenue = 0;
-    let cateringMonthExpenses = 0;
-    let cateringOrdersCount = 0;
-    let totalPendingReceivables = 0;
-
-    invoices.forEach(inv => {
-      const d = new Date(inv.date);
-      const isThisMonth = !isNaN(d.getTime()) && d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    (invoices || []).forEach((inv) => {
       const rev = parseFloat(inv.grandTotal || inv.total || 0);
       const rec = parseFloat(inv.amountReceived || 0);
+      const bal = Math.max(0, rev - rec);
 
-      totalPendingReceivables += Math.max(0, rev - rec);
+      totalPending += bal;
+
+      const d = new Date(inv.date);
+      const isDateValid = !isNaN(d.getTime());
+
+      // Check Today
+      const isToday =
+        inv.date === todayStr ||
+        (isDateValid && d.toLocaleDateString('en-IN') === todayStr);
+
+      if (isToday) {
+        todayOrdersCount++;
+        todayRevenue += rev;
+        todayCollected += rec;
+      }
+
+      // Check This Month
+      const isThisMonth =
+        isDateValid &&
+        d.getMonth() === currentMonth &&
+        d.getFullYear() === currentYear;
 
       if (isThisMonth) {
-        cateringOrdersCount++;
-        cateringMonthRevenue += rev;
-        if (inv.expenses && Array.isArray(inv.expenses)) {
-          inv.expenses.forEach(e => cateringMonthExpenses += parseFloat(e.amount || 0));
-        }
+        monthOrdersCount++;
+        monthRevenue += rev;
+        monthCollected += rec;
       }
     });
 
-    const cateringProfit = cateringMonthRevenue - cateringMonthExpenses;
-    const totalRevenue = shopMonthRevenue + cateringMonthRevenue;
-    const totalProfit = shopProfit + cateringProfit;
-    const profitMargin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : '0.0';
+    const activeRevenue = timeFilter === 'today' ? todayRevenue : monthRevenue;
+    const activeCollected = timeFilter === 'today' ? todayCollected : monthCollected;
+    const activeBalance = Math.max(0, activeRevenue - activeCollected);
+    const activeOrders = timeFilter === 'today' ? todayOrdersCount : monthOrdersCount;
+
+    const collectionRatio = monthRevenue > 0
+      ? Math.min(100, Math.round((monthCollected / monthRevenue) * 100))
+      : 95;
 
     return {
-      shopMonthRevenue,
-      shopMonthExpenses,
-      shopProfit,
-      cateringMonthRevenue,
-      cateringMonthExpenses,
-      cateringProfit,
-      cateringOrdersCount,
-      totalPendingReceivables,
-      totalRevenue,
-      totalProfit,
-      profitMargin,
+      activeRevenue,
+      activeCollected,
+      activeBalance,
+      activeOrders,
+      monthRevenue,
+      monthCollected,
+      totalPending,
+      monthOrdersCount,
+      collectionRatio,
     };
-  }, [shopSales, shopExpenses, invoices]);
+  }, [invoices, timeFilter]);
 
-  const currentMonthName = new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' });
-  const recentInvoices = useMemo(() => invoices.slice(0, 3), [invoices]);
+  const recentOrders = useMemo(() => {
+    return [...(invoices || [])]
+      .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+      .slice(0, 4);
+  }, [invoices]);
+
+  const businessName = (businessProfile && businessProfile.name) || 'Rownok';
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -115,697 +168,1002 @@ export default function OverallDashboardScreen({ navigation }) {
           />
         }
       >
-        
-        {/* EXECUTIVE HEADER */}
+        {/* ======================================================== */}
+        {/* 1. TOP HEADER BAR (Exact layout from Screen 1 & 2)       */}
+        {/* ======================================================== */}
         <View style={styles.header}>
-          <View style={{ flex: 1 }}>
-            <View style={styles.headerBadge}>
-              <View style={styles.pulseDot} />
-              <Text style={styles.headerBadgeText}>{currentMonthName}</Text>
-            </View>
-            <Text style={styles.mainTitle} numberOfLines={1}>
-              {businessProfile?.name || 'ServeBill'}
-            </Text>
-            <Text style={styles.subtitle}>Executive Command Center</Text>
-          </View>
-
-          <TouchableOpacity 
-            style={styles.profileButton} 
+          {/* Avatar + User Name */}
+          <TouchableOpacity
+            style={styles.profileRow}
+            activeOpacity={0.8}
             onPress={() => navigation.navigate('PremiumProfile')}
-            activeOpacity={0.8}
           >
-            <Ionicons name="settings-sharp" size={20} color={theme.text} />
-          </TouchableOpacity>
-        </View>
-
-        {/* HERO TOTAL PERFORMANCE CARD */}
-        <View style={styles.heroCardShadow}>
-          <LinearGradient
-            colors={isDarkMode ? ['#131B2E', '#0B101D'] : ['#0F172A', '#1E293B']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.heroCard}
-          >
-            <View style={styles.heroTopRow}>
-              <View>
-                <Text style={styles.heroPreLabel}>TOTAL NET REVENUE</Text>
-                <Text style={styles.heroValue}>
-                  ₹{stats.totalRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </Text>
-              </View>
-
-              <View style={styles.marginPill}>
-                <Ionicons name="trending-up" size={14} color="#34D399" style={{ marginRight: 4 }} />
-                <Text style={styles.marginPillText}>{stats.profitMargin}% Margin</Text>
-              </View>
-            </View>
-
-            {/* Health Bar */}
-            <View style={styles.barContainer}>
-              <View 
-                style={[
-                  styles.barFill, 
-                  { width: `${Math.min(100, Math.max(10, (stats.totalProfit / (stats.totalRevenue || 1)) * 100))}%` }
-                ]} 
-              />
-            </View>
-
-            <View style={styles.heroBottomRow}>
-              <View>
-                <Text style={styles.heroSubLabel}>Estimated Net Profit</Text>
-                <Text style={styles.heroSubValueProfit}>
-                  ₹{stats.totalProfit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </Text>
-              </View>
-
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={styles.heroSubLabel}>Total Operating Cost</Text>
-                <Text style={styles.heroSubValueExpense}>
-                  ₹{(stats.shopMonthExpenses + stats.cateringMonthExpenses).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </Text>
-              </View>
-            </View>
-          </LinearGradient>
-        </View>
-
-        {/* QUICK ACTIONS COMMAND TILES */}
-        <View style={styles.sectionTitleRow}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-        </View>
-
-        <View style={styles.quickActionGrid}>
-          <TouchableOpacity
-            style={styles.actionTile}
-            activeOpacity={0.8}
-            onPress={() => {
-              if (navigation && navigation.navigate) {
-                navigation.navigate('Catering', {
-                  screen: 'CreateCateringOrder',
-                  params: { editInvoice: null, newBill: true, timestamp: Date.now() },
-                });
-              }
-            }}
-          >
-            <LinearGradient colors={theme.primaryGradient} style={styles.actionIconCircle}>
-              <Ionicons name="receipt" size={20} color="#FFFFFF" />
-            </LinearGradient>
-            <Text style={styles.actionTileTitle}>New Bill</Text>
-            <Text style={styles.actionTileSub}>Catering Order</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionTile}
-            activeOpacity={0.8}
-            onPress={() => {
-              if (navigation && navigation.navigate) {
-                navigation.navigate('Shop', { screen: 'AddShopSale' });
-              }
-            }}
-          >
-            <View style={[styles.actionIconCircle, { backgroundColor: isDarkMode ? '#1E3A2F' : '#ECFDF5' }]}>
-              <Ionicons name="cash" size={20} color={theme.success} />
-            </View>
-            <Text style={styles.actionTileTitle}>Shop Sales</Text>
-            <Text style={styles.actionTileSub}>Daily Shift</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionTile}
-            activeOpacity={0.8}
-            onPress={() => {
-              if (navigation && navigation.navigate) {
-                navigation.navigate('Shop', { screen: 'AddShopExpense' });
-              }
-            }}
-          >
-            <View style={[styles.actionIconCircle, { backgroundColor: isDarkMode ? '#3B1A1A' : '#FEF2F2' }]}>
-              <Ionicons name="receipt" size={20} color={theme.error} />
-            </View>
-            <Text style={styles.actionTileTitle}>Bills & Rent</Text>
-            <Text style={styles.actionTileSub}>Overheads</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionTile}
-            activeOpacity={0.8}
-            onPress={() => navigation.navigate('Clients')}
-          >
-            <View style={[styles.actionIconCircle, { backgroundColor: isDarkMode ? '#222744' : '#EEF2FF' }]}>
-              <Ionicons name="people" size={20} color={theme.secondary} />
-            </View>
-            <Text style={styles.actionTileTitle}>Clients</Text>
-            <Text style={styles.actionTileSub}>Directory</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* STORE PRICE TRACKER QUICK CARD */}
-        <TouchableOpacity
-          style={styles.storeTrackerBanner}
-          activeOpacity={0.88}
-          onPress={() => navigation.navigate('StoreDirectory')}
-        >
-          <LinearGradient
-            colors={isDarkMode ? ['#1E1B4B', '#2D2766'] : ['#F0FDF4', '#DCFCE7']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.storeTrackerGradient}
-          >
-            <View style={[styles.storeTrackerIconWrap, { backgroundColor: isDarkMode ? '#312E81' : '#BBF7D0' }]}>
-              <Ionicons name="pricetags" size={20} color={isDarkMode ? '#818CF8' : '#15803D'} />
-            </View>
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={styles.storeTrackerTitle}>Store-Wise Price History</Text>
-                <View style={[styles.storeTrackerBadge, { backgroundColor: isDarkMode ? '#6366F1' : '#16A34A' }]}>
-                  <Text style={styles.storeTrackerBadgeText}>SMART</Text>
-                </View>
-              </View>
-              <Text style={styles.storeTrackerSub}>Check price history, photos & compare stores before buying</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={isDarkMode ? '#818CF8' : '#16A34A'} />
-          </LinearGradient>
-        </TouchableOpacity>
-
-        {/* DIVISION COMPARISON SECTION */}
-        <View style={styles.sectionTitleRow}>
-          <Text style={styles.sectionTitle}>Business Divisions</Text>
-        </View>
-
-        {/* SHOP DIVISION CARD */}
-        <TouchableOpacity
-          style={styles.divisionCard}
-          activeOpacity={0.9}
-          onPress={() => navigation.navigate('Shop')}
-        >
-          <View style={styles.divisionHeader}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <View style={[styles.divisionIconWrap, { backgroundColor: theme.primaryLight }]}>
-                <Ionicons name="storefront" size={20} color={theme.primary} />
-              </View>
-              <View style={{ marginLeft: 12 }}>
-                <Text style={styles.divisionTitle}>Shop Counter</Text>
-                <Text style={styles.divisionSubtitle}>Daily Counter Sales & Retail</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
-          </View>
-
-          <View style={styles.divisionStatsRow}>
-            <View style={styles.divisionStatCol}>
-              <Text style={styles.divisionStatLabel}>Revenue</Text>
-              <Text style={styles.divisionStatValue}>₹{stats.shopMonthRevenue.toFixed(0)}</Text>
-            </View>
-            <View style={styles.divisionDivider} />
-            <View style={styles.divisionStatCol}>
-              <Text style={styles.divisionStatLabel}>Expenses</Text>
-              <Text style={[styles.divisionStatValue, { color: theme.error }]}>₹{stats.shopMonthExpenses.toFixed(0)}</Text>
-            </View>
-            <View style={styles.divisionDivider} />
-            <View style={styles.divisionStatCol}>
-              <Text style={styles.divisionStatLabel}>Profit</Text>
-              <Text style={[styles.divisionStatValue, { color: theme.success }]}>₹{stats.shopProfit.toFixed(0)}</Text>
-            </View>
-          </View>
-        </TouchableOpacity>
-
-        {/* CATERING DIVISION CARD */}
-        <TouchableOpacity
-          style={styles.divisionCard}
-          activeOpacity={0.9}
-          onPress={() => navigation.navigate('Catering')}
-        >
-          <View style={styles.divisionHeader}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <View style={[styles.divisionIconWrap, { backgroundColor: isDarkMode ? '#2B1A3A' : '#F5F3FF' }]}>
-                <Ionicons name="restaurant" size={20} color={theme.accentPurple} />
-              </View>
-              <View style={{ marginLeft: 12 }}>
-                <Text style={styles.divisionTitle}>Catering & Events</Text>
-                <Text style={styles.divisionSubtitle}>{stats.cateringOrdersCount} Orders This Month</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
-          </View>
-
-          <View style={styles.divisionStatsRow}>
-            <View style={styles.divisionStatCol}>
-              <Text style={styles.divisionStatLabel}>Revenue</Text>
-              <Text style={styles.divisionStatValue}>₹{stats.cateringMonthRevenue.toFixed(0)}</Text>
-            </View>
-            <View style={styles.divisionDivider} />
-            <View style={styles.divisionStatCol}>
-              <Text style={styles.divisionStatLabel}>Expenses</Text>
-              <Text style={[styles.divisionStatValue, { color: theme.error }]}>₹{stats.cateringMonthExpenses.toFixed(0)}</Text>
-            </View>
-            <View style={styles.divisionDivider} />
-            <View style={styles.divisionStatCol}>
-              <Text style={styles.divisionStatLabel}>Profit</Text>
-              <Text style={[styles.divisionStatValue, { color: theme.success }]}>₹{stats.cateringProfit.toFixed(0)}</Text>
-            </View>
-          </View>
-
-          {stats.totalPendingReceivables > 0 && (
-            <View style={styles.pendingBanner}>
-              <Ionicons name="alert-circle" size={14} color="#F59E0B" style={{ marginRight: 6 }} />
-              <Text style={styles.pendingBannerText}>
-                Pending Receivables: <Text style={{ fontWeight: '800' }}>₹{stats.totalPendingReceivables.toFixed(0)}</Text>
+            <View style={styles.avatarCircle}>
+              <Text style={styles.avatarInitials}>
+                {businessName.slice(0, 2).toUpperCase()}
               </Text>
             </View>
-          )}
-        </TouchableOpacity>
+            <View style={{ marginLeft: 10 }}>
+              <Text style={styles.greetingText}>Hello, {businessName}!</Text>
+            </View>
+          </TouchableOpacity>
 
-        {/* RECENT INVOICES SECTION */}
-        {recentInvoices.length > 0 && (
-          <View style={{ marginTop: 10 }}>
-            <View style={styles.sectionTitleRow}>
-              <Text style={styles.sectionTitle}>Recent Invoices</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Catering', { screen: 'CateringOrders' })}>
-                <Text style={styles.viewAllText}>View All</Text>
+          {/* Action Icons: Search + Notification Bell with Coral Badge Dot */}
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.headerIconBtn}
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate('Bills')}
+            >
+              <Ionicons name="search-outline" size={19} color={theme.text} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.headerIconBtn}
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate('Bills')}
+            >
+              <Ionicons name="notifications-outline" size={19} color={theme.text} />
+              {stats.totalPending > 0 && <View style={styles.notificationDot} />}
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* ======================================================== */}
+        {/* 2. TOP HERO CARD (Screen 1 Coral Card / Screen 2 Progress)*/}
+        {/* ======================================================== */}
+        {heroView === 'coral' ? (
+          /* SCREEN 1 CORAL / PEACH CARD (#FFD5CC) */
+          <View style={styles.heroCoralCard}>
+            {/* Top row of Hero card */}
+            <View style={styles.heroTopRow}>
+              <View style={styles.heroTitleGroup}>
+                <View style={styles.heroIconSquircle}>
+                  <Ionicons name="restaurant" size={16} color="#FF6B55" />
+                </View>
+                <View style={{ marginLeft: 10 }}>
+                  <Text style={styles.heroCardTitle}>Today's Catering</Text>
+                  <Text style={styles.heroCardSub}>
+                    {stats.activeOrders > 0
+                      ? `${stats.activeOrders} Events Booked`
+                      : '350 plates • 2 Venues'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Action buttons (+ and Edit) */}
+              <View style={styles.heroBtnGroup}>
+                <TouchableOpacity
+                  style={styles.heroCircleActionBtn}
+                  activeOpacity={0.85}
+                  onPress={() =>
+                    navigation.navigate('CreateCateringOrder', {
+                      editInvoice: null,
+                      newBill: true,
+                      timestamp: Date.now(),
+                    })
+                  }
+                >
+                  <Ionicons name="add" size={18} color="#232136" />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.heroCircleActionBtn}
+                  activeOpacity={0.85}
+                  onPress={() => setHeroView('progress')}
+                >
+                  <Ionicons name="create-outline" size={16} color="#232136" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* 4 Stats Spread Horizontally */}
+            <View style={styles.heroStatsSpread}>
+              <View style={styles.heroStatCol}>
+                <Text style={styles.heroStatLabel}>Revenue</Text>
+                <Text style={styles.heroStatValue}>
+                  ₹{(stats.activeRevenue / 1000).toFixed(1)}k
+                </Text>
+              </View>
+
+              <View style={styles.heroStatCol}>
+                <Text style={styles.heroStatLabel}>Advance</Text>
+                <Text style={styles.heroStatValue}>
+                  ₹{(stats.activeCollected / 1000).toFixed(1)}k
+                </Text>
+              </View>
+
+              <View style={styles.heroStatCol}>
+                <Text style={styles.heroStatLabel}>Balance</Text>
+                <Text style={styles.heroStatValue}>
+                  ₹{(stats.activeBalance / 1000).toFixed(1)}k
+                </Text>
+              </View>
+
+              <View style={styles.heroStatCol}>
+                <Text style={styles.heroStatLabel}>Orders</Text>
+                <Text style={styles.heroStatValue}>{stats.activeOrders}</Text>
+              </View>
+            </View>
+
+            {/* Bottom Row: Filter Pill + "See Progress" link */}
+            <View style={styles.heroBottomRow}>
+              <TouchableOpacity
+                style={styles.heroDropdownPill}
+                activeOpacity={0.8}
+                onPress={() => setTimeFilter(timeFilter === 'today' ? 'month' : 'today')}
+              >
+                <Text style={styles.heroDropdownText}>
+                  {timeFilter === 'today' ? 'Today' : 'This Month'}
+                </Text>
+                <Ionicons name="chevron-down" size={12} color="#4A455A" style={{ marginLeft: 4 }} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => navigation.navigate('PremiumAnalytics')}
+              >
+                <Text style={styles.seeProgressLink}>See Progress →</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          /* SCREEN 2 PERIWINKLE / PROGRESS CARD (#DCD9FF) */
+          <View style={styles.heroProgressCard}>
+            <View style={styles.progressCardLeft}>
+              <View style={styles.progressHeaderRow}>
+                <View style={styles.heroIconSquircle}>
+                  <Ionicons name="trending-up" size={16} color="#554E96" />
+                </View>
+                <Text style={styles.progressCardTitle}>Your Progress</Text>
+              </View>
+
+              <Text style={styles.progressBigPercent}>
+                {stats.collectionRatio}%
+              </Text>
+
+              <TouchableOpacity
+                style={styles.progressDatePill}
+                activeOpacity={0.8}
+                onPress={() => setHeroView('coral')}
+              >
+                <Text style={styles.progressDateText}>November 2026</Text>
+                <Ionicons name="chevron-down" size={12} color="#554E96" style={{ marginLeft: 4 }} />
               </TouchableOpacity>
             </View>
 
-            {recentInvoices.map((inv) => (
-              <TouchableOpacity
-                key={inv.id}
-                style={styles.recentItem}
-                activeOpacity={0.8}
-                onPress={() => navigation.navigate('Catering', { screen: 'CateringOrderDetails', params: { invoiceId: inv.id } })}
-              >
-                <View style={styles.recentItemLeft}>
-                  <View style={styles.recentAvatar}>
-                    <Ionicons name="document-text" size={18} color={theme.primary} />
-                  </View>
-                  <View style={{ marginLeft: 12 }}>
-                    <Text style={styles.recentClientName}>{inv.clientName}</Text>
-                    <Text style={styles.recentDate}>{inv.date}</Text>
-                  </View>
-                </View>
-
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={styles.recentAmount}>
-                    ₹{parseFloat(inv.grandTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </Text>
-                  <Text style={styles.recentStatus}>Completed</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+            {/* Circular Gauge on Right */}
+            <CircularGauge
+              progress={stats.collectionRatio / 100}
+              valueText={`${stats.monthOrdersCount * 90}`}
+              labelText="Plates"
+            />
           </View>
         )}
 
+        {/* ======================================================== */}
+        {/* 3. 2x2 PASTEL FEATURE GRID (Exact layout from Screen 1)  */}
+        {/* ======================================================== */}
+        <View style={styles.featureGrid}>
+          {/* Card 1: Sport Data -> Store Prices (Pastel Peach #FFE6D8) */}
+          <TouchableOpacity
+            style={[styles.featureCard, { backgroundColor: '#FFE6D8' }]}
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate('Stores', { screen: 'StorePriceCompare' })}
+          >
+            <View style={styles.featureCardTop}>
+              <Text style={styles.featureCardTitle}>Store Prices</Text>
+              <View style={styles.featureIconSquircle}>
+                <Ionicons name="storefront" size={14} color="#A14F2B" />
+              </View>
+            </View>
+            <Text style={styles.featureCardSub}>
+              Compare Wholesale & Local Market Rates
+            </Text>
+            <View style={styles.featureCheckRow}>
+              <Text style={styles.featureCheckText}>Check</Text>
+              <Ionicons name="arrow-forward" size={14} color="#232136" style={{ marginLeft: 4 }} />
+            </View>
+          </TouchableOpacity>
+
+          {/* Card 2: Hearth Health -> Bills & Vault (Pastel Lavender #DCD9FF) */}
+          <TouchableOpacity
+            style={[styles.featureCard, { backgroundColor: '#DCD9FF' }]}
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate('Bills')}
+          >
+            <View style={styles.featureCardTop}>
+              <Text style={styles.featureCardTitle}>Bills & Vault</Text>
+              <View style={styles.featureIconSquircle}>
+                <Ionicons name="receipt" size={14} color="#554E96" />
+              </View>
+            </View>
+            <Text style={styles.featureCardSub}>
+              Track Paid, Partial & Pending Invoices
+            </Text>
+            <View style={styles.featureCheckRow}>
+              <Text style={styles.featureCheckText}>Check</Text>
+              <Ionicons name="arrow-forward" size={14} color="#232136" style={{ marginLeft: 4 }} />
+            </View>
+          </TouchableOpacity>
+
+          {/* Card 3: Sleep Quality -> Menu Catalog (Pastel Mint #D0F5E8) */}
+          <TouchableOpacity
+            style={[styles.featureCard, { backgroundColor: '#D0F5E8' }]}
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate('Menu')}
+          >
+            <View style={styles.featureCardTop}>
+              <Text style={styles.featureCardTitle}>Menu Catalog</Text>
+              <View style={styles.featureIconSquircle}>
+                <Ionicons name="fast-food" size={14} color="#177A54" />
+              </View>
+            </View>
+            <Text style={styles.featureCardSub}>
+              Tiffins, Curries & Master Thali Packages
+            </Text>
+            <View style={styles.featureCheckRow}>
+              <Text style={styles.featureCheckText}>Check</Text>
+              <Ionicons name="arrow-forward" size={14} color="#232136" style={{ marginLeft: 4 }} />
+            </View>
+          </TouchableOpacity>
+
+          {/* Card 4: IBM -> Client Hub (Pastel Coral / Soft Red #FFB8B3) */}
+          <TouchableOpacity
+            style={[styles.featureCard, { backgroundColor: '#FFB8B3' }]}
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate('Clients')}
+          >
+            <View style={styles.featureCardTop}>
+              <Text style={styles.featureCardTitle}>Client Hub</Text>
+              <View style={styles.featureIconSquircle}>
+                <Ionicons name="people" size={14} color="#A32F26" />
+              </View>
+            </View>
+            <Text style={styles.featureCardSub}>
+              Customer Directory & Instant Billing
+            </Text>
+            <View style={styles.featureCheckRow}>
+              <Text style={styles.featureCheckText}>Check</Text>
+              <Ionicons name="arrow-forward" size={14} color="#232136" style={{ marginLeft: 4 }} />
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* ======================================================== */}
+        {/* 4. SPLIT ROW: RECAPS + 2 MINI SPARKLINE CARDS (Screen 2) */}
+        {/* ======================================================== */}
+        <View style={styles.splitRow}>
+          {/* Left Tall Card: "My Activity Recaps" */}
+          <View style={styles.recapsCard}>
+            <Text style={styles.recapsTitle}>Catering Command</Text>
+            <Text style={styles.recapsSub}>
+              Everything you need to run your event catering business.
+            </Text>
+
+            {/* Banquet illustration card */}
+            <View style={styles.recapsImagePlaceholder}>
+              <View style={styles.recapsArtCircle}>
+                <Ionicons name="restaurant-outline" size={32} color="#FF6B55" />
+              </View>
+              <Text style={styles.recapsArtCaption}>Banquet Master</Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.recapsPillBtn}
+              activeOpacity={0.85}
+              onPress={() =>
+                navigation.navigate('CreateCateringOrder', {
+                  editInvoice: null,
+                  newBill: true,
+                  timestamp: Date.now(),
+                })
+              }
+            >
+              <Text style={styles.recapsPillBtnText}>+ Create Bill</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Right Column: 2 Compact White Cards with Mini Sparklines */}
+          <View style={styles.sparklineCol}>
+            {/* Top Compact Card: Current Month Revenue */}
+            <TouchableOpacity
+              style={styles.compactStatCard}
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate('PremiumAnalytics')}
+            >
+              <View style={styles.compactStatHeader}>
+                <Text style={styles.compactStatTitle}>Month Revenue</Text>
+                <View style={styles.compactIconSquircle}>
+                  <Ionicons name="trending-up" size={11} color="#1E1D2E" />
+                </View>
+              </View>
+              <Text style={styles.compactStatValue}>
+                ₹{stats.monthRevenue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+              </Text>
+              <View style={styles.compactStatFooter}>
+                <View style={styles.deltaPill}>
+                  <Text style={styles.deltaPillText}>▲ +12.4%</Text>
+                </View>
+                <MiniWave color="#2DD4BF" width={52} height={20} />
+              </View>
+            </TouchableOpacity>
+
+            {/* Bottom Compact Card: Pending Dues */}
+            <TouchableOpacity
+              style={styles.compactStatCard}
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate('Bills')}
+            >
+              <View style={styles.compactStatHeader}>
+                <Text style={styles.compactStatTitle}>Pending Due</Text>
+                <View style={styles.compactIconSquircle}>
+                  <Ionicons name="alert-circle" size={11} color="#FF6B55" />
+                </View>
+              </View>
+              <Text style={[styles.compactStatValue, { color: '#DC2626' }]}>
+                ₹{stats.totalPending.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+              </Text>
+              <View style={styles.compactStatFooter}>
+                <View style={[styles.deltaPill, { backgroundColor: '#FEE2E2' }]}>
+                  <Text style={[styles.deltaPillText, { color: '#DC2626' }]}>▼ To Collect</Text>
+                </View>
+                <MiniWave color="#FF6B55" width={52} height={20} />
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* ======================================================== */}
+        {/* 5. TODAY'S EVENTS / RECOMMENDATIONS SECTION (Screen 1)   */}
+        {/* ======================================================== */}
+        <View style={styles.recommendationHeader}>
+          <Text style={styles.recommendationTitle}>Recent Event Orders</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Bills')}>
+            <Text style={styles.viewAllText}>View All →</Text>
+          </TouchableOpacity>
+        </View>
+
+        {recentOrders.length === 0 ? (
+          <View style={styles.emptyRecentCard}>
+            <Ionicons name="receipt-outline" size={28} color={theme.textMuted} />
+            <Text style={styles.emptyRecentText}>No recent catering orders recorded yet.</Text>
+          </View>
+        ) : (
+          recentOrders.map((inv) => {
+            const total = parseFloat(inv.grandTotal || inv.total || 0);
+            const rec = parseFloat(inv.amountReceived || 0);
+            const isPaid = rec >= total && total > 0;
+            const isPartial = rec > 0 && rec < total;
+
+            return (
+              <TouchableOpacity
+                key={inv.id}
+                style={styles.recentOrderCard}
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate('Bills', { screen: 'CateringOrderDetails', params: { invoiceId: inv.id } })}
+              >
+                <View style={styles.recentOrderLeft}>
+                  <View style={styles.recentOrderAvatar}>
+                    <Text style={styles.recentOrderAvatarText}>
+                      {(inv.clientName || 'C').slice(0, 2).toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={{ marginLeft: 12 }}>
+                    <Text style={styles.recentClientName} numberOfLines={1}>
+                      {inv.clientName || 'Direct Client'}
+                    </Text>
+                    <Text style={styles.recentOrderDate}>{inv.date || 'Today'}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.recentOrderRight}>
+                  <Text style={styles.recentOrderAmount}>
+                    ₹{total.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                  </Text>
+                  <View
+                    style={[
+                      styles.recentStatusPill,
+                      isPaid
+                        ? styles.statusPillPaid
+                        : isPartial
+                        ? styles.statusPillPartial
+                        : styles.statusPillPending,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.recentStatusText,
+                        isPaid && { color: '#15803D' },
+                        isPartial && { color: '#B45309' },
+                        !isPaid && !isPartial && { color: '#DC2626' },
+                      ]}
+                    >
+                      {isPaid ? 'PAID' : isPartial ? 'PARTIAL' : 'DUE'}
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })
+        )}
+
+        <View style={{ height: 110 }} />
       </ScrollView>
+
+      {/* GLOBAL QUICK ADD FAB & MODAL */}
+      <QuickAddModal
+        visible={isQuickAddOpen}
+        onClose={() => setIsQuickAddOpen(false)}
+        navigation={navigation}
+      />
     </SafeAreaView>
   );
 }
 
-const getStyles = (theme, isDarkMode) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.background,
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 110,
-    paddingTop: 8,
-    width: '100%',
-    maxWidth: 580,
-    alignSelf: 'center',
-  },
-  header: {
-    paddingTop: 12,
-    marginBottom: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  headerBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.primaryLight,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-    alignSelf: 'flex-start',
-    marginBottom: 6,
-  },
-  pulseDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: theme.primary,
-    marginRight: 6,
-  },
-  headerBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: theme.primary,
-  },
-  mainTitle: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: theme.text,
-    letterSpacing: -0.6,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: theme.textSecondary,
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  profileButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
-    backgroundColor: theme.card,
-    borderWidth: 1,
-    borderColor: theme.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: theme.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: isDarkMode ? 0.3 : 0.05,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  heroCardShadow: {
-    borderRadius: 26,
-    marginBottom: 24,
-    shadowColor: theme.shadow,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: isDarkMode ? 0.4 : 0.15,
-    shadowRadius: 24,
-    elevation: 8,
-  },
-  heroCard: {
-    borderRadius: 26,
-    padding: 24,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.15)',
-  },
-  heroTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 16,
-  },
-  heroPreLabel: {
-    color: '#94A3B8',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1,
-    marginBottom: 4,
-  },
-  heroValue: {
-    color: '#FFFFFF',
-    fontSize: 32,
-    fontWeight: '900',
-    letterSpacing: -0.8,
-  },
-  marginPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(52, 211, 153, 0.16)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-  },
-  marginPillText: {
-    color: '#34D399',
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  barContainer: {
-    height: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: 3,
-    overflow: 'hidden',
-    marginBottom: 20,
-  },
-  barFill: {
-    height: '100%',
-    backgroundColor: '#34D399',
-    borderRadius: 3,
-  },
-  heroBottomRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  heroSubLabel: {
-    color: '#94A3B8',
-    fontSize: 11,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  heroSubValueProfit: {
-    color: '#34D399',
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  heroSubValueExpense: {
-    color: '#F87171',
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  sectionTitleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: theme.text,
-    letterSpacing: -0.3,
-  },
-  viewAllText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: theme.primary,
-  },
-  quickActionGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-  },
-  actionTile: {
-    width: '23%',
-    backgroundColor: theme.card,
-    borderRadius: 18,
-    paddingVertical: 14,
-    paddingHorizontal: 6,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.border,
-    shadowColor: theme.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: isDarkMode ? 0.2 : 0.04,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  actionIconCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  actionTileTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: theme.text,
-    textAlign: 'center',
-  },
-  actionTileSub: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: theme.textMuted,
-    marginTop: 2,
-    textAlign: 'center',
-  },
-  divisionCard: {
-    backgroundColor: theme.card,
-    borderRadius: 22,
-    padding: 18,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: theme.border,
-    shadowColor: theme.shadow,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: isDarkMode ? 0.25 : 0.04,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  divisionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  divisionIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  divisionTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: theme.text,
-    letterSpacing: -0.2,
-  },
-  divisionSubtitle: {
-    fontSize: 12,
-    color: theme.textSecondary,
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  divisionStatsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: theme.border,
-  },
-  divisionStatCol: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  divisionStatLabel: {
-    fontSize: 11,
-    color: theme.textMuted,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  divisionStatValue: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: theme.text,
-  },
-  divisionDivider: {
-    width: 1,
-    height: 30,
-    backgroundColor: theme.border,
-  },
-  pendingBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: isDarkMode ? '#2D2005' : '#FFFBEB',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: isDarkMode ? '#4D3605' : '#FDE68A',
-  },
-  pendingBannerText: {
-    fontSize: 12,
-    color: isDarkMode ? '#FCD34D' : '#B45309',
-    fontWeight: '600',
-  },
-  recentItem: {
-    backgroundColor: theme.card,
-    borderRadius: 18,
-    padding: 14,
-    marginBottom: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.border,
-    shadowColor: theme.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: isDarkMode ? 0.15 : 0.03,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  recentItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  recentAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: theme.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  recentClientName: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: theme.text,
-  },
-  recentDate: {
-    fontSize: 11,
-    color: theme.textSecondary,
-    marginTop: 2,
-  },
-  recentAmount: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: theme.text,
-  },
-  recentStatus: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: theme.success,
-    marginTop: 2,
-  },
-  storeTrackerBanner: {
-    marginHorizontal: 16,
-    marginBottom: 20,
-    borderRadius: 20,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: isDarkMode ? '#4338CA' : '#86EFAC',
-    shadowColor: isDarkMode ? '#6366F1' : '#16A34A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: isDarkMode ? 0.25 : 0.08,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  storeTrackerGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
-  storeTrackerIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  storeTrackerTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: isDarkMode ? '#FFFFFF' : '#14532D',
-  },
-  storeTrackerBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    marginLeft: 8,
-  },
-  storeTrackerBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-  storeTrackerSub: {
-    fontSize: 11,
-    color: isDarkMode ? '#A5B4FC' : '#15803D',
-    marginTop: 2,
-    fontWeight: '500',
-  },
-});
+const getStyles = (theme, isDarkMode) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: isDarkMode ? '#0F0E17' : '#F7F6FB',
+    },
+    scrollContent: {
+      paddingHorizontal: 16,
+      paddingTop: 10,
+    },
+
+    // 1. HEADER BAR
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+      paddingHorizontal: 2,
+    },
+    profileRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    avatarCircle: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      backgroundColor: '#E9DFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1.5,
+      borderColor: '#FFFFFF',
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    avatarInitials: {
+      fontSize: 14,
+      fontWeight: '800',
+      color: '#554E96',
+    },
+    greetingText: {
+      fontSize: 18,
+      fontWeight: '800',
+      color: isDarkMode ? '#F8F7FC' : '#1E1D2E',
+      letterSpacing: -0.3,
+    },
+    headerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    headerIconBtn: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: isDarkMode ? '#1E1D2E' : '#FFFFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: isDarkMode ? '#2E2D42' : 'rgba(0,0,0,0.05)',
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.06,
+      shadowRadius: 4,
+      elevation: 1,
+    },
+    notificationDot: {
+      position: 'absolute',
+      top: 9,
+      right: 9,
+      width: 7,
+      height: 7,
+      borderRadius: 3.5,
+      backgroundColor: '#FF6B55',
+    },
+
+    // 2. HERO CORAL CARD (#FFD5CC)
+    heroCoralCard: {
+      backgroundColor: isDarkMode ? '#3B231B' : '#FFD5CC',
+      borderRadius: 28,
+      padding: 20,
+      marginBottom: 16,
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: isDarkMode ? 0.25 : 0.06,
+      shadowRadius: 16,
+      elevation: 3,
+    },
+    heroTopRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 18,
+    },
+    heroTitleGroup: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    heroIconSquircle: {
+      width: 36,
+      height: 36,
+      borderRadius: 12,
+      backgroundColor: '#FFFFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.06,
+      shadowRadius: 3,
+      elevation: 1,
+    },
+    heroCardTitle: {
+      fontSize: 16,
+      fontWeight: '800',
+      color: isDarkMode ? '#FFE2D5' : '#232136',
+    },
+    heroCardSub: {
+      fontSize: 11,
+      color: isDarkMode ? '#F7C6B6' : '#6A657A',
+      marginTop: 2,
+      fontWeight: '500',
+    },
+    heroBtnGroup: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    heroCircleActionBtn: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      backgroundColor: '#FFFFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    heroStatsSpread: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 18,
+      paddingHorizontal: 4,
+    },
+    heroStatCol: {
+      alignItems: 'flex-start',
+    },
+    heroStatLabel: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: isDarkMode ? '#F7C6B6' : '#6A657A',
+      marginBottom: 3,
+    },
+    heroStatValue: {
+      fontSize: 21,
+      fontWeight: '900',
+      color: isDarkMode ? '#FFFFFF' : '#232136',
+      letterSpacing: -0.4,
+    },
+    heroBottomRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingTop: 6,
+    },
+    heroDropdownPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'rgba(255, 255, 255, 0.55)',
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 16,
+    },
+    heroDropdownText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: '#232136',
+    },
+    seeProgressLink: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: '#232136',
+    },
+
+    // HERO PROGRESS CARD (#DCD9FF)
+    heroProgressCard: {
+      backgroundColor: isDarkMode ? '#2E2445' : '#DCD9FF',
+      borderRadius: 28,
+      padding: 20,
+      marginBottom: 16,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: isDarkMode ? 0.25 : 0.06,
+      shadowRadius: 16,
+      elevation: 3,
+    },
+    progressCardLeft: {
+      flex: 1,
+    },
+    progressHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 10,
+    },
+    progressCardTitle: {
+      fontSize: 15,
+      fontWeight: '800',
+      color: isDarkMode ? '#E9DFFF' : '#232136',
+      marginLeft: 10,
+    },
+    progressBigPercent: {
+      fontSize: 42,
+      fontWeight: '900',
+      color: isDarkMode ? '#FFFFFF' : '#232136',
+      letterSpacing: -1,
+      marginBottom: 8,
+    },
+    progressDatePill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'rgba(255, 255, 255, 0.55)',
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 16,
+      alignSelf: 'flex-start',
+    },
+    progressDateText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: '#232136',
+    },
+    gaugeContainer: {
+      width: 96,
+      height: 96,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    gaugeOuterRing: {
+      width: 96,
+      height: 96,
+      borderRadius: 48,
+      borderWidth: 5,
+      borderColor: '#FF7E69',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#FFFFFF',
+    },
+    gaugeInnerCircle: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    gaugeFlameBadge: {
+      marginBottom: 1,
+    },
+    gaugeValue: {
+      fontSize: 16,
+      fontWeight: '900',
+      color: '#232136',
+      letterSpacing: -0.3,
+    },
+    gaugeLabel: {
+      fontSize: 9,
+      fontWeight: '700',
+      color: '#767389',
+      textTransform: 'uppercase',
+    },
+
+    // 3. 2x2 FEATURE GRID
+    featureGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+      marginBottom: 16,
+    },
+    featureCard: {
+      width: '48%',
+      borderRadius: 22,
+      padding: 16,
+      minHeight: 125,
+      justifyContent: 'space-between',
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.05,
+      shadowRadius: 10,
+      elevation: 2,
+    },
+    featureCardTop: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+    },
+    featureCardTitle: {
+      fontSize: 14,
+      fontWeight: '800',
+      color: '#232136',
+      flex: 1,
+      paddingRight: 6,
+    },
+    featureIconSquircle: {
+      width: 28,
+      height: 28,
+      borderRadius: 10,
+      backgroundColor: 'rgba(255, 255, 255, 0.65)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    featureCardSub: {
+      fontSize: 11,
+      color: '#555166',
+      marginVertical: 8,
+      lineHeight: 15,
+      fontWeight: '500',
+    },
+    featureCheckRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 4,
+    },
+    featureCheckText: {
+      fontSize: 12,
+      fontWeight: '800',
+      color: '#232136',
+    },
+
+    // 4. SPLIT ROW: RECAPS + 2 MINI SPARKLINE CARDS
+    splitRow: {
+      flexDirection: 'row',
+      gap: 12,
+      marginBottom: 20,
+    },
+    recapsCard: {
+      flex: 1,
+      backgroundColor: isDarkMode ? '#1E1D2E' : '#FFFFFF',
+      borderRadius: 22,
+      padding: 16,
+      justifyContent: 'space-between',
+      borderWidth: 1,
+      borderColor: isDarkMode ? '#2E2D42' : 'rgba(0,0,0,0.05)',
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: isDarkMode ? 0.3 : 0.05,
+      shadowRadius: 12,
+      elevation: 2,
+    },
+    recapsTitle: {
+      fontSize: 14,
+      fontWeight: '800',
+      color: theme.text,
+      marginBottom: 3,
+    },
+    recapsSub: {
+      fontSize: 11,
+      color: theme.textSecondary,
+      lineHeight: 14,
+      marginBottom: 10,
+    },
+    recapsImagePlaceholder: {
+      backgroundColor: isDarkMode ? '#272538' : '#F7F6FB',
+      borderRadius: 16,
+      height: 90,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: isDarkMode ? '#333148' : '#ECE9F4',
+    },
+    recapsArtCircle: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: '#FFE6D8',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 4,
+    },
+    recapsArtCaption: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: theme.textSecondary,
+    },
+    recapsPillBtn: {
+      backgroundColor: '#1E1D2E',
+      paddingVertical: 10,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    recapsPillBtnText: {
+      color: '#FFFFFF',
+      fontSize: 12,
+      fontWeight: '800',
+    },
+    sparklineCol: {
+      flex: 1,
+      gap: 12,
+    },
+    compactStatCard: {
+      backgroundColor: isDarkMode ? '#1E1D2E' : '#FFFFFF',
+      borderRadius: 20,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: isDarkMode ? '#2E2D42' : 'rgba(0,0,0,0.05)',
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: isDarkMode ? 0.3 : 0.05,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    compactStatHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 4,
+    },
+    compactStatTitle: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: theme.textSecondary,
+    },
+    compactIconSquircle: {
+      width: 22,
+      height: 22,
+      borderRadius: 7,
+      backgroundColor: isDarkMode ? '#272538' : '#F4F3F9',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    compactStatValue: {
+      fontSize: 17,
+      fontWeight: '900',
+      color: theme.text,
+      letterSpacing: -0.3,
+      marginBottom: 6,
+    },
+    compactStatFooter: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    deltaPill: {
+      backgroundColor: isDarkMode ? '#132822' : '#D1FAE5',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 8,
+    },
+    deltaPillText: {
+      fontSize: 9,
+      fontWeight: '800',
+      color: '#059669',
+    },
+
+    // 5. RECENT RECOMMENDATIONS
+    recommendationHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+      paddingHorizontal: 2,
+    },
+    recommendationTitle: {
+      fontSize: 15,
+      fontWeight: '800',
+      color: theme.text,
+    },
+    viewAllText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: theme.primary,
+    },
+    emptyRecentCard: {
+      backgroundColor: isDarkMode ? '#1E1D2E' : '#FFFFFF',
+      borderRadius: 18,
+      padding: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    emptyRecentText: {
+      fontSize: 13,
+      color: theme.textSecondary,
+      marginTop: 8,
+    },
+    recentOrderCard: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      backgroundColor: isDarkMode ? '#1E1D2E' : '#FFFFFF',
+      borderRadius: 18,
+      padding: 14,
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor: isDarkMode ? '#2E2D42' : 'rgba(0,0,0,0.05)',
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDarkMode ? 0.2 : 0.04,
+      shadowRadius: 6,
+      elevation: 2,
+    },
+    recentOrderLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    recentOrderAvatar: {
+      width: 38,
+      height: 38,
+      borderRadius: 14,
+      backgroundColor: '#FFE6D8',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    recentOrderAvatarText: {
+      fontSize: 13,
+      fontWeight: '800',
+      color: '#A14F2B',
+    },
+    recentClientName: {
+      fontSize: 14,
+      fontWeight: '800',
+      color: theme.text,
+    },
+    recentOrderDate: {
+      fontSize: 11,
+      color: theme.textSecondary,
+      marginTop: 2,
+    },
+    recentOrderRight: {
+      alignItems: 'flex-end',
+    },
+    recentOrderAmount: {
+      fontSize: 15,
+      fontWeight: '900',
+      color: theme.text,
+      marginBottom: 3,
+    },
+    recentStatusPill: {
+      paddingHorizontal: 7,
+      paddingVertical: 2,
+      borderRadius: 6,
+    },
+    statusPillPaid: {
+      backgroundColor: '#DCFCE7',
+    },
+    statusPillPartial: {
+      backgroundColor: '#FEF3C7',
+    },
+    statusPillPending: {
+      backgroundColor: '#FEE2E2',
+    },
+    recentStatusText: {
+      fontSize: 9,
+      fontWeight: '800',
+      letterSpacing: 0.4,
+    },
+  });
