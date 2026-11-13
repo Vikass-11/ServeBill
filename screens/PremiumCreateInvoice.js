@@ -75,6 +75,7 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
               name: m.name || 'Full Meals Package',
               price: parseFloat(m.price) || 0,
               quantity: parseInt(m.quantity, 10) || 1,
+              pricingMode: m.pricingMode === 'fixed' ? 'fixed' : 'unit',
               dishes: Array.isArray(m.dishes) ? m.dishes : [],
             }))
           : [],
@@ -105,6 +106,7 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
   const [tempMealName, setTempMealName] = useState('Full Meals Package');
   const [tempMealPrice, setTempMealPrice] = useState('');
   const [tempMealQty, setTempMealQty] = useState('');
+  const [tempMealPricingMode, setTempMealPricingMode] = useState('unit');
   const [tempSelectedDishes, setTempSelectedDishes] = useState([]);
 
   const [isExtraModalVisible, setExtraModalVisible] = useState(false);
@@ -514,16 +516,24 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
   };
 
   const saveCustomMeal = () => {
-    if (!tempMealPrice || !tempMealQty) {
-      Alert.alert('Missing Info', 'Enter price and quantity for the meal.');
-      return;
+    if (tempMealPricingMode === 'fixed') {
+      if (!tempMealPrice || parseFloat(tempMealPrice) <= 0) {
+        Alert.alert('Missing Price', 'Please enter the flat total package price.');
+        return;
+      }
+    } else {
+      if (!tempMealPrice || !tempMealQty) {
+        Alert.alert('Missing Info', 'Enter rate per plate and plate quantity for the meal.');
+        return;
+      }
     }
 
     const newMeal = {
       id: Date.now().toString(),
-      name: tempMealName,
+      name: tempMealName?.trim() || 'Full Meals Package',
       price: parseFloat(tempMealPrice) || 0,
-      quantity: parseInt(tempMealQty, 10) || 1,
+      quantity: tempMealQty ? (parseInt(tempMealQty, 10) || 1) : 1,
+      pricingMode: tempMealPricingMode,
       dishes: Array.isArray(tempSelectedDishes) ? tempSelectedDishes : [],
     };
 
@@ -536,6 +546,7 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
     setTempMealName('Full Meals Package');
     setTempMealPrice('');
     setTempMealQty('');
+    setTempMealPricingMode('unit');
     setTempSelectedDishes([]);
     setModalVisible(false);
   };
@@ -584,8 +595,12 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
       if (ev && Array.isArray(ev.addedMeals)) {
         ev.addedMeals.forEach((meal) => {
           const price = parseFloat(meal.price) || 0;
-          const qty = parseInt(meal.quantity, 10) || 0;
-          total += price * qty;
+          if (meal.pricingMode === 'fixed') {
+            total += price;
+          } else {
+            const qty = parseInt(meal.quantity, 10) || 0;
+            total += price * qty;
+          }
         });
       }
     });
@@ -1025,28 +1040,49 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
                 <Text style={styles.subTitle}>Meal Packages</Text>
               </View>
 
-              {(ev.addedMeals || []).map((meal) => (
-                <View key={meal.id} style={styles.addedMealCard}>
-                  <View style={styles.mealInfo}>
-                    <Text style={styles.mealNameText}>{meal.name}</Text>
-                    <Text style={styles.mealDetailText}>
-                      {meal.quantity} plates x ₹{meal.price} = ₹{(meal.quantity * meal.price).toFixed(2)}
-                    </Text>
-                    {Array.isArray(meal.dishes) && meal.dishes.length > 0 && (
-                      <Text style={styles.dishListText}>Dishes: {meal.dishes.join(', ')}</Text>
-                    )}
+              {(ev.addedMeals || []).map((meal) => {
+                const isFixed = meal.pricingMode === 'fixed';
+                const mealTotal = isFixed
+                  ? (parseFloat(meal.price) || 0)
+                  : ((parseFloat(meal.price) || 0) * (parseInt(meal.quantity, 10) || 1));
+
+                return (
+                  <View key={meal.id} style={styles.addedMealCard}>
+                    <View style={styles.mealInfo}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={styles.mealNameText}>{meal.name}</Text>
+                        {isFixed && (
+                          <View style={{ backgroundColor: isDarkMode ? '#312E81' : '#EEF2FF', paddingHorizontal: 6, paddingVertical: 1.5, borderRadius: 4 }}>
+                            <Text style={{ fontSize: 9, fontWeight: '700', color: isDarkMode ? '#A5B4FC' : '#4F46E5' }}>LUMP SUM</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.mealDetailText}>
+                        {isFixed
+                          ? `Flat Package Total: ₹${mealTotal.toFixed(2)}${meal.quantity > 1 ? ` (~${meal.quantity} guests)` : ''}`
+                          : `${meal.quantity} plates x ₹${meal.price} = ₹${mealTotal.toFixed(2)}`}
+                      </Text>
+                      {Array.isArray(meal.dishes) && meal.dishes.length > 0 && (
+                        <Text style={styles.dishListText}>Dishes: {meal.dishes.join(', ')}</Text>
+                      )}
+                    </View>
+                    <TouchableOpacity onPress={() => removeMeal(ev.id, meal.id)} style={{ padding: 6 }}>
+                      <Ionicons name="trash-outline" size={20} color={theme.error} />
+                    </TouchableOpacity>
                   </View>
-                  <TouchableOpacity onPress={() => removeMeal(ev.id, meal.id)} style={{ padding: 6 }}>
-                    <Ionicons name="trash-outline" size={20} color={theme.error} />
-                  </TouchableOpacity>
-                </View>
-              ))}
+                );
+              })}
 
               <TouchableOpacity
                 style={styles.buildMealBtn}
                 activeOpacity={0.85}
                 onPress={() => {
                   setModalEventId(ev.id);
+                  setTempMealName('Full Meals Package');
+                  setTempMealPrice('');
+                  setTempMealQty('');
+                  setTempMealPricingMode('unit');
+                  setTempSelectedDishes([]);
                   setModalVisible(true);
                 }}
               >
@@ -1341,6 +1377,61 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
             </ScrollView>
 
             <View style={styles.modalInputSection}>
+              {/* PRICING MODE TOGGLE */}
+              <View style={{
+                flexDirection: 'row',
+                backgroundColor: isDarkMode ? '#1E293B' : '#F1F5F9',
+                borderRadius: 10,
+                padding: 3,
+                marginBottom: 12,
+              }}>
+                <TouchableOpacity
+                  style={{
+                    flex: 1,
+                    paddingVertical: 8,
+                    alignItems: 'center',
+                    borderRadius: 8,
+                    backgroundColor: tempMealPricingMode === 'unit' ? (isDarkMode ? '#334155' : '#FFFFFF') : 'transparent',
+                    elevation: tempMealPricingMode === 'unit' ? 2 : 0,
+                    shadowColor: '#000',
+                    shadowOpacity: tempMealPricingMode === 'unit' ? 0.08 : 0,
+                    shadowRadius: 2,
+                  }}
+                  onPress={() => setTempMealPricingMode('unit')}
+                >
+                  <Text style={{
+                    fontSize: 13,
+                    fontWeight: '700',
+                    color: tempMealPricingMode === 'unit' ? theme.primary : theme.textMuted
+                  }}>
+                    Per-Plate Rate
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={{
+                    flex: 1,
+                    paddingVertical: 8,
+                    alignItems: 'center',
+                    borderRadius: 8,
+                    backgroundColor: tempMealPricingMode === 'fixed' ? (isDarkMode ? '#334155' : '#FFFFFF') : 'transparent',
+                    elevation: tempMealPricingMode === 'fixed' ? 2 : 0,
+                    shadowColor: '#000',
+                    shadowOpacity: tempMealPricingMode === 'fixed' ? 0.08 : 0,
+                    shadowRadius: 2,
+                  }}
+                  onPress={() => setTempMealPricingMode('fixed')}
+                >
+                  <Text style={{
+                    fontSize: 13,
+                    fontWeight: '700',
+                    color: tempMealPricingMode === 'fixed' ? theme.primary : theme.textMuted
+                  }}>
+                    Flat Total Price
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
               <View style={styles.modalInputWrapper}>
                   <TextInput
                     style={styles.modalInput}
@@ -1350,32 +1441,63 @@ export default function PremiumCreateInvoiceScreen({ route, navigation }) {
                     onChangeText={setTempMealName}
                   />
               </View>
-              <View style={styles.row}>
-                <View style={[styles.modalInputWrapper, styles.halfInput, styles.rightGap]}>
-                    <TextInput
-                      style={styles.modalInput}
-                      placeholder="Rate (₹)"
-                      placeholderTextColor={theme.textMuted}
-                      keyboardType="numeric"
-                      value={tempMealPrice}
-                      onChangeText={setTempMealPrice}
-                    />
+
+              {tempMealPricingMode === 'unit' ? (
+                <View style={styles.row}>
+                  <View style={[styles.modalInputWrapper, styles.halfInput, styles.rightGap]}>
+                      <TextInput
+                        style={styles.modalInput}
+                        placeholder="Rate per Plate (₹)"
+                        placeholderTextColor={theme.textMuted}
+                        keyboardType="numeric"
+                        value={tempMealPrice}
+                        onChangeText={setTempMealPrice}
+                      />
+                  </View>
+                  <View style={[styles.modalInputWrapper, styles.halfInput, styles.leftGap]}>
+                      <TextInput
+                        style={styles.modalInput}
+                        placeholder="Plate Qty"
+                        placeholderTextColor={theme.textMuted}
+                        keyboardType="numeric"
+                        value={tempMealQty}
+                        onChangeText={setTempMealQty}
+                      />
+                  </View>
                 </View>
-                <View style={[styles.modalInputWrapper, styles.halfInput, styles.leftGap]}>
-                    <TextInput
-                      style={styles.modalInput}
-                      placeholder="Plate Qty"
-                      placeholderTextColor={theme.textMuted}
-                      keyboardType="numeric"
-                      value={tempMealQty}
-                      onChangeText={setTempMealQty}
-                    />
+              ) : (
+                <View>
+                  <View style={styles.row}>
+                    <View style={[styles.modalInputWrapper, styles.halfInput, styles.rightGap]}>
+                        <TextInput
+                          style={styles.modalInput}
+                          placeholder="Flat Total Price (₹)"
+                          placeholderTextColor={theme.textMuted}
+                          keyboardType="numeric"
+                          value={tempMealPrice}
+                          onChangeText={setTempMealPrice}
+                        />
+                    </View>
+                    <View style={[styles.modalInputWrapper, styles.halfInput, styles.leftGap]}>
+                        <TextInput
+                          style={styles.modalInput}
+                          placeholder="Approx. Guests (Opt)"
+                          placeholderTextColor={theme.textMuted}
+                          keyboardType="numeric"
+                          value={tempMealQty}
+                          onChangeText={setTempMealQty}
+                        />
+                    </View>
+                  </View>
+                  <Text style={{ fontSize: 11, color: theme.textMuted, marginTop: 4, fontStyle: 'italic' }}>
+                    💡 Billed as total amount. Rate and quantity will not be printed on the invoice.
+                  </Text>
                 </View>
-              </View>
+              )}
             </View>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.cancelBtn}>
+              <TouchableOpacity onPress={() => { setTempMealPricingMode('unit'); setModalVisible(false); }} style={styles.cancelBtn}>
                 <Text style={styles.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={saveCustomMeal} style={styles.saveBtn}>

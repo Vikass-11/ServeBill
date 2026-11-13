@@ -216,41 +216,94 @@ export default function InvoicePreviewScreen({ route, navigation }) {
 
     const eventBlocks = orderedEvents
       .map((ev) => {
+        const hasUnitTiffins = ev.orderedTiffins.some((item) => !item.isFixed);
+
         const tiffinRows = ev.orderedTiffins
           .map((item) => {
-            const isFixed = item.isFixed;
-            const qtyDisplay = isFixed ? '—' : item.qty;
-            const unitDisplay = isFixed 
-              ? (item.unit && item.unit !== 'fixed' ? escapeHtml(item.unit) : '—') 
-              : escapeHtml(item.unit || 'nos');
-            const rateDisplay = isFixed ? '—' : `₹${item.rate.toFixed(2)}`;
             const rowTotalDisplay = `₹${item.rowTotal.toFixed(2)}`;
+
+            if (!hasUnitTiffins) {
+              // ALL items in this table are Total Value - display only Item Description & Amount
+              return `
+                <tr>
+                  <td><strong>${escapeHtml(item.name)}</strong></td>
+                  <td style="text-align: right; font-weight: 600;">${rowTotalDisplay}</td>
+                </tr>
+              `;
+            }
+
+            // Mixed table (contains both unit-based and fixed items)
+            if (item.isFixed) {
+              return `
+                <tr>
+                  <td><strong>${escapeHtml(item.name)}</strong></td>
+                  <td colspan="3" style="text-align: center; color: #64748b; font-size: 0.88em; font-style: italic;">Total Amount</td>
+                  <td style="text-align: right; font-weight: 600;">${rowTotalDisplay}</td>
+                </tr>
+              `;
+            }
 
             return `
               <tr>
                 <td><strong>${escapeHtml(item.name)}</strong></td>
-                <td>${unitDisplay}</td>
-                <td style="text-align: center;">${qtyDisplay}</td>
-                <td style="text-align: right;">${rateDisplay}</td>
+                <td>${escapeHtml(item.unit || 'nos')}</td>
+                <td style="text-align: center;">${item.qty}</td>
+                <td style="text-align: right;">₹${item.rate.toFixed(2)}</td>
                 <td style="text-align: right; font-weight: 600;">${rowTotalDisplay}</td>
               </tr>
             `;
           })
           .join('');
 
+        const hasUnitMeals = ev.addedMeals.some((m) => m.pricingMode !== 'fixed');
+
         const mealRows = ev.addedMeals
           .map((meal) => {
-            const rowTotal = meal.price * meal.quantity;
+            const isFixed = meal.pricingMode === 'fixed';
+            const rowTotal = isFixed
+              ? (parseFloat(meal.price) || 0)
+              : ((parseFloat(meal.price) || 0) * (parseInt(meal.quantity, 10) || 1));
+            const rowTotalDisplay = `₹${rowTotal.toFixed(2)}`;
+            const dishesHtml = Array.isArray(meal.dishes) && meal.dishes.length > 0
+              ? `<div style="font-size: 0.85em; color: #555; margin-top: 3px;">${escapeHtml(meal.dishes.join(', '))}</div>`
+              : '';
+
+            if (!hasUnitMeals) {
+              // ALL meal packages in this table are Flat Total Value
+              return `
+                <tr>
+                  <td>
+                    <strong>${escapeHtml(meal.name)}</strong>
+                    ${dishesHtml}
+                  </td>
+                  <td style="text-align: right; font-weight: 600;">${rowTotalDisplay}</td>
+                </tr>
+              `;
+            }
+
+            // Mixed meal packages table
+            if (isFixed) {
+              return `
+                <tr>
+                  <td>
+                    <strong>${escapeHtml(meal.name)}</strong>
+                    ${dishesHtml}
+                  </td>
+                  <td colspan="2" style="text-align: center; color: #64748b; font-size: 0.88em; font-style: italic;">Flat Package Total</td>
+                  <td style="text-align: right; font-weight: 600;">${rowTotalDisplay}</td>
+                </tr>
+              `;
+            }
 
             return `
               <tr>
                 <td>
                   <strong>${escapeHtml(meal.name)}</strong>
-                  <div style="font-size: 0.85em; color: #555; margin-top: 4px;">${escapeHtml(meal.dishes.join(', '))}</div>
+                  ${dishesHtml}
                 </td>
                 <td style="text-align: center;">${meal.quantity}</td>
-                <td style="text-align: right;">₹${meal.price}</td>
-                <td style="text-align: right;">₹${rowTotal.toFixed(2)}</td>
+                <td style="text-align: right;">₹${parseFloat(meal.price || 0).toFixed(2)}</td>
+                <td style="text-align: right; font-weight: 600;">${rowTotalDisplay}</td>
               </tr>
             `;
           })
@@ -265,13 +318,24 @@ export default function InvoicePreviewScreen({ route, navigation }) {
                   <h3>Tiffin Items</h3>
                   <table>
                     <thead>
-                      <tr>
-                        <th style="width: 40%;">Item</th>
-                        <th style="width: 15%;">Unit</th>
-                        <th style="width: 10%; text-align: center;">Qty</th>
-                        <th style="width: 15%; text-align: right;">Rate</th>
-                        <th style="width: 20%; text-align: right;">Total</th>
-                      </tr>
+                      ${
+                        hasUnitTiffins
+                          ? `
+                            <tr>
+                              <th style="width: 42%;">Item</th>
+                              <th style="width: 14%;">Unit</th>
+                              <th style="width: 14%; text-align: center;">Qty</th>
+                              <th style="width: 15%; text-align: right;">Rate</th>
+                              <th style="width: 15%; text-align: right;">Total</th>
+                            </tr>
+                          `
+                          : `
+                            <tr>
+                              <th style="width: 70%;">Item Description</th>
+                              <th style="width: 30%; text-align: right;">Amount</th>
+                            </tr>
+                          `
+                      }
                     </thead>
                     <tbody>${tiffinRows}</tbody>
                   </table>
@@ -284,12 +348,23 @@ export default function InvoicePreviewScreen({ route, navigation }) {
                   <h3>Meal Packages</h3>
                   <table>
                     <thead>
-                      <tr>
-                        <th style="width: 55%;">Package & Dishes</th>
-                        <th style="width: 10%; text-align: center;">Qty</th>
-                        <th style="width: 15%; text-align: right;">Rate</th>
-                        <th style="width: 20%; text-align: right;">Total</th>
-                      </tr>
+                      ${
+                        hasUnitMeals
+                          ? `
+                            <tr>
+                              <th style="width: 50%;">Package & Dishes</th>
+                              <th style="width: 15%; text-align: center;">Qty</th>
+                              <th style="width: 15%; text-align: right;">Rate</th>
+                              <th style="width: 20%; text-align: right;">Total</th>
+                            </tr>
+                          `
+                          : `
+                            <tr>
+                              <th style="width: 70%;">Package & Dishes</th>
+                              <th style="width: 30%; text-align: right;">Amount</th>
+                            </tr>
+                          `
+                      }
                     </thead>
                     <tbody>${mealRows}</tbody>
                   </table>
@@ -299,7 +374,7 @@ export default function InvoicePreviewScreen({ route, navigation }) {
             ${
               parseFloat(ev.transportCharge) > 0
                 ? `
-                  <div style="display: flex; justify-content: space-between; align-items: center; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 12px; margin-top: 6px; font-size: 0.9em;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 5px 12px; margin-top: 5px; font-size: 0.88em;">
                     <span style="color: #475569;"><strong>Day ${ev.index + 1} Transport:</strong></span>
                     <span style="color: #1e293b; font-weight: 700;">₹${parseFloat(ev.transportCharge).toFixed(2)}</span>
                   </div>
@@ -324,17 +399,17 @@ export default function InvoicePreviewScreen({ route, navigation }) {
           <style>
             @page {
               size: A4;
-              margin: 18mm 14mm;
+              margin: 12mm 14mm;
             }
             body {
               font-family: Arial, sans-serif;
               color: #1f2d3d;
             }
             body.spacious {
-              font-size: 15px;
+              font-size: 14.5px;
             }
             body.balanced {
-              font-size: 13px;
+              font-size: 12.5px;
             }
             body.compact {
               font-size: 11px;
@@ -345,66 +420,67 @@ export default function InvoicePreviewScreen({ route, navigation }) {
               align-items: flex-start;
               gap: 16px;
               border-bottom: 2px solid #3498db;
-              padding-bottom: 14px;
-              margin-bottom: 16px;
+              padding-bottom: 10px;
+              margin-bottom: 12px;
             }
             .brand-wrap {
               display: flex;
               align-items: center;
-              gap: 14px;
+              gap: 12px;
             }
             .logo {
-              width: 64px;
-              height: 64px;
-              border-radius: 16px;
+              width: 58px;
+              height: 58px;
+              border-radius: 12px;
               object-fit: cover;
               border: 1px solid #d9e8f0;
             }
             .brand {
-              font-size: 2em;
+              font-size: 1.85em;
               font-weight: 700;
               color: #1f3c58;
             }
             .sub {
               color: #6b7c8c;
-              margin-top: 4px;
+              margin-top: 3px;
             }
             .contact {
-              margin-top: 10px;
-              font-size: 0.92em;
+              margin-top: 8px;
+              font-size: 0.9em;
               color: #4f6272;
-              line-height: 1.6;
+              line-height: 1.5;
             }
             .badge {
               background: #eef6fb;
               color: #3498db;
-              padding: 8px 12px;
-              border-radius: 10px;
+              padding: 6px 12px;
+              border-radius: 8px;
               font-weight: 700;
               white-space: nowrap;
             }
             .meta {
-              margin-bottom: 18px;
-              line-height: 1.7;
-              font-size: 1em;
+              margin-bottom: 12px;
+              line-height: 1.5;
+              font-size: 0.95em;
             }
             .event-block {
-              margin-bottom: 18px;
+              margin-bottom: 12px;
+              page-break-inside: avoid;
             }
             h2 {
-              font-size: 1.2em;
+              font-size: 1.15em;
               color: #2980b9;
-              margin-bottom: 10px;
+              margin: 6px 0;
             }
             h3 {
-              font-size: 1em;
+              font-size: 0.95em;
               color: #4f6272;
-              margin: 12px 0 8px;
+              margin: 6px 0 4px;
             }
             table {
               width: 100%;
               border-collapse: collapse;
-              margin-bottom: 10px;
+              margin-bottom: 6px;
             }
             thead {
               display: table-header-group;
@@ -414,7 +490,7 @@ export default function InvoicePreviewScreen({ route, navigation }) {
             }
             th, td {
               border: 1px solid #d8e3ea;
-              padding: 0.65em 0.8em;
+              padding: 0.5em 0.75em;
               font-size: 0.95em;
               text-align: left;
               vertical-align: top;
@@ -425,24 +501,25 @@ export default function InvoicePreviewScreen({ route, navigation }) {
               color: #2c3e50;
             }
             .grand-total {
-              margin-top: 22px;
+              margin-top: 14px;
               display: flex;
               flex-direction: column;
               align-items: flex-end;
-              gap: 8px;
+              gap: 6px;
+              page-break-inside: avoid;
             }
             .total-row {
               display: flex;
               justify-content: space-between;
               width: 250px;
-              font-size: 1.05em;
+              font-size: 1em;
               color: #4f6272;
             }
             .grand-total-box {
               background: #f4fbf6;
               border: 1px solid #bfe6ca;
-              border-radius: 12px;
-              padding: 12px 16px;
+              border-radius: 10px;
+              padding: 10px 14px;
               font-size: 1.15em;
               font-weight: 700;
               color: #1e8449;
@@ -746,12 +823,19 @@ export default function InvoicePreviewScreen({ route, navigation }) {
               return (
                 <View key={item.id} style={styles.itemRow}>
                   <View style={styles.itemMain}>
-                    <Text style={[styles.itemNameText, dynamicStyles.itemName]}>{item.name}</Text>
-                    <Text style={[styles.itemSubDetail, dynamicStyles.itemDetail]}>
-                      {isFixed
-                        ? `Direct Total: ₹${item.rowTotal.toFixed(2)}`
-                        : `${item.qty} ${item.unit || 'nos'} x ₹${item.rate.toFixed(2)}`}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={[styles.itemNameText, dynamicStyles.itemName]}>{item.name}</Text>
+                      {isFixed && (
+                        <View style={{ backgroundColor: isDarkMode ? '#1E293B' : '#F1F5F9', paddingHorizontal: 6, paddingVertical: 1.5, borderRadius: 4 }}>
+                          <Text style={{ fontSize: 9, fontWeight: '700', color: isDarkMode ? '#94A3B8' : '#64748B' }}>TOTAL AMOUNT</Text>
+                        </View>
+                      )}
+                    </View>
+                    {!isFixed && (
+                      <Text style={[styles.itemSubDetail, dynamicStyles.itemDetail]}>
+                        {item.qty} {item.unit || 'nos'} x ₹{item.rate.toFixed(2)}
+                      </Text>
+                    )}
                   </View>
                   <Text style={[styles.priceText, dynamicStyles.price]}>₹{item.rowTotal.toFixed(2)}</Text>
                 </View>
@@ -759,17 +843,31 @@ export default function InvoicePreviewScreen({ route, navigation }) {
             })}
 
             {ev.addedMeals.map((meal) => {
-              const rowTotal = meal.price * meal.quantity;
+              const isFixed = meal.pricingMode === 'fixed';
+              const rowTotal = isFixed
+                ? (parseFloat(meal.price) || 0)
+                : ((parseFloat(meal.price) || 0) * (parseInt(meal.quantity, 10) || 1));
 
               return (
                 <View key={meal.id} style={styles.itemRow}>
                   <View style={styles.itemMain}>
-                    <Text style={[styles.itemNameText, dynamicStyles.itemName]}>{meal.name}</Text>
-                    <Text style={[styles.dishListText, dynamicStyles.itemDetail]}>
-                      {meal.dishes.join(' | ')}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={[styles.itemNameText, dynamicStyles.itemName]}>{meal.name}</Text>
+                      {isFixed && (
+                        <View style={{ backgroundColor: isDarkMode ? '#312E81' : '#EEF2FF', paddingHorizontal: 6, paddingVertical: 1.5, borderRadius: 4 }}>
+                          <Text style={{ fontSize: 9, fontWeight: '700', color: isDarkMode ? '#A5B4FC' : '#4F46E5' }}>LUMP SUM</Text>
+                        </View>
+                      )}
+                    </View>
+                    {Array.isArray(meal.dishes) && meal.dishes.length > 0 && (
+                      <Text style={[styles.dishListText, dynamicStyles.itemDetail]}>
+                        {meal.dishes.join(' | ')}
+                      </Text>
+                    )}
                     <Text style={[styles.itemSubDetail, dynamicStyles.itemDetail]}>
-                      {meal.quantity} plates x ₹{meal.price}
+                      {isFixed
+                        ? (meal.quantity > 1 ? `Flat Package (~${meal.quantity} guests)` : 'Flat Package Total')
+                        : `${meal.quantity} plates x ₹${meal.price}`}
                     </Text>
                   </View>
                   <Text style={[styles.priceText, dynamicStyles.price]}>₹{rowTotal.toFixed(2)}</Text>
