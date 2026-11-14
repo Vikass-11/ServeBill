@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { InvoiceContext } from '../../context/InvoiceContext';
 import { ThemeContext } from '../../context/ThemeContext';
+import { parseSafeDate, formatDateSafe } from '../../services/dateUtils';
 
 export default function CateringDashboardScreen({ navigation }) {
   const { invoices, getDraft, refreshInvoices } = useContext(InvoiceContext);
@@ -45,8 +46,9 @@ export default function CateringDashboardScreen({ navigation }) {
   );
 
   const stats = useMemo(() => {
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
 
     let monthOrders = 0;
     let monthRevenue = 0;
@@ -56,8 +58,8 @@ export default function CateringDashboardScreen({ navigation }) {
     invoices.forEach(inv => {
       if (inv.businessType === 'SHOP') return;
 
-      const invDate = new Date(inv.date);
-      const isThisMonth = !isNaN(invDate.getTime()) && invDate.getMonth() === currentMonth && invDate.getFullYear() === currentYear;
+      const invDate = parseSafeDate(inv.date);
+      const isThisMonth = invDate ? (invDate.getMonth() === currentMonth && invDate.getFullYear() === currentYear) : false;
       
       const revenue = parseFloat(inv.grandTotal || inv.total || 0);
       const received = parseFloat(inv.amountReceived || 0);
@@ -92,7 +94,11 @@ export default function CateringDashboardScreen({ navigation }) {
 
   const recentOrders = useMemo(() => {
     return [...invoices]
-      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .sort((a, b) => {
+        const timeA = parseSafeDate(a.date)?.getTime() || 0;
+        const timeB = parseSafeDate(b.date)?.getTime() || 0;
+        return timeB - timeA;
+      })
       .slice(0, 4);
   }, [invoices]);
 
@@ -286,7 +292,7 @@ export default function CateringDashboardScreen({ navigation }) {
                     </View>
                     <View style={{ marginLeft: 12 }}>
                       <Text style={styles.recentClientName}>{inv.clientName || inv.customerName || 'Direct Client'}</Text>
-                      <Text style={styles.recentEventDate}>{inv.date ? (isNaN(new Date(inv.date).getTime()) ? inv.date : new Date(inv.date).toLocaleDateString('en-IN')) : ''}</Text>
+                      <Text style={styles.recentEventDate}>{formatDateSafe(inv.date, 'en-IN')}</Text>
                     </View>
                   </View>
 
