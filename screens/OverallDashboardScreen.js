@@ -17,6 +17,7 @@ import { BusinessContext } from '../context/BusinessContext';
 import { InvoiceContext } from '../context/InvoiceContext';
 import { ThemeContext } from '../context/ThemeContext';
 import QuickAddModal from '../components/QuickAddModal';
+import { parseSafeDate, isSameDay } from '../services/dateUtils';
 
 // Mini Sparkline SVG Wave matching Screen 2
 function MiniWave({ color = '#FF6B55', width = 64, height = 22 }) {
@@ -152,6 +153,9 @@ export default function OverallDashboardScreen({ navigation }) {
     yesterday.setDate(today.getDate() - 1);
     const yesterdayStr = yesterday.toLocaleDateString('en-IN');
 
+    const currentCalendarMonth = today.getMonth();
+    const currentCalendarYear = today.getFullYear();
+
     let todayRevenue = 0;
     let todayCollected = 0;
     let todayOrdersCount = 0;
@@ -160,10 +164,17 @@ export default function OverallDashboardScreen({ navigation }) {
     let yesterdayCollected = 0;
     let yesterdayOrdersCount = 0;
 
-    let monthRevenue = 0;
-    let monthCollected = 0;
-    let monthOrdersCount = 0;
-    let monthPlatesCount = 0;
+    // Current Calendar Month (for Coral Card "This Month" filter & bottom "Month Revenue" card)
+    let thisMonthRevenue = 0;
+    let thisMonthCollected = 0;
+    let thisMonthOrdersCount = 0;
+
+    // Selected Month (for Progress Card month picker e.g. August 2026, October 2026)
+    let progressMonthRevenue = 0;
+    let progressMonthCollected = 0;
+    let progressMonthOrdersCount = 0;
+    let progressMonthPlatesCount = 0;
+
     let totalPending = 0;
 
     (invoices || []).forEach((inv) => {
@@ -173,12 +184,16 @@ export default function OverallDashboardScreen({ navigation }) {
 
       totalPending += bal;
 
-      const d = new Date(inv.date);
-      const isDateValid = !isNaN(d.getTime());
+      const d = parseSafeDate(inv.date);
+      const isDateValid = !!d;
       const dateInStr = isDateValid ? d.toLocaleDateString('en-IN') : '';
 
       // Check Today
-      const isToday = inv.date === todayStr || dateInStr === todayStr;
+      const isToday =
+        (isDateValid && isSameDay(d, today)) ||
+        inv.date === todayStr ||
+        dateInStr === todayStr;
+
       if (isToday) {
         todayOrdersCount++;
         todayRevenue += rev;
@@ -186,23 +201,39 @@ export default function OverallDashboardScreen({ navigation }) {
       }
 
       // Check Yesterday
-      const isYesterday = inv.date === yesterdayStr || dateInStr === yesterdayStr;
+      const isYesterday =
+        (isDateValid && isSameDay(d, yesterday)) ||
+        inv.date === yesterdayStr ||
+        dateInStr === yesterdayStr;
+
       if (isYesterday) {
         yesterdayOrdersCount++;
         yesterdayRevenue += rev;
         yesterdayCollected += rec;
       }
 
-      // Check Selected Month
+      // Check Current Calendar Month (e.g. November 2026)
+      const isThisMonth =
+        isDateValid &&
+        d.getMonth() === currentCalendarMonth &&
+        d.getFullYear() === currentCalendarYear;
+
+      if (isThisMonth) {
+        thisMonthOrdersCount++;
+        thisMonthRevenue += rev;
+        thisMonthCollected += rec;
+      }
+
+      // Check Selected Month (from Progress card month picker)
       const isSelectedMonth =
         isDateValid &&
         d.getMonth() === selectedMonth.month &&
         d.getFullYear() === selectedMonth.year;
 
       if (isSelectedMonth) {
-        monthOrdersCount++;
-        monthRevenue += rev;
-        monthCollected += rec;
+        progressMonthOrdersCount++;
+        progressMonthRevenue += rev;
+        progressMonthCollected += rec;
 
         // Calculate actual plates for this invoice
         let invPlates = 0;
@@ -237,7 +268,7 @@ export default function OverallDashboardScreen({ navigation }) {
         if (invPlates === 0 && (parseInt(inv.guestCount, 10) || 0) > 0) {
           invPlates += parseInt(inv.guestCount, 10);
         }
-        monthPlatesCount += invPlates;
+        progressMonthPlatesCount += invPlates;
       }
     });
 
@@ -250,17 +281,17 @@ export default function OverallDashboardScreen({ navigation }) {
       activeCollected = yesterdayCollected;
       activeOrders = yesterdayOrdersCount;
     } else if (timeFilter === 'month') {
-      activeRevenue = monthRevenue;
-      activeCollected = monthCollected;
-      activeOrders = monthOrdersCount;
+      activeRevenue = thisMonthRevenue;
+      activeCollected = thisMonthCollected;
+      activeOrders = thisMonthOrdersCount;
     }
 
     const activeBalance = Math.max(0, activeRevenue - activeCollected);
 
-    // Exact collection ratio: 0% if no revenue, never a fake 95% default
-    const collectionRatio =
-      monthRevenue > 0
-        ? Math.min(100, Math.round((monthCollected / monthRevenue) * 100))
+    // Exact collection ratio for selected progress month: 0% if no revenue, never a fake default
+    const progressCollectionRatio =
+      progressMonthRevenue > 0
+        ? Math.min(100, Math.round((progressMonthCollected / progressMonthRevenue) * 100))
         : 0;
 
     return {
@@ -268,18 +299,25 @@ export default function OverallDashboardScreen({ navigation }) {
       activeCollected,
       activeBalance,
       activeOrders,
-      monthRevenue,
-      monthCollected,
+      thisMonthRevenue,
+      thisMonthCollected,
+      thisMonthOrdersCount,
+      monthRevenue: thisMonthRevenue, // Current calendar month revenue for bottom card
       totalPending,
-      monthOrdersCount,
-      monthPlatesCount,
-      collectionRatio,
+      progressMonthRevenue,
+      progressMonthOrdersCount,
+      monthPlatesCount: progressMonthPlatesCount,
+      collectionRatio: progressCollectionRatio,
     };
   }, [invoices, timeFilter, selectedMonth]);
 
   const recentOrders = useMemo(() => {
     return [...(invoices || [])]
-      .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+      .sort((a, b) => {
+        const timeA = parseSafeDate(a.date)?.getTime() || 0;
+        const timeB = parseSafeDate(b.date)?.getTime() || 0;
+        return timeB - timeA;
+      })
       .slice(0, 4);
   }, [invoices]);
 
