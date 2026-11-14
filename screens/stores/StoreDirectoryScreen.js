@@ -45,10 +45,10 @@ export default function StoreDirectoryScreen({ route, navigation }) {
   const [newStoreAddress, setNewStoreAddress] = useState('');
 
   useEffect(() => {
-    if (route.params?.autoOpenAddStore) {
+    if (route?.params?.autoOpenAddStore) {
       setAddModalVisible(true);
     }
-  }, [route.params]);
+  }, [route?.params]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
