@@ -32,17 +32,60 @@ function MiniWave({ color = '#FF6B55', width = 64, height = 22 }) {
   );
 }
 
+const gaugeStyles = StyleSheet.create({
+  gaugeContainer: {
+    width: 96,
+    height: 96,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gaugeOuterRing: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    borderWidth: 5,
+    borderColor: '#7C75C2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#554E96',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  gaugeInnerCircle: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gaugeFlameBadge: {
+    marginBottom: 1,
+  },
+  gaugeValue: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#232136',
+    letterSpacing: -0.3,
+  },
+  gaugeLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#767389',
+    textTransform: 'uppercase',
+  },
+});
+
 // Circular Progress Gauge Ring matching Screen 2
-function CircularGauge({ progress = 0.95, valueText = '1350', labelText = 'Calories' }) {
+function CircularGauge({ progress = 0.95, valueText = '1350', labelText = 'Plates' }) {
   return (
-    <View style={styles.gaugeContainer}>
-      <View style={styles.gaugeOuterRing}>
-        <View style={styles.gaugeInnerCircle}>
-          <View style={styles.gaugeFlameBadge}>
+    <View style={gaugeStyles.gaugeContainer}>
+      <View style={gaugeStyles.gaugeOuterRing}>
+        <View style={gaugeStyles.gaugeInnerCircle}>
+          <View style={gaugeStyles.gaugeFlameBadge}>
             <Ionicons name="flame" size={13} color="#FF6B55" />
           </View>
-          <Text style={styles.gaugeValue}>{valueText}</Text>
-          <Text style={styles.gaugeLabel}>{labelText}</Text>
+          <Text style={gaugeStyles.gaugeValue}>{valueText}</Text>
+          <Text style={gaugeStyles.gaugeLabel}>{labelText}</Text>
         </View>
       </View>
     </View>
@@ -250,7 +293,7 @@ export default function OverallDashboardScreen({ navigation }) {
                 <TouchableOpacity
                   style={styles.heroCircleActionBtn}
                   activeOpacity={0.85}
-                  onPress={() => setHeroView('progress')}
+                  onPress={() => setHeroView((prev) => (prev === 'coral' ? 'progress' : 'coral'))}
                 >
                   <Ionicons name="create-outline" size={16} color="#232136" />
                 </TouchableOpacity>
@@ -332,12 +375,22 @@ export default function OverallDashboardScreen({ navigation }) {
               </TouchableOpacity>
             </View>
 
-            {/* Circular Gauge on Right */}
-            <CircularGauge
-              progress={stats.collectionRatio / 100}
-              valueText={`${stats.monthOrdersCount * 90}`}
-              labelText="Plates"
-            />
+            {/* Circular Gauge on Right & Toggle Button */}
+            <View style={{ alignItems: 'flex-end', justifyContent: 'center' }}>
+              <TouchableOpacity
+                style={[styles.heroCircleActionBtn, { marginBottom: 8 }]}
+                activeOpacity={0.85}
+                onPress={() => setHeroView('coral')}
+              >
+                <Ionicons name="restaurant" size={15} color="#232136" />
+              </TouchableOpacity>
+
+              <CircularGauge
+                progress={stats.collectionRatio / 100}
+                valueText={`${stats.monthOrdersCount > 0 ? stats.monthOrdersCount * 85 : 1350}`}
+                labelText="Plates"
+              />
+            </View>
           </View>
         )}
 
