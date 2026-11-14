@@ -64,35 +64,35 @@ export default function PremiumAnalyticsScreen({ navigation, onLogout }) {
     });
 
     const pendingBalance = Math.max(0, totalRevenue - totalReceived);
-    const avgOrderValue = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 14500;
+    const avgOrderValue = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0;
     const collectionRate =
       totalRevenue > 0
         ? Math.min(100, Math.round((totalReceived / totalRevenue) * 100))
-        : 95;
+        : 0;
 
     // Display metric dynamic for the headline
-    let headlineAmount = 88500;
-    let headlineSubtitle = 'Daily Catering Volume';
+    let headlineAmount = 0;
+    let headlineSubtitle = '0 Orders Recorded';
 
     if (selectedTab === 'Days') {
-      headlineAmount = totalRevenue > 0 ? Math.round(totalRevenue * 0.18) : 88500;
-      headlineSubtitle = '88 Orders Recorded Today';
+      headlineAmount = totalRevenue > 0 ? Math.round(totalRevenue * 0.18) : 0;
+      headlineSubtitle = totalOrders > 0 ? `${totalOrders} Orders Recorded` : '0 Orders Recorded Today';
     } else if (selectedTab === 'Weeks') {
-      headlineAmount = totalRevenue > 0 ? Math.round(totalRevenue * 0.45) : 142000;
-      headlineSubtitle = 'Weekly Run Rate';
+      headlineAmount = totalRevenue > 0 ? Math.round(totalRevenue * 0.45) : 0;
+      headlineSubtitle = totalOrders > 0 ? 'Weekly Run Rate' : '0 Weekly Volume';
     } else if (selectedTab === 'Months') {
-      headlineAmount = totalRevenue > 0 ? Math.round(totalRevenue) : 485000;
-      headlineSubtitle = 'Monthly Gross Catering';
+      headlineAmount = totalRevenue > 0 ? Math.round(totalRevenue) : 0;
+      headlineSubtitle = totalOrders > 0 ? 'Monthly Gross Catering' : '0 Monthly Volume';
     } else {
-      headlineAmount = totalRevenue > 0 ? Math.round(totalRevenue * 3.8) : 1850000;
-      headlineSubtitle = 'Annual Gross Volume';
+      headlineAmount = totalRevenue > 0 ? Math.round(totalRevenue) : 0;
+      headlineSubtitle = totalOrders > 0 ? 'Annual Gross Volume' : '0 Annual Volume';
     }
 
     return {
       totalRevenue,
       totalReceived,
       totalOrders,
-      pendingBalance: pendingBalance > 0 ? pendingBalance : 16200,
+      pendingBalance,
       avgOrderValue,
       collectionRate,
       headlineAmount,
