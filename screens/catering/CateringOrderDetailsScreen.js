@@ -7,7 +7,7 @@ import { InvoiceContext } from '../../context/InvoiceContext';
 import { ThemeContext } from '../../context/ThemeContext';
 
 export default function CateringOrderDetailsScreen({ route, navigation }) {
-  const { invoiceId } = route.params;
+  const { invoiceId } = route?.params || {};
   const { invoices, updateInvoice } = useContext(InvoiceContext);
   const { theme, isDarkMode } = useContext(ThemeContext);
   const styles = getStyles(theme, isDarkMode);
