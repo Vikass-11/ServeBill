@@ -22,6 +22,7 @@ import Svg, {
 } from 'react-native-svg';
 import { InvoiceContext } from '../context/InvoiceContext';
 import { ThemeContext } from '../context/ThemeContext';
+import { parseSafeDate, isSameDay } from '../services/dateUtils';
 
 const { width } = Dimensions.get('window');
 
@@ -55,12 +56,59 @@ export default function PremiumAnalyticsScreen({ navigation, onLogout }) {
     let totalReceived = 0;
     let totalOrders = 0;
 
+    let periodRevenue = 0;
+    let periodReceived = 0;
+    let periodOrders = 0;
+
+    const targetDate = displayDate;
+    const targetDay = targetDate.getDate();
+    const targetMonth = targetDate.getMonth();
+    const targetYear = targetDate.getFullYear();
+
+    // Start and end of target week
+    const dayOfWeek = targetDate.getDay();
+    const weekStart = new Date(targetDate);
+    weekStart.setDate(targetDay - dayOfWeek);
+    weekStart.setHours(0, 0, 0, 0);
+
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 7);
+
     (invoices || []).forEach((inv) => {
       const rev = parseFloat(inv.grandTotal || inv.total || 0);
       const rec = parseFloat(inv.amountReceived || 0);
       totalRevenue += rev;
       totalReceived += rec;
       totalOrders += 1;
+
+      const d = parseSafeDate(inv.date);
+      if (d) {
+        if (selectedTab === 'Days') {
+          if (isSameDay(d, targetDate)) {
+            periodRevenue += rev;
+            periodReceived += rec;
+            periodOrders += 1;
+          }
+        } else if (selectedTab === 'Weeks') {
+          if (d >= weekStart && d < weekEnd) {
+            periodRevenue += rev;
+            periodReceived += rec;
+            periodOrders += 1;
+          }
+        } else if (selectedTab === 'Months') {
+          if (d.getMonth() === targetMonth && d.getFullYear() === targetYear) {
+            periodRevenue += rev;
+            periodReceived += rec;
+            periodOrders += 1;
+          }
+        } else if (selectedTab === 'Years') {
+          if (d.getFullYear() === targetYear) {
+            periodRevenue += rev;
+            periodReceived += rec;
+            periodOrders += 1;
+          }
+        }
+      }
     });
 
     const pendingBalance = Math.max(0, totalRevenue - totalReceived);
@@ -70,22 +118,18 @@ export default function PremiumAnalyticsScreen({ navigation, onLogout }) {
         ? Math.min(100, Math.round((totalReceived / totalRevenue) * 100))
         : 0;
 
-    // Display metric dynamic for the headline
-    let headlineAmount = 0;
+    let headlineAmount = periodRevenue;
     let headlineSubtitle = '0 Orders Recorded';
 
     if (selectedTab === 'Days') {
-      headlineAmount = totalRevenue > 0 ? Math.round(totalRevenue * 0.18) : 0;
-      headlineSubtitle = totalOrders > 0 ? `${totalOrders} Orders Recorded` : '0 Orders Recorded Today';
+      headlineSubtitle = periodOrders > 0 ? `${periodOrders} Orders Recorded` : '0 Orders Recorded';
     } else if (selectedTab === 'Weeks') {
-      headlineAmount = totalRevenue > 0 ? Math.round(totalRevenue * 0.45) : 0;
-      headlineSubtitle = totalOrders > 0 ? 'Weekly Run Rate' : '0 Weekly Volume';
+      headlineSubtitle = periodOrders > 0 ? `${periodOrders} Orders This Week` : '0 Weekly Orders';
     } else if (selectedTab === 'Months') {
-      headlineAmount = totalRevenue > 0 ? Math.round(totalRevenue) : 0;
-      headlineSubtitle = totalOrders > 0 ? 'Monthly Gross Catering' : '0 Monthly Volume';
+      const monthName = targetDate.toLocaleDateString('en-GB', { month: 'short' });
+      headlineSubtitle = periodOrders > 0 ? `${periodOrders} Orders in ${monthName}` : `0 Orders in ${monthName}`;
     } else {
-      headlineAmount = totalRevenue > 0 ? Math.round(totalRevenue) : 0;
-      headlineSubtitle = totalOrders > 0 ? 'Annual Gross Volume' : '0 Annual Volume';
+      headlineSubtitle = periodOrders > 0 ? `${periodOrders} Orders in ${targetYear}` : `0 Orders in ${targetYear}`;
     }
 
     return {
@@ -98,7 +142,7 @@ export default function PremiumAnalyticsScreen({ navigation, onLogout }) {
       headlineAmount,
       headlineSubtitle,
     };
-  }, [invoices, selectedTab]);
+  }, [invoices, selectedTab, displayDate]);
 
   // Wave Chart dimensions
   const chartWidth = Math.min(width - 48, 380);
