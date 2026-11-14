@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { InvoiceContext } from '../context/InvoiceContext';
 import { ThemeContext } from '../context/ThemeContext';
+import { parseSafeDate, formatDateSafe as formatWithSafeDate } from '../services/dateUtils';
 
 export default function PremiumHistoryScreen({ navigation }) {
   const { invoices, deleteInvoice, refreshInvoices } = useContext(InvoiceContext);
@@ -57,30 +58,43 @@ export default function PremiumHistoryScreen({ navigation }) {
     return { billed, received, pending };
   }, [invoices]);
 
-  // Filtered invoices
+  const formatDateSafe = (dateVal) => {
+    if (!dateVal) return '';
+    return formatWithSafeDate(dateVal, 'en-GB');
+  };
+
+  // Filtered invoices sorted latest-first
   const filteredInvoices = useMemo(() => {
-    return (invoices || []).filter((inv) => {
-      const q = searchQuery.toLowerCase().trim();
-      const matchesSearch =
-        !q ||
-        (inv.clientName || inv.customerName || '').toLowerCase().includes(q) ||
-        (inv.clientPhone || '').includes(q) ||
-        (inv.date || '').includes(q) ||
-        (inv.id || '').includes(q);
+    return [...(invoices || [])]
+      .sort((a, b) => {
+        const timeA = parseSafeDate(a.date)?.getTime() || 0;
+        const timeB = parseSafeDate(b.date)?.getTime() || 0;
+        return timeB - timeA;
+      })
+      .filter((inv) => {
+        const q = searchQuery.toLowerCase().trim();
+        const formattedDate = formatDateSafe(inv.date);
+        const matchesSearch =
+          !q ||
+          (inv.clientName || inv.customerName || '').toLowerCase().includes(q) ||
+          (inv.clientPhone || '').includes(q) ||
+          (inv.date || '').toLowerCase().includes(q) ||
+          formattedDate.toLowerCase().includes(q) ||
+          (inv.id || '').toLowerCase().includes(q);
 
-      const total = parseFloat(inv.grandTotal || inv.total || 0);
-      const rec = parseFloat(inv.amountReceived || 0);
-      const isPaid = rec >= total && total > 0;
-      const isPartial = rec > 0 && rec < total;
-      const isPending = rec === 0 && total > 0;
+        const total = parseFloat(inv.grandTotal || inv.total || 0);
+        const rec = parseFloat(inv.amountReceived || 0);
+        const isPaid = rec >= total && total > 0;
+        const isPartial = rec > 0 && rec < total;
+        const isPending = rec === 0 && total > 0;
 
-      let matchesStatus = true;
-      if (statusFilter === 'PAID') matchesStatus = isPaid;
-      if (statusFilter === 'PARTIAL') matchesStatus = isPartial;
-      if (statusFilter === 'PENDING') matchesStatus = isPending || isPartial;
+        let matchesStatus = true;
+        if (statusFilter === 'PAID') matchesStatus = isPaid;
+        if (statusFilter === 'PARTIAL') matchesStatus = isPartial;
+        if (statusFilter === 'PENDING') matchesStatus = isPending || isPartial;
 
-      return matchesSearch && matchesStatus;
-    });
+        return matchesSearch && matchesStatus;
+      });
   }, [invoices, searchQuery, statusFilter]);
 
   const confirmDelete = (id, clientName) => {
@@ -131,13 +145,6 @@ export default function PremiumHistoryScreen({ navigation }) {
       Alert.alert('Export Failed', 'Unable to export CSV right now.');
       console.log(e);
     }
-  };
-
-  const formatDateSafe = (dateVal) => {
-    if (!dateVal) return '';
-    const d = new Date(dateVal);
-    if (isNaN(d.getTime())) return String(dateVal);
-    return d.toLocaleDateString('en-GB');
   };
 
   return (
