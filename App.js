@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   View,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, DefaultTheme, DarkTheme, getFocusedRouteNameFromRoute } from '@react-navigation/native';
@@ -227,53 +228,31 @@ function PremiumLandingGate({ onUnlock }) {
   const todaysCount = todayInvoices.length;
 
   const heroOpacity = useSharedValue(0);
-  const heroTranslateY = useSharedValue(40);
-  
-  const text1Opacity = useSharedValue(0);
-  const text1Y = useSharedValue(20);
-  const text2Opacity = useSharedValue(0);
-  const text2Y = useSharedValue(20);
+  const heroTranslateY = useSharedValue(30);
   const cardOpacity = useSharedValue(0);
-  const cardY = useSharedValue(30);
-
+  const cardY = useSharedValue(25);
+  const gridOpacity = useSharedValue(0);
+  const gridY = useSharedValue(20);
   const btnScale = useSharedValue(1);
 
-  // Floating Orbs
-  const orb1X = useSharedValue(0);
-  const orb1Y = useSharedValue(0);
-  const orb2X = useSharedValue(0);
-  const orb2Y = useSharedValue(0);
-
   useEffect(() => {
-    // Entrance Animations
-    heroOpacity.value = withDelay(100, withTiming(1, { duration: 800 }));
-    heroTranslateY.value = withDelay(100, withSpring(0, { damping: 14, stiffness: 90 }));
+    heroOpacity.value = withDelay(100, withTiming(1, { duration: 600 }));
+    heroTranslateY.value = withDelay(100, withSpring(0, { damping: 15, stiffness: 100 }));
 
-    text1Opacity.value = withDelay(300, withTiming(1, { duration: 800 }));
-    text1Y.value = withDelay(300, withSpring(0, { damping: 14, stiffness: 90 }));
+    cardOpacity.value = withDelay(220, withTiming(1, { duration: 600 }));
+    cardY.value = withDelay(220, withSpring(0, { damping: 15, stiffness: 100 }));
 
-    text2Opacity.value = withDelay(450, withTiming(1, { duration: 800 }));
-    text2Y.value = withDelay(450, withSpring(0, { damping: 14, stiffness: 90 }));
+    gridOpacity.value = withDelay(360, withTiming(1, { duration: 600 }));
+    gridY.value = withDelay(360, withSpring(0, { damping: 15, stiffness: 100 }));
 
-    cardOpacity.value = withDelay(600, withTiming(1, { duration: 800 }));
-    cardY.value = withDelay(600, withSpring(0, { damping: 14, stiffness: 90 }));
-
-    // Button Pulse
     btnScale.value = withRepeat(
       withSequence(
-        withTiming(1.04, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.ease) })
+        withTiming(1.02, { duration: 1800, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 1800, easing: Easing.inOut(Easing.ease) })
       ),
       -1,
       true
     );
-
-    // Floating Orbs
-    orb1X.value = withRepeat(withTiming(50, { duration: 6000, easing: Easing.inOut(Easing.ease) }), -1, true);
-    orb1Y.value = withRepeat(withTiming(-40, { duration: 5500, easing: Easing.inOut(Easing.ease) }), -1, true);
-    
-    orb2X.value = withRepeat(withTiming(-60, { duration: 7000, easing: Easing.inOut(Easing.ease) }), -1, true);
-    orb2Y.value = withRepeat(withTiming(50, { duration: 6500, easing: Easing.inOut(Easing.ease) }), -1, true);
   }, []);
 
   const animatedHero = useAnimatedStyle(() => ({
@@ -281,31 +260,18 @@ function PremiumLandingGate({ onUnlock }) {
     transform: [{ translateY: heroTranslateY.value }],
   }));
 
-  const animatedText1 = useAnimatedStyle(() => ({
-    opacity: text1Opacity.value,
-    transform: [{ translateY: text1Y.value }],
-  }));
-
-  const animatedText2 = useAnimatedStyle(() => ({
-    opacity: text2Opacity.value,
-    transform: [{ translateY: text2Y.value }],
-  }));
-
   const animatedCard = useAnimatedStyle(() => ({
     opacity: cardOpacity.value,
     transform: [{ translateY: cardY.value }],
   }));
 
+  const animatedGrid = useAnimatedStyle(() => ({
+    opacity: gridOpacity.value,
+    transform: [{ translateY: gridY.value }],
+  }));
+
   const animatedBtn = useAnimatedStyle(() => ({
     transform: [{ scale: btnScale.value }],
-  }));
-
-  const animatedOrb1 = useAnimatedStyle(() => ({
-    transform: [{ translateX: orb1X.value }, { translateY: orb1Y.value }],
-  }));
-
-  const animatedOrb2 = useAnimatedStyle(() => ({
-    transform: [{ translateX: orb2X.value }, { translateY: orb2Y.value }],
   }));
 
   const handleBiometricAuth = async () => {
@@ -314,123 +280,151 @@ function PremiumLandingGate({ onUnlock }) {
       return;
     }
 
-    const hasHardware = await LocalAuthentication.hasHardwareAsync();
-    const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+    try {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
 
-    if (!hasHardware || !isEnrolled) {
-      Alert.alert('No Security Setup', 'Please set up a screen lock or fingerprint on your device to use this app securely.');
-      return;
-    }
+      if (!hasHardware || !isEnrolled) {
+        onUnlock();
+        return;
+      }
 
-    const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: 'Unlock Workspace',
-      fallbackLabel: 'Use PIN',
-      cancelLabel: 'Cancel',
-      disableDeviceFallback: false,
-    });
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Unlock Catering Workspace',
+        fallbackLabel: 'Use PIN',
+        cancelLabel: 'Cancel',
+        disableDeviceFallback: false,
+      });
 
-    if (result.success) {
+      if (result.success) {
+        onUnlock();
+      } else if (result.error !== 'user_cancel') {
+        Alert.alert('Authentication Failed', 'Please try again.');
+      }
+    } catch (err) {
+      console.warn('Auth error:', err);
       onUnlock();
-    } else if (result.error !== 'user_cancel') {
-      Alert.alert('Authentication Failed', 'Please try again.');
     }
   };
 
   return (
-    <SafeAreaView style={[styles.premiumContainer, { backgroundColor: theme.background }]}>
-      <LinearGradient 
-        colors={isDarkMode ? ['#090D16', '#141D30', '#090D16'] : ['#F8FAFC', '#FFF4ED', '#F8FAFC']} 
-        style={styles.premiumGradient}
-      >
-        {/* Dynamic Ambient Orbs */}
-        <Animated.View style={[styles.premiumGlowOrb, styles.premiumGlowOrbTop, animatedOrb1]} />
-        <Animated.View style={[styles.premiumGlowOrb, styles.premiumGlowOrbBottom, animatedOrb2]} />
-
-        <Animated.View style={[styles.premiumHero, animatedHero]}>
-          <View style={styles.premiumHeader}>
-            <View style={styles.brandBadge}>
-              <LinearGradient colors={theme.primaryGradient} style={styles.brandIconCircle}>
-                <Ionicons name="flash" size={20} color="#FFFFFF" />
-              </LinearGradient>
-              <View style={{ marginLeft: 10 }}>
-                <Text style={styles.brandName}>ServeBill</Text>
-                <Text style={styles.brandTag}>BUSINESS SUITE</Text>
-              </View>
+    <SafeAreaView style={styles.gateContainer} edges={['top', 'left', 'right', 'bottom']}>
+      <ScrollView contentContainerStyle={styles.gateScrollContent} showsVerticalScrollIndicator={false}>
+        {/* Top Header Row matching Main Dashboard */}
+        <Animated.View style={[styles.gateHeader, animatedHero]}>
+          <View style={styles.gateBrandGroup}>
+            <View style={styles.gateBrandSquircle}>
+              <Ionicons name="restaurant" size={20} color="#FF6B55" />
             </View>
-
-            <View style={styles.securityStatusPill}>
-              <View style={styles.securityDot} />
-              <Text style={styles.securityStatusText}>Secured</Text>
+            <View style={{ marginLeft: 12 }}>
+              <Text style={styles.gateBrandTitle}>ServeBill</Text>
+              <Text style={styles.gateBrandSubtitle}>CATERING PRO</Text>
             </View>
           </View>
 
-          <View style={styles.premiumTextWrap}>
-            <Text style={styles.premiumGreeting}>Welcome Back 👋</Text>
-            <Animated.View style={animatedText1}>
-              <Text style={[styles.premiumTitle, { color: theme.text }]}>
-                Smart <Text style={{ color: theme.primary }}>Billing.</Text>
-              </Text>
-            </Animated.View>
-            <Animated.View style={animatedText2}>
-              <Text style={[styles.premiumTitle2, { color: theme.text }]}>Smooth Business.</Text>
-            </Animated.View>
+          <View style={styles.gateStatusPill}>
+            <View style={styles.gateStatusDot} />
+            <Text style={styles.gateStatusText}>Secured</Text>
           </View>
-
-          <Animated.View style={[styles.premiumGlassCard, animatedCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <View style={styles.premiumCardHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Ionicons name="sparkles" size={16} color={theme.primary} style={{ marginRight: 6 }} />
-                <Text style={styles.premiumCardTitle}>Today's Snapshot</Text>
-              </View>
-              <View style={styles.trendPill}>
-                <View style={styles.liveIndicator} />
-                <Text style={styles.trendText}>Live Vault</Text>
-              </View>
-            </View>
-
-            <View style={styles.premiumStatsRow}>
-              <View style={styles.premiumStat}>
-                <Text style={[styles.premiumStatValue, { color: theme.text }]}>
-                  ₹{todaysSales.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </Text>
-                <Text style={styles.premiumStatLabel}>Today's Revenue</Text>
-              </View>
-              <View style={[styles.premiumStatDivider, { backgroundColor: theme.border }]} />
-              <View style={styles.premiumStat}>
-                <Text style={[styles.premiumStatValue, { color: theme.text }]}>{todaysCount}</Text>
-                <Text style={styles.premiumStatLabel}>Invoices Created</Text>
-              </View>
-            </View>
-
-            <View style={[styles.cardFooterNotice, { borderTopColor: theme.border }]}>
-              <Ionicons name="shield-checkmark-outline" size={14} color={theme.success} />
-              <Text style={styles.cardFooterNoticeText}>Offline First • Encrypted Storage</Text>
-            </View>
-          </Animated.View>
-
-          <View style={{ flex: 1 }} />
-
-          <Animated.View style={[animatedBtn, { width: '100%' }]}>
-            <TouchableOpacity
-              style={styles.premiumUnlockButton}
-              activeOpacity={0.88}
-              onPress={handleBiometricAuth}
-            >
-              <LinearGradient 
-                colors={theme.primaryGradient} 
-                start={{ x: 0, y: 0 }} 
-                end={{ x: 1, y: 0 }}
-                style={styles.premiumUnlockGradient}
-              >
-                <Ionicons name="finger-print" size={24} color="#FFFFFF" style={{ marginRight: 10 }} />
-                <Text style={styles.premiumUnlockText}>Unlock Workspace</Text>
-                <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
-              </LinearGradient>
-            </TouchableOpacity>
-          </Animated.View>
-
         </Animated.View>
-      </LinearGradient>
+
+        {/* Hero Card matching Screen 1 Coral Card (#FFD5CC) */}
+        <Animated.View style={[styles.gateHeroCard, animatedCard]}>
+          <View style={styles.gateHeroTopRow}>
+            <View style={styles.gateHeroBadge}>
+              <Ionicons name="lock-closed" size={13} color="#A14F2B" />
+              <Text style={styles.gateHeroBadgeText}>Workspace Protected</Text>
+            </View>
+            <View style={styles.gateHeroCircleIcon}>
+              <Ionicons name="shield-checkmark" size={16} color="#232136" />
+            </View>
+          </View>
+
+          <Text style={styles.gateHeroHeading}>
+            Manage Events.{'\n'}Serve with Ease.
+          </Text>
+          <Text style={styles.gateHeroSub}>
+            Private business ledger, multi-day invoices & store pricing.
+          </Text>
+
+          {/* 4 Stats Spread Horizontally matching Screen 1 */}
+          <View style={styles.gateStatsSpread}>
+            <View style={styles.gateStatCol}>
+              <Text style={styles.gateStatLabel}>Today</Text>
+              <Text style={styles.gateStatValue}>
+                ₹{(todaysSales / 1000).toFixed(1)}k
+              </Text>
+            </View>
+            <View style={styles.gateStatCol}>
+              <Text style={styles.gateStatLabel}>Orders</Text>
+              <Text style={styles.gateStatValue}>{todaysCount}</Text>
+            </View>
+            <View style={styles.gateStatCol}>
+              <Text style={styles.gateStatLabel}>Storage</Text>
+              <Text style={styles.gateStatValue}>Encrypted</Text>
+            </View>
+            <View style={styles.gateStatCol}>
+              <Text style={styles.gateStatLabel}>Mode</Text>
+              <Text style={styles.gateStatValue}>Offline</Text>
+            </View>
+          </View>
+
+          {/* Bottom row: Today's Date pill */}
+          <View style={styles.gateHeroBottomRow}>
+            <View style={styles.gateDatePill}>
+              <Ionicons name="calendar-outline" size={12} color="#4A455A" style={{ marginRight: 4 }} />
+              <Text style={styles.gateDatePillText}>
+                {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </Text>
+            </View>
+            <Text style={styles.gateLiveTag}>● Live Vault</Text>
+          </View>
+        </Animated.View>
+
+        {/* 2x1 Feature Cards Preview matching Screen 1 & 3 Pastel Theme */}
+        <Animated.View style={[styles.gateFeatureRow, animatedGrid]}>
+          <View style={[styles.gateFeatureCard, { backgroundColor: '#DCD9FF' }]}>
+            <View style={styles.gateFeatureCardTop}>
+              <Text style={styles.gateFeatureTitle}>Bills & Vault</Text>
+              <View style={styles.gateFeatureIconSquircle}>
+                <Ionicons name="receipt" size={14} color="#554E96" />
+              </View>
+            </View>
+            <Text style={styles.gateFeatureSub}>Multi-Day Event Bills & PDF Export</Text>
+          </View>
+
+          <View style={[styles.gateFeatureCard, { backgroundColor: '#FFE6D8' }]}>
+            <View style={styles.gateFeatureCardTop}>
+              <Text style={styles.gateFeatureTitle}>Store Prices</Text>
+              <View style={styles.gateFeatureIconSquircle}>
+                <Ionicons name="storefront" size={14} color="#A14F2B" />
+              </View>
+            </View>
+            <Text style={styles.gateFeatureSub}>Compare Local Wholesale Rates</Text>
+          </View>
+        </Animated.View>
+
+        <View style={{ flex: 1, minHeight: 20 }} />
+
+        {/* Unlock Action Button matching the Dark Squircle `#1E1D2E` from reference dock */}
+        <Animated.View style={[styles.gateBtnWrap, animatedBtn]}>
+          <TouchableOpacity
+            style={styles.gateUnlockButton}
+            activeOpacity={0.88}
+            onPress={handleBiometricAuth}
+          >
+            <View style={styles.gateUnlockIconCircle}>
+              <Ionicons name="finger-print" size={20} color="#FFFFFF" />
+            </View>
+            <Text style={styles.gateUnlockButtonText}>Unlock Workspace</Text>
+            <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+          </TouchableOpacity>
+
+          <Text style={styles.gateSecurityCaption}>
+            Biometric authentication or device passcode
+          </Text>
+        </Animated.View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -510,219 +504,269 @@ const getStyles = (theme, isDarkMode) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  premiumContainer: { 
-    flex: 1, 
-    backgroundColor: theme.background,
-    height: Platform.OS === 'web' ? '100vh' : '100%',
-    overflow: 'hidden',
-  },
-  premiumGradient: { flex: 1 },
-  premiumGlowOrb: {
-    position: 'absolute',
-    borderRadius: 999,
-  },
-  premiumGlowOrbTop: {
-    width: 380,
-    height: 380,
-    top: -120,
-    right: -100,
-    backgroundColor: isDarkMode ? 'rgba(255, 106, 70, 0.12)' : 'rgba(255, 127, 80, 0.16)',
-  },
-  premiumGlowOrbBottom: {
-    width: 360,
-    height: 360,
-    bottom: -100,
-    left: -100,
-    backgroundColor: isDarkMode ? 'rgba(99, 102, 241, 0.10)' : 'rgba(255, 220, 205, 0.55)',
-  },
-  premiumHero: {
+  // Premium Landing Gate (Reference Pastel Style)
+  gateContainer: {
     flex: 1,
-    paddingHorizontal: 26,
-    paddingTop: 24,
-    paddingBottom: 36,
-    zIndex: 10,
+    backgroundColor: isDarkMode ? '#13111C' : '#F8F7FC',
   },
-  premiumHeader: {
-    flexDirection: 'row',
+  gateScrollContent: {
+    paddingHorizontal: 22,
+    paddingTop: 16,
+    paddingBottom: 28,
+    flexGrow: 1,
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 44,
   },
-  brandBadge: {
+  gateHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    marginTop: Platform.OS === 'android' ? 10 : 4,
+  },
+  gateBrandGroup: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  brandIconCircle: {
+  gateBrandSquircle: {
     width: 44,
     height: 44,
     borderRadius: 16,
-    justifyContent: 'center',
+    backgroundColor: isDarkMode ? '#2A283E' : '#FFE6D8',
     alignItems: 'center',
-    shadowColor: theme.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  brandName: {
+  gateBrandTitle: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '900',
     color: theme.text,
     letterSpacing: -0.3,
   },
-  brandTag: {
+  gateBrandSubtitle: {
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '800',
     color: theme.primary,
     letterSpacing: 1,
     marginTop: 1,
   },
-  securityStatusPill: {
+  gateStatusPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.card,
+    backgroundColor: isDarkMode ? '#1E1D2E' : '#FFFFFF',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: isDarkMode ? '#2E2D42' : 'rgba(0,0,0,0.06)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  securityDot: {
+  gateStatusDot: {
     width: 7,
     height: 7,
     borderRadius: 4,
-    backgroundColor: theme.success,
+    backgroundColor: '#10B981',
     marginRight: 6,
   },
-  securityStatusText: {
+  gateStatusText: {
     fontSize: 12,
     fontWeight: '700',
-    color: theme.textSecondary,
+    color: isDarkMode ? '#C5C3D4' : '#5E5B72',
   },
-  premiumTextWrap: {
-    marginBottom: 36,
-  },
-  premiumGreeting: {
-    color: theme.textSecondary,
-    fontSize: 16,
-    marginBottom: 8,
-    fontWeight: '600',
-    letterSpacing: 0.2,
-  },
-  premiumTitle: {
-    fontSize: 42,
-    fontWeight: '900',
-    letterSpacing: -0.8,
-    lineHeight: 48,
-  },
-  premiumTitle2: {
-    fontSize: 38,
-    fontWeight: '800',
-    letterSpacing: -0.6,
-    lineHeight: 44,
-  },
-  premiumGlassCard: {
-    borderRadius: 26,
-    padding: 24,
-    borderWidth: 1,
-    shadowColor: theme.shadow,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: isDarkMode ? 0.3 : 0.06,
-    shadowRadius: 24,
-    elevation: 6,
-  },
-  premiumCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  premiumCardTitle: {
-    color: theme.textSecondary,
-    fontSize: 13,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  trendPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.primaryLight,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  liveIndicator: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: theme.primary,
-    marginRight: 5,
-  },
-  trendText: {
-    color: theme.primary,
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  premiumStatsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  premiumStat: {
-    flex: 1,
-  },
-  premiumStatValue: {
-    fontSize: 28,
-    fontWeight: '900',
-    marginBottom: 4,
-    letterSpacing: -0.5,
-  },
-  premiumStatLabel: {
-    color: theme.textMuted,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  premiumStatDivider: {
-    width: 1,
-    height: 44,
-    marginHorizontal: 16,
-  },
-  cardFooterNotice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 18,
-    paddingTop: 14,
-    borderTopWidth: 1,
-  },
-  cardFooterNoticeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: theme.textSecondary,
-    marginLeft: 6,
-  },
-  premiumUnlockButton: {
-    width: '100%',
-    borderRadius: 20,
-    overflow: 'hidden',
-    shadowColor: theme.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
+
+  // Hero Card (#FFD5CC)
+  gateHeroCard: {
+    backgroundColor: isDarkMode ? '#2D222A' : '#FFD5CC',
+    borderRadius: 28,
+    padding: 22,
+    marginBottom: 16,
+    shadowColor: '#FF6B55',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: isDarkMode ? 0.2 : 0.1,
     shadowRadius: 16,
-    elevation: 8,
+    elevation: 3,
   },
-  premiumUnlockGradient: {
+  gateHeroTopRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  gateHeroBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+  },
+  gateHeroBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#8A3B18',
+    marginLeft: 5,
+  },
+  gateHeroCircleIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 18,
-    paddingHorizontal: 20,
   },
-  premiumUnlockText: {
-    color: '#FFFFFF',
-    fontSize: 17,
+  gateHeroHeading: {
+    fontSize: 26,
+    fontWeight: '900',
+    color: '#232136',
+    letterSpacing: -0.6,
+    lineHeight: 32,
+    marginBottom: 6,
+  },
+  gateHeroSub: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#554E60',
+    lineHeight: 18,
+    marginBottom: 18,
+  },
+  gateStatsSpread: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.65)',
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    marginBottom: 14,
+  },
+  gateStatCol: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  gateStatLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#766F85',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginBottom: 2,
+  },
+  gateStatValue: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#232136',
+  },
+  gateHeroBottomRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 4,
+  },
+  gateDatePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.65)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  gateDatePillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#4A455A',
+  },
+  gateLiveTag: {
+    fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 0.3,
-    marginRight: 6,
+    color: '#2E7D32',
+  },
+
+  // Feature Row
+  gateFeatureRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  gateFeatureCard: {
+    width: '48.5%',
+    borderRadius: 22,
+    padding: 16,
+    minHeight: 104,
+    justifyContent: 'space-between',
+  },
+  gateFeatureCardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  gateFeatureTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#25243A',
+  },
+  gateFeatureIconSquircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 9,
+    backgroundColor: 'rgba(255,255,255,0.65)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gateFeatureSub: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#4B4863',
+    lineHeight: 15,
+    marginTop: 8,
+  },
+
+  // Unlock Button
+  gateBtnWrap: {
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  gateUnlockButton: {
+    width: '100%',
+    height: 58,
+    borderRadius: 22,
+    backgroundColor: isDarkMode ? '#FF7E69' : '#1E1D2E',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    shadowColor: isDarkMode ? '#FF7E69' : '#1E1D2E',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  gateUnlockIconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gateUnlockButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  gateSecurityCaption: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: isDarkMode ? '#8E8BA0' : '#8C899F',
+    marginTop: 12,
+    textAlign: 'center',
   },
 });
