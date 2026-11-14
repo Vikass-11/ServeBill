@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   Platform,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -101,7 +102,31 @@ export default function OverallDashboardScreen({ navigation }) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [heroView, setHeroView] = useState('coral'); // 'coral' (Screen 1) or 'progress' (Screen 2)
-  const [timeFilter, setTimeFilter] = useState('today'); // 'today' or 'month'
+  const [timeFilter, setTimeFilter] = useState('today'); // 'today', 'yesterday', or 'month'
+
+  const [selectedMonthOffset, setSelectedMonthOffset] = useState(0);
+  const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
+  const [isTimeFilterModalOpen, setIsTimeFilterModalOpen] = useState(false);
+
+  const availableMonths = useMemo(() => {
+    const list = [];
+    for (let i = 0; i < 12; i++) {
+      const d = new Date();
+      d.setDate(1);
+      d.setMonth(d.getMonth() - i);
+      list.push({
+        offset: -i,
+        label: d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
+        month: d.getMonth(),
+        year: d.getFullYear(),
+      });
+    }
+    return list;
+  }, []);
+
+  const selectedMonth = useMemo(() => {
+    return availableMonths.find((m) => m.offset === selectedMonthOffset) || availableMonths[0];
+  }, [availableMonths, selectedMonthOffset]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -120,13 +145,20 @@ export default function OverallDashboardScreen({ navigation }) {
   );
 
   const stats = useMemo(() => {
-    const todayStr = new Date().toLocaleDateString('en-IN');
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
+    const today = new Date();
+    const todayStr = today.toLocaleDateString('en-IN');
+
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+    const yesterdayStr = yesterday.toLocaleDateString('en-IN');
 
     let todayRevenue = 0;
     let todayCollected = 0;
     let todayOrdersCount = 0;
+
+    let yesterdayRevenue = 0;
+    let yesterdayCollected = 0;
+    let yesterdayOrdersCount = 0;
 
     let monthRevenue = 0;
     let monthCollected = 0;
@@ -142,39 +174,57 @@ export default function OverallDashboardScreen({ navigation }) {
 
       const d = new Date(inv.date);
       const isDateValid = !isNaN(d.getTime());
+      const dateInStr = isDateValid ? d.toLocaleDateString('en-IN') : '';
 
       // Check Today
-      const isToday =
-        inv.date === todayStr ||
-        (isDateValid && d.toLocaleDateString('en-IN') === todayStr);
-
+      const isToday = inv.date === todayStr || dateInStr === todayStr;
       if (isToday) {
         todayOrdersCount++;
         todayRevenue += rev;
         todayCollected += rec;
       }
 
-      // Check This Month
-      const isThisMonth =
-        isDateValid &&
-        d.getMonth() === currentMonth &&
-        d.getFullYear() === currentYear;
+      // Check Yesterday
+      const isYesterday = inv.date === yesterdayStr || dateInStr === yesterdayStr;
+      if (isYesterday) {
+        yesterdayOrdersCount++;
+        yesterdayRevenue += rev;
+        yesterdayCollected += rec;
+      }
 
-      if (isThisMonth) {
+      // Check Selected Month
+      const isSelectedMonth =
+        isDateValid &&
+        d.getMonth() === selectedMonth.month &&
+        d.getFullYear() === selectedMonth.year;
+
+      if (isSelectedMonth) {
         monthOrdersCount++;
         monthRevenue += rev;
         monthCollected += rec;
       }
     });
 
-    const activeRevenue = timeFilter === 'today' ? todayRevenue : monthRevenue;
-    const activeCollected = timeFilter === 'today' ? todayCollected : monthCollected;
-    const activeBalance = Math.max(0, activeRevenue - activeCollected);
-    const activeOrders = timeFilter === 'today' ? todayOrdersCount : monthOrdersCount;
+    let activeRevenue = todayRevenue;
+    let activeCollected = todayCollected;
+    let activeOrders = todayOrdersCount;
 
-    const collectionRatio = monthRevenue > 0
-      ? Math.min(100, Math.round((monthCollected / monthRevenue) * 100))
-      : 95;
+    if (timeFilter === 'yesterday') {
+      activeRevenue = yesterdayRevenue;
+      activeCollected = yesterdayCollected;
+      activeOrders = yesterdayOrdersCount;
+    } else if (timeFilter === 'month') {
+      activeRevenue = monthRevenue;
+      activeCollected = monthCollected;
+      activeOrders = monthOrdersCount;
+    }
+
+    const activeBalance = Math.max(0, activeRevenue - activeCollected);
+
+    const collectionRatio =
+      monthRevenue > 0
+        ? Math.min(100, Math.round((monthCollected / monthRevenue) * 100))
+        : 95;
 
     return {
       activeRevenue,
@@ -187,7 +237,7 @@ export default function OverallDashboardScreen({ navigation }) {
       monthOrdersCount,
       collectionRatio,
     };
-  }, [invoices, timeFilter]);
+  }, [invoices, timeFilter, selectedMonth]);
 
   const recentOrders = useMemo(() => {
     return [...(invoices || [])]
@@ -334,10 +384,14 @@ export default function OverallDashboardScreen({ navigation }) {
               <TouchableOpacity
                 style={styles.heroDropdownPill}
                 activeOpacity={0.8}
-                onPress={() => setTimeFilter(timeFilter === 'today' ? 'month' : 'today')}
+                onPress={() => setIsTimeFilterModalOpen(true)}
               >
                 <Text style={styles.heroDropdownText}>
-                  {timeFilter === 'today' ? 'Today' : 'This Month'}
+                  {timeFilter === 'today'
+                    ? 'Today'
+                    : timeFilter === 'yesterday'
+                    ? 'Yesterday'
+                    : 'This Month'}
                 </Text>
                 <Ionicons name="chevron-down" size={12} color="#4A455A" style={{ marginLeft: 4 }} />
               </TouchableOpacity>
@@ -365,12 +419,13 @@ export default function OverallDashboardScreen({ navigation }) {
                 {stats.collectionRatio}%
               </Text>
 
+              {/* MONTH SELECTOR PILL - OPENS MONTH PICKER MODAL */}
               <TouchableOpacity
                 style={styles.progressDatePill}
                 activeOpacity={0.8}
-                onPress={() => setHeroView('coral')}
+                onPress={() => setIsMonthPickerOpen(true)}
               >
-                <Text style={styles.progressDateText}>November 2026</Text>
+                <Text style={styles.progressDateText}>{selectedMonth.label}</Text>
                 <Ionicons name="chevron-down" size={12} color="#554E96" style={{ marginLeft: 4 }} />
               </TouchableOpacity>
             </View>
@@ -381,8 +436,9 @@ export default function OverallDashboardScreen({ navigation }) {
                 style={[styles.heroCircleActionBtn, { marginBottom: 8 }]}
                 activeOpacity={0.85}
                 onPress={() => setHeroView('coral')}
+                accessibilityLabel="Switch to Today's View"
               >
-                <Ionicons name="restaurant" size={15} color="#232136" />
+                <Ionicons name="swap-horizontal" size={16} color="#232136" />
               </TouchableOpacity>
 
               <CircularGauge
@@ -650,6 +706,120 @@ export default function OverallDashboardScreen({ navigation }) {
         onClose={() => setIsQuickAddOpen(false)}
         navigation={navigation}
       />
+
+      {/* MONTH PICKER MODAL (FOR PROGRESS HERO CARD) */}
+      <Modal
+        visible={isMonthPickerOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsMonthPickerOpen(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setIsMonthPickerOpen(false)}
+        >
+          <View style={styles.sheetContainer}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Select Month</Text>
+
+            <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
+              {availableMonths.map((m) => {
+                const isSelected = selectedMonthOffset === m.offset;
+                return (
+                  <TouchableOpacity
+                    key={m.offset}
+                    style={[styles.sheetOptionRow, isSelected && styles.sheetOptionRowActive]}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      setSelectedMonthOffset(m.offset);
+                      setIsMonthPickerOpen(false);
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Ionicons
+                        name="calendar-outline"
+                        size={18}
+                        color={isSelected ? theme.primary : theme.textSecondary}
+                        style={{ marginRight: 12 }}
+                      />
+                      <Text
+                        style={[
+                          styles.sheetOptionText,
+                          isSelected && { fontWeight: '800', color: theme.primary },
+                        ]}
+                      >
+                        {m.label}
+                      </Text>
+                    </View>
+                    {isSelected && (
+                      <Ionicons name="checkmark-circle" size={18} color={theme.primary} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* TIME FILTER MODAL (FOR TODAY HERO CARD) */}
+      <Modal
+        visible={isTimeFilterModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsTimeFilterModalOpen(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setIsTimeFilterModalOpen(false)}
+        >
+          <View style={styles.sheetContainer}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Filter Catering Overview</Text>
+
+            {[
+              { key: 'today', label: 'Today', icon: 'today-outline' },
+              { key: 'yesterday', label: 'Yesterday', icon: 'time-outline' },
+              { key: 'month', label: 'This Month', icon: 'calendar-outline' },
+            ].map((opt) => {
+              const isSelected = timeFilter === opt.key;
+              return (
+                <TouchableOpacity
+                  key={opt.key}
+                  style={[styles.sheetOptionRow, isSelected && styles.sheetOptionRowActive]}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    setTimeFilter(opt.key);
+                    setIsTimeFilterModalOpen(false);
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons
+                      name={opt.icon}
+                      size={18}
+                      color={isSelected ? theme.primary : theme.textSecondary}
+                      style={{ marginRight: 12 }}
+                    />
+                    <Text
+                      style={[
+                        styles.sheetOptionText,
+                        isSelected && { fontWeight: '800', color: theme.primary },
+                      ]}
+                    >
+                      {opt.label}
+                    </Text>
+                  </View>
+                  {isSelected && (
+                    <Ionicons name="checkmark-circle" size={18} color={theme.primary} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1218,5 +1388,56 @@ const getStyles = (theme, isDarkMode) =>
       fontSize: 9,
       fontWeight: '800',
       letterSpacing: 0.4,
+    },
+
+    // Bottom Sheet Modals (Month Picker & Time Filter)
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.45)',
+      justifyContent: 'flex-end',
+    },
+    sheetContainer: {
+      backgroundColor: isDarkMode ? '#1E1D2E' : '#FFFFFF',
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      paddingHorizontal: 22,
+      paddingTop: 12,
+      paddingBottom: Platform.OS === 'ios' ? 40 : 28,
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: -4 },
+      shadowOpacity: 0.1,
+      shadowRadius: 12,
+      elevation: 10,
+    },
+    sheetHandle: {
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: isDarkMode ? '#38354D' : '#E4E2ED',
+      alignSelf: 'center',
+      marginBottom: 16,
+    },
+    sheetTitle: {
+      fontSize: 17,
+      fontWeight: '800',
+      color: theme.text,
+      marginBottom: 16,
+    },
+    sheetOptionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 14,
+      paddingHorizontal: 12,
+      borderRadius: 14,
+      marginBottom: 6,
+    },
+    sheetOptionRowActive: {
+      backgroundColor: isDarkMode ? '#2D2845' : '#F0EEF8',
+    },
+    sheetOptionText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: theme.text,
     },
   });
