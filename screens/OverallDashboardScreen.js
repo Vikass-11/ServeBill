@@ -77,7 +77,7 @@ const gaugeStyles = StyleSheet.create({
 });
 
 // Circular Progress Gauge Ring matching Screen 2
-function CircularGauge({ progress = 0.95, valueText = '1350', labelText = 'Plates' }) {
+function CircularGauge({ progress = 0, valueText = '0', labelText = 'Plates' }) {
   return (
     <View style={gaugeStyles.gaugeContainer}>
       <View style={gaugeStyles.gaugeOuterRing}>
@@ -163,6 +163,7 @@ export default function OverallDashboardScreen({ navigation }) {
     let monthRevenue = 0;
     let monthCollected = 0;
     let monthOrdersCount = 0;
+    let monthPlatesCount = 0;
     let totalPending = 0;
 
     (invoices || []).forEach((inv) => {
@@ -202,6 +203,41 @@ export default function OverallDashboardScreen({ navigation }) {
         monthOrdersCount++;
         monthRevenue += rev;
         monthCollected += rec;
+
+        // Calculate actual plates for this invoice
+        let invPlates = 0;
+        if (Array.isArray(inv.events)) {
+          inv.events.forEach((ev) => {
+            if (ev?.sessions) {
+              Object.values(ev.sessions).forEach((sess) => {
+                if (sess?.meals && Array.isArray(sess.meals)) {
+                  sess.meals.forEach((m) => {
+                    invPlates += parseInt(m.quantity, 10) || 0;
+                  });
+                }
+                if (sess?.items && Array.isArray(sess.items)) {
+                  sess.items.forEach((it) => {
+                    invPlates += parseInt(it.quantity, 10) || 0;
+                  });
+                }
+              });
+            }
+            if (ev?.meals && Array.isArray(ev.meals)) {
+              ev.meals.forEach((m) => {
+                invPlates += parseInt(m.quantity, 10) || 0;
+              });
+            }
+          });
+        }
+        if (invPlates === 0 && inv.items && Array.isArray(inv.items)) {
+          inv.items.forEach((it) => {
+            invPlates += parseInt(it.quantity, 10) || 0;
+          });
+        }
+        if (invPlates === 0 && (parseInt(inv.guestCount, 10) || 0) > 0) {
+          invPlates += parseInt(inv.guestCount, 10);
+        }
+        monthPlatesCount += invPlates;
       }
     });
 
@@ -221,10 +257,11 @@ export default function OverallDashboardScreen({ navigation }) {
 
     const activeBalance = Math.max(0, activeRevenue - activeCollected);
 
+    // Exact collection ratio: 0% if no revenue, never a fake 95% default
     const collectionRatio =
       monthRevenue > 0
         ? Math.min(100, Math.round((monthCollected / monthRevenue) * 100))
-        : 95;
+        : 0;
 
     return {
       activeRevenue,
@@ -235,6 +272,7 @@ export default function OverallDashboardScreen({ navigation }) {
       monthCollected,
       totalPending,
       monthOrdersCount,
+      monthPlatesCount,
       collectionRatio,
     };
   }, [invoices, timeFilter, selectedMonth]);
@@ -319,7 +357,7 @@ export default function OverallDashboardScreen({ navigation }) {
                   <Text style={styles.heroCardSub}>
                     {stats.activeOrders > 0
                       ? `${stats.activeOrders} Events Booked`
-                      : '350 plates • 2 Venues'}
+                      : '0 Events Scheduled'}
                   </Text>
                 </View>
               </View>
@@ -443,7 +481,7 @@ export default function OverallDashboardScreen({ navigation }) {
 
               <CircularGauge
                 progress={stats.collectionRatio / 100}
-                valueText={`${stats.monthOrdersCount > 0 ? stats.monthOrdersCount * 85 : 1350}`}
+                valueText={`${stats.monthPlatesCount}`}
                 labelText="Plates"
               />
             </View>
