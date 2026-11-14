@@ -25,7 +25,7 @@ import { getAutoProductImage } from '../../services/productImages';
 const STANDARD_UNITS = ['kg', 'g', 'Litre', 'ml', 'Packet', 'Box', 'Piece', 'Bag'];
 
 export default function StoreDetailScreen({ route, navigation }) {
-  const { store } = route.params;
+  const { store } = route?.params || {};
   const { stores, addStore, storeItems, fetchStoreItems, logPurchase, deleteStoreItem, uploadPhoto } = useContext(StoreContext);
   const { addShopExpense } = useContext(BusinessContext);
   const { theme, isDarkMode } = useContext(ThemeContext);
