@@ -40,6 +40,7 @@ import { StoreProvider } from './context/StoreContext';
 import StoreDirectoryScreen from './screens/stores/StoreDirectoryScreen';
 import StoreDetailScreen from './screens/stores/StoreDetailScreen';
 import StorePriceCompareScreen from './screens/stores/StorePriceCompareScreen';
+import { parseSafeDate, isSameDay } from './services/dateUtils';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -219,10 +220,12 @@ function PremiumLandingGate({ onUnlock }) {
   const styles = getStyles(theme, isDarkMode);
   const { invoices } = useContext(InvoiceContext);
 
-  const todayStr = new Date().toLocaleDateString('en-IN');
-  const todayInvoices = invoices.filter(i => {
+  const today = new Date();
+  const todayStr = today.toLocaleDateString('en-IN');
+  const todayInvoices = (invoices || []).filter(i => {
     if (i.date === todayStr) return true;
-    try { return new Date(i.date).toLocaleDateString('en-IN') === todayStr; } catch { return false; }
+    const d = parseSafeDate(i.date);
+    return d ? isSameDay(d, today) : false;
   });
   const todaysSales = todayInvoices.reduce((sum, inv) => sum + parseFloat(inv.grandTotal || 0), 0);
   const todaysCount = todayInvoices.length;
